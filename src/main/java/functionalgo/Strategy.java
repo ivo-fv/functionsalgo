@@ -8,34 +8,18 @@ public abstract class Strategy {
     
     protected final boolean isLive;
     
-    protected Exchange exchange;
-    protected DataProvider dataProvider;
-    protected ExchangeTradeExecutor exchangeTradeExecutor;
-    
-    public static Strategy setupStrategy(String stratClassName, boolean isLive, String exchangeName, String dataProviderName,
-            String tradeExecutorName) throws StandardJavaException {
+    public static Strategy setupStrategy(String stratClassName, boolean isLive) throws StandardJavaException {
         
         try {
-            return (Strategy) Class.forName(stratClassName).getConstructor().newInstance(false, exchangeName, dataProviderName,
-                    tradeExecutorName);
+            return (Strategy) Class.forName(stratClassName).getConstructor().newInstance(false);
         } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
                 | NoSuchMethodException | SecurityException | ClassNotFoundException e) {
             throw new StandardJavaException(e);
         }
     }
     
-    public Strategy(boolean isLive, String exchangeName, String dataProviderName, String tradeExecutorName)
-            throws StandardJavaException {
-        
+    protected Strategy(boolean isLive){
         this.isLive = isLive;
-        try {
-            exchange = (Exchange) Class.forName(exchangeName).getConstructor().newInstance();
-            dataProvider = (DataProvider) Class.forName(dataProviderName).getConstructor().newInstance();
-            exchangeTradeExecutor = (ExchangeTradeExecutor) Class.forName(tradeExecutorName).getConstructor().newInstance();
-        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
-                | NoSuchMethodException | SecurityException | ClassNotFoundException e) {
-            throw new StandardJavaException(e);
-        }
     }
     
     /**
