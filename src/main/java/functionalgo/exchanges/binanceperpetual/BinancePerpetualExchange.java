@@ -3,11 +3,15 @@ package functionalgo.exchanges.binanceperpetual;
 import functionalgo.Exchange;
 
 public interface BinancePerpetualExchange extends Exchange {
-
-    int getLongPositionPnL(String longSymbol);
-
-    int getShortPositionPnL(String shortSymbol);
-
-    Object getNextFundingTime();
+    
+    long getNextFundingTime();
+    
+    double getLongOpenPrice(String longSymbol);
+    
+    double getLongQuantity(String longSymbol);
+    
+    double getShortOpenPrice(String shortSymbol);
+    
+    double getShortQuantity(String shortSymbol);
     
 }

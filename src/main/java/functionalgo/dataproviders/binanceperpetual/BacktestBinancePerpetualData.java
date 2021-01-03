@@ -10,5 +10,12 @@ public class BacktestBinancePerpetualData implements BinancePerpetualDataProvide
         // TODO Auto-generated method stub
         return 0;
     }
+
+    @Override
+    public double getOpen(String symbol, long timestamp) {
+        
+        // TODO Auto-generated method stub
+        return 0;
+    }
     
 }
