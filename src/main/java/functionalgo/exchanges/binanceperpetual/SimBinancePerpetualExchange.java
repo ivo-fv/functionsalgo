@@ -4,26 +4,23 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
-import backtests.binance.futures.PositionData;
-import backtests.binance.futures.Utils;
-
-class PositionData {
-    
-    public double openPrice;
-    public double currPrice;
-    public double quantity;
-    public double initialMargin;
-    
-    public PositionData(double openPrice, double quantity, double initialMargin) {
-        
-        this.openPrice = openPrice;
-        this.currPrice = openPrice;
-        this.quantity = quantity;
-        this.initialMargin = initialMargin;
-    }
-}
-
 public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
+    
+    private class PositionData {
+        
+        private double openPrice;
+        private double currPrice;
+        private double quantity;
+        private double initialMargin;
+        
+        public PositionData(double openPrice, double quantity, double initialMargin) {
+            
+            this.openPrice = openPrice;
+            this.currPrice = openPrice;
+            this.quantity = quantity;
+            this.initialMargin = initialMargin;
+        }
+    }
     
     private static final long FUNDING_INTERVAL_MILLIS = 28800000; // 8 hours
     private static final long UPDATE_INTERVAL_MILLIS = 300000; // 5 minutes TODO change to 1 minute
@@ -35,6 +32,8 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
     private HashMap<String, PositionData> shortPositions;
     private long lastUpdatedTime;
     private long nextFundingTime;
+    
+    private Klines klines;
     
     // TODO buy() sell()
     
@@ -48,6 +47,7 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
         
         lastUpdatedTime = 0;
         
+        klines = Klines.loadKlines();
     }
     
     @Override
@@ -120,7 +120,7 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
         for (Map.Entry<String, PositionData> entry : longPositions.entrySet()) {
             
             // should use a mark price for more accuracy
-            double currPrice = klines.get(timestamp).get(entry.getKey()).open;
+            double currPrice = klines.getOpen(entry.getKey(), timestamp);
             
             entry.getValue().currPrice = currPrice;
             
@@ -131,7 +131,7 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
         for (Map.Entry<String, PositionData> entry : shortPositions.entrySet()) {
             
             // should use a mark price for more accuracy
-            double currPrice = klines.get(timestamp).get(entry.getKey()).open;
+            double currPrice = klines.getOpen(entry.getKey(), timestamp);
             
             entry.getValue().currPrice = currPrice;
             
