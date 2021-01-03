@@ -2,7 +2,7 @@ package functionalgo.perpetual.exchanges.simbinance;
 
 import functionalgo.ExchangeTradeExecutor;
 
-public class ISimBinancePerpetualTradeExecutor implements ExchangeTradeExecutor {
+public class SimBinancePerpetualTradeExecutor implements ExchangeTradeExecutor {
     
     @Override
     public void execute() {

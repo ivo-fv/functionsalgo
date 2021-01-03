@@ -9,9 +9,9 @@ public class Function {
     private static final String LIVE_EXCHANGE_NAME = "LiveExchange";
     private static final String LIVE_DATA_PROVIDER_NAME = "LiveDataProvider";
     private static final String LIVE_TRADE_EXECUTOR_NAME = "LiveTradeExecutor";
-    private static final String SIM_EXCHANGE_NAME = "functionalgo.perpetual.exchanges.simbinance.ISimBinancePerpetual";
-    private static final String SIM_DATA_PROVIDER_NAME = "SimulatedDataProvider";
-    private static final String SIM_TRADE_EXECUTOR_NAME = "SimulatedTradeExecutor";
+    private static final String SIM_EXCHANGE_NAME = "functionalgo.perpetual.exchanges.simbinance.SimBinancePerpetual";
+    private static final String SIM_DATA_PROVIDER_NAME = "functionalgo.dataproviders.BacktestBinancePerpetualData";
+    private static final String SIM_TRADE_EXECUTOR_NAME = "functionalgo.perpetual.exchanges.simbinance.SimBinancePerpetualTradeExecutor";
     
     private Strategy strategy;
     
@@ -48,7 +48,7 @@ public class Function {
      * //TODO
      * 
      * @param timestamp
-     *            unix timestamp in seconds of when this should execute
+     *            current unix timestamp in miliseconds
      */
     public void run(long timestamp) {
         

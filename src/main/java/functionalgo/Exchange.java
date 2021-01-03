@@ -1,16 +1,20 @@
 package functionalgo;
 
+/**
+ * If implementing a simulated exchange, first update the account's position's PnL, margin balance, wallet
+ * balance, calculate funding fees, perform margin checks...
+ * 
+ * An Exchange has methods to get an exchange/broker account information and to place trades. Exactly what
+ * they are is up to the specific exchange implementation to decide.
+ */
 public interface Exchange {
     
     /**
-     * If implementing a simulated exchange, first update the account's position's PnL, margin balance, wallet
-     * balance, calculate funding fees, perform margin checks...
-     * For a live exchange implementation, grab the needed information to construct an ExchangeAccountState.
+     * Updates every information about the account state at the exchange.
      * 
      * @param timestamp
-     *            requires a valid timestamp if backtesting
-     * @return state of the trading account at the exchange
+     *            current unix timestamp in miliseconds
      */
-    ExchangeAccountState getAccountState(long timestamp);
+    void updateAccountInfo(long timestamp);
     
 }

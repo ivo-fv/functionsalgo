@@ -7,6 +7,7 @@ import functionalgo.exceptions.StandardJavaException;
 public abstract class Strategy {
     
     protected final boolean isLive;
+    
     protected Exchange exchange;
     protected DataProvider dataProvider;
     protected ExchangeTradeExecutor exchangeTradeExecutor;
@@ -38,13 +39,12 @@ public abstract class Strategy {
     }
     
     /**
-     * TODO (redo doc) First decide which exchange to get an ExchangeAccountState from, grab the needed data
-     * (candles...), then decide
-     * what actions to take, then execute those actions.
+     * TODO (redo doc) First decide which exchange to get information from, grab the needed data
+     * (candles...), then decide what actions to take, then execute those actions.
      * Execute the actions by sending them to the Exchange, and Log them.
      * 
      * @param timestamp
-     *            unix timestamp in seconds of when this should execute, ignored when live trading (TODO???)
+     *            current unix timestamp in miliseconds
      */
     public abstract void execute(long timestamp);
     
