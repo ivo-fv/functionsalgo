@@ -1,6 +1,5 @@
 package functionalgo.exchanges.binanceperpetual;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -34,6 +33,7 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
     private long nextFundingTime;
     
     private Klines klines;
+    private FundingRates fundingRates;
     
     // TODO buy() sell()
     
@@ -47,7 +47,8 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
         
         lastUpdatedTime = 0;
         
-        klines = Klines.loadKlines();
+        klines = Klines.loadKlines(Klines.KLINES_FILE);
+        fundingRates = FundingRates.loadFundingRates(FundingRates.FUND_RATES_FILE);
     }
     
     @Override
@@ -141,7 +142,7 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
         if (timestamp >= nextFundingTime) {
             for (Map.Entry<String, PositionData> entry : longPositions.entrySet()) {
                 
-                double fundingRate = fundingRates.get(timestamp).get(entry.getKey()).rate;
+                double fundingRate = fundingRates.getRate(entry.getKey(), timestamp);
                 double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                 marginBalance -= funding;
                 walletBalance -= funding;
@@ -149,7 +150,7 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
             
             for (Map.Entry<String, PositionData> entry : shortPositions.entrySet()) {
                 
-                double fundingRate = fundingRates.get(timestamp).get(entry.getKey()).rate;
+                double fundingRate = fundingRates.getRate(entry.getKey(), timestamp);
                 double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                 marginBalance += funding;
                 walletBalance += funding;

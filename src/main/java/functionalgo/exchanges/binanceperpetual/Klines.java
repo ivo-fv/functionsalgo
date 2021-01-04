@@ -38,10 +38,10 @@ public class Klines implements Serializable {
         private int trades; // number of trades
     }
     
-    public static final String KLINES_FILE = "binance_perp_klines";
-    public static final String JSON_DATA_FOLDER = "binance_json_data";
+    public static final String KLINES_FILE = "data/binance_perp_klines";
+    public static final String JSON_DATA_FOLDER = "data/binance_perp_json_data";
     
-    short interval;
+    private short interval;
     
     private HashMap<String, HashMap<Long, Candle>> klines;
     
@@ -119,9 +119,9 @@ public class Klines implements Serializable {
         klines = new HashMap<>();
     }
     
-    public static Klines loadKlines() {
+    public static Klines loadKlines(String file) {
         
-        try (ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(new FileInputStream(new File(KLINES_FILE))))) {
+        try (ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(new FileInputStream(new File(file))))) {
             return (Klines) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
             e.printStackTrace();
@@ -132,5 +132,10 @@ public class Klines implements Serializable {
     public double getOpen(String symbol, long timestamp) {
         
         return klines.get(symbol).get(timestamp).open;
+    }
+    
+    public short getInterval() {
+        
+        return interval;
     }
 }
