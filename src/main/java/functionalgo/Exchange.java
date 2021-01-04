@@ -10,11 +10,11 @@ package functionalgo;
 public interface Exchange {
     
     /**
-     * Updates every information about the account state at the exchange.
+     * Gets the account information at the exchange.
      * 
      * @param timestamp
      *            current unix timestamp in miliseconds
      */
-    void updateAccountInfo(long timestamp);
+    ExchangeAccountInfo getAccountInfo(long timestamp);
     
 }
