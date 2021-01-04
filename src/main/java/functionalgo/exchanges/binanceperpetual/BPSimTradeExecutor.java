@@ -1,6 +1,6 @@
 package functionalgo.exchanges.binanceperpetual;
 
-public class SimBinancePerpetualTradeExecutor implements BinancePerpetualTradeExecutor {
+public class BPSimTradeExecutor implements BPTradeExecutor {
     
     // TODO constructor
     

@@ -1,4 +1,4 @@
-package functionalgo.exchanges.binanceperpetual;
+package functionalgo.dataproviders.binanceperpetual;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -20,7 +20,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
-public class Klines implements Serializable {
+public class BPHistoricKlines implements Serializable {
     
     private static final long serialVersionUID = 1L;
     
@@ -64,7 +64,7 @@ public class Klines implements Serializable {
             
             short interval = Short.parseShort(klineFiles.get(0).getName().split("_", 3)[1]);
             
-            Klines klinesObj = new Klines(interval);
+            BPHistoricKlines klinesObj = new BPHistoricKlines(interval);
             
             Gson gson = new Gson();
             
@@ -113,16 +113,16 @@ public class Klines implements Serializable {
         klines.put(symbol, symbolData);
     }
     
-    private Klines(short interval) {
+    private BPHistoricKlines(short interval) {
         
         this.interval = interval;
         klines = new HashMap<>();
     }
     
-    public static Klines loadKlines(String file) {
+    public static BPHistoricKlines loadKlines(String file) {
         
         try (ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(new FileInputStream(new File(file))))) {
-            return (Klines) in.readObject();
+            return (BPHistoricKlines) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
             e.printStackTrace();
             return null;

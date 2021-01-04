@@ -1,4 +1,4 @@
-package functionalgo.exchanges.binanceperpetual;
+package functionalgo.dataproviders.binanceperpetual;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -19,7 +19,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
-public class FundingRates implements Serializable {
+public class BPHistoricFundingRates implements Serializable {
     
     private static final long serialVersionUID = 1L;
     
@@ -58,7 +58,7 @@ public class FundingRates implements Serializable {
         
         if (!fundratesFiles.isEmpty()) {
             
-            FundingRates fundratesObj = new FundingRates();
+            BPHistoricFundingRates fundratesObj = new BPHistoricFundingRates();
             
             Gson gson = new Gson();
             
@@ -98,15 +98,15 @@ public class FundingRates implements Serializable {
         rates.put(symbol, rate);
     }
     
-    private FundingRates() {
+    private BPHistoricFundingRates() {
         
         rates = new HashMap<>();
     }
     
-    public static FundingRates loadFundingRates(String file) {
+    public static BPHistoricFundingRates loadFundingRates(String file) {
         
         try (ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(new FileInputStream(new File(file))))) {
-            return (FundingRates) in.readObject();
+            return (BPHistoricFundingRates) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
             e.printStackTrace();
             return null;

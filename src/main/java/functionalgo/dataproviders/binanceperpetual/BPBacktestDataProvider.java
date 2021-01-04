@@ -1,6 +1,6 @@
 package functionalgo.dataproviders.binanceperpetual;
 
-public class BacktestBinancePerpetualData implements BinancePerpetualDataProvider {
+public class BPBacktestDataProvider implements BPDataProvider {
     
     // TODO constructor
     

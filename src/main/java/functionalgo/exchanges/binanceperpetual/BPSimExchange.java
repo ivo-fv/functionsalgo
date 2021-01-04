@@ -3,7 +3,10 @@ package functionalgo.exchanges.binanceperpetual;
 import java.util.HashMap;
 import java.util.Map;
 
-public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
+import functionalgo.dataproviders.binanceperpetual.BPHistoricFundingRates;
+import functionalgo.dataproviders.binanceperpetual.BPHistoricKlines;
+
+public class BPSimExchange implements BPExchange {
     
     private class PositionData {
         
@@ -24,7 +27,7 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
         }
     }
     
-    private class AccountInfo implements BinancePerpetualExchangeAccountInfo {
+    private class AccountInfo implements BPExchangeAccountInfo {
         
         private double marginBalance;
         private double walletBalance;
@@ -85,7 +88,7 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
             for (Map.Entry<String, PositionData> entry : longPositions.entrySet()) {
                 
                 // should use a mark price for more accuracy
-                double currPrice = klines.getOpen(entry.getKey(), timestamp);
+                double currPrice = bPHistoricKlines.getOpen(entry.getKey(), timestamp);
                 entry.getValue().currPrice = currPrice;
                 double pnl = (entry.getValue().currPrice - entry.getValue().openPrice) * entry.getValue().quantity;
                 entry.getValue().pnl = pnl;
@@ -95,7 +98,7 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
             for (Map.Entry<String, PositionData> entry : shortPositions.entrySet()) {
                 
                 // should use a mark price for more accuracy
-                double currPrice = klines.getOpen(entry.getKey(), timestamp);
+                double currPrice = bPHistoricKlines.getOpen(entry.getKey(), timestamp);
                 entry.getValue().currPrice = currPrice;
                 double pnl = (entry.getValue().openPrice - entry.getValue().currPrice) * entry.getValue().quantity;
                 entry.getValue().pnl = pnl;
@@ -105,7 +108,7 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
             if (timestamp >= nextFundingTime) {
                 for (Map.Entry<String, PositionData> entry : longPositions.entrySet()) {
                     
-                    double fundingRate = fundingRates.getRate(entry.getKey(), timestamp);
+                    double fundingRate = bPHistoricFundingRates.getRate(entry.getKey(), timestamp);
                     double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                     marginBalance -= funding;
                     walletBalance -= funding;
@@ -114,7 +117,7 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
                 
                 for (Map.Entry<String, PositionData> entry : shortPositions.entrySet()) {
                     
-                    double fundingRate = fundingRates.getRate(entry.getKey(), timestamp);
+                    double fundingRate = bPHistoricFundingRates.getRate(entry.getKey(), timestamp);
                     double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                     marginBalance += funding;
                     walletBalance += funding;
@@ -162,22 +165,22 @@ public class SimBinancePerpetualExchange implements BinancePerpetualExchange {
     
     private long nextFundingTime;
     
-    private Klines klines;
-    private FundingRates fundingRates;
+    private BPHistoricKlines bPHistoricKlines;
+    private BPHistoricFundingRates bPHistoricFundingRates;
     
     // TODO use more accurate information for maintenance and initial margin and symbol price and quantity
     // TODO buy() sell()
     
-    public SimBinancePerpetualExchange(double walletBalance) {
+    public BPSimExchange(double walletBalance) {
         
         accInfo = new AccountInfo(walletBalance);
         
-        klines = Klines.loadKlines(Klines.KLINES_FILE);
-        fundingRates = FundingRates.loadFundingRates(FundingRates.FUND_RATES_FILE);
+        bPHistoricKlines = BPHistoricKlines.loadKlines(BPHistoricKlines.KLINES_FILE);
+        bPHistoricFundingRates = BPHistoricFundingRates.loadFundingRates(BPHistoricFundingRates.FUND_RATES_FILE);
     }
     
     @Override
-    public BinancePerpetualExchangeAccountInfo getAccountInfo(long timestamp) {
+    public BPExchangeAccountInfo getAccountInfo(long timestamp) {
         
         accInfo.updateAccountInfo(timestamp);
         
