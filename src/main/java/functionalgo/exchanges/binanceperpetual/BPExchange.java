@@ -8,10 +8,6 @@ public interface BPExchange extends Exchange {
     BPExchangeAccountInfo getAccountInfo(long timestamp);
     
     boolean isRandomFailingOrdersEnabled();
-    
-    String[] getLongPositionSymbols();
-
-    String[] getShortPositionSymbols();
 
     void marketOpenLong(String symbol, double symbolQty);
 
