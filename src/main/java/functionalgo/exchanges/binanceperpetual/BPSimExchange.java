@@ -133,18 +133,14 @@ public class BPSimExchange implements BPExchange {
             for (Map.Entry<String, PositionData> entry : longPositions.entrySet()) {
                 
                 totalInitialMargin += entry.getValue().initialMargin;
-                
             }
             for (Map.Entry<String, PositionData> entry : shortPositions.entrySet()) {
                 
                 totalInitialMargin += entry.getValue().initialMargin;
-                
             }
             
             if (marginBalance <= totalInitialMargin * LIQUIDATION_PERCENT) {
-                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                System.out.println("!!! PROBABLY GOING TO GET LIQUIDATED !!!");
-                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                // TODO log to exchange about possible liq
                 
                 marginBalance = 0;
                 walletBalance = 0;
@@ -152,14 +148,14 @@ public class BPSimExchange implements BPExchange {
                 shortPositions = new HashMap<>();
             }
         }
-
+        
         @Override
         public Double getLongQty(String symbol) {
             
             // TODO Auto-generated method stub
             return null;
         }
-
+        
         @Override
         public Double getShortQty(String symbol) {
             
@@ -184,7 +180,7 @@ public class BPSimExchange implements BPExchange {
     
     // TODO use more accurate information for maintenance and initial margin and symbol price and quantity
     // TODO buy() sell() , include slippage on avgOpenPrice of market orders
-    //TODO simulate sub-accounts, ie: decompose positions to those of separate strategies
+    // TODO simulate sub-accounts, ie: decompose positions to those of separate strategies
     
     public BPSimExchange(double walletBalance) {
         
@@ -201,26 +197,68 @@ public class BPSimExchange implements BPExchange {
         
         return accInfo;
     }
-
+    
     @Override
     public boolean isRandomFailingOrdersEnabled() {
         
         // TODO Auto-generated method stub
         return false;
     }
-
+    
     @Override
     public String[] getLongPositionSymbols() {
         
         // TODO Auto-generated method stub
         return null;
     }
-
+    
     @Override
     public String[] getShortPositionSymbols() {
         
         // TODO Auto-generated method stub
         return null;
+    }
+    
+    @Override
+    public void marketOpenLong(String symbol, double symbolQty) {
+        
+        // TODO Auto-generated method stub
+        
+    }
+    
+    @Override
+    public void marketOpenShort(String symbol, double symbolQty) {
+        
+        // TODO Auto-generated method stub
+        
+    }
+    
+    @Override
+    public void marketCloseLong(String symbol) {
+        
+        // TODO Auto-generated method stub
+        
+    }
+    
+    @Override
+    public void marketCloseShort(String symbol) {
+        
+        // TODO Auto-generated method stub
+        
+    }
+    
+    @Override
+    public void marketReduceLong(String symbol, double symbolQty) {
+        
+        // TODO Auto-generated method stub
+        
+    }
+    
+    @Override
+    public void marketReduceShort(String symbol, double symbolQty) {
+        
+        // TODO Auto-generated method stub
+        
     }
     
 }
