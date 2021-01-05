@@ -10,17 +10,17 @@ public class BPSimExchange implements BPExchange {
     
     private class PositionData {
         
-        private double openPrice;
+        private double avgOpenPrice;
         private double currPrice;
         private double quantity;
         private double initialMargin;
         private double pnl; // not with mark price
         private double totalFundingFees;
         
-        private PositionData(double openPrice, double quantity, double initialMargin) {
+        private PositionData(double avgOpenPrice, double quantity, double initialMargin) {
             
-            this.openPrice = openPrice;
-            this.currPrice = openPrice;
+            this.avgOpenPrice = avgOpenPrice;
+            this.currPrice = avgOpenPrice;
             this.quantity = quantity;
             this.initialMargin = initialMargin;
             this.totalFundingFees = 0;
@@ -90,7 +90,7 @@ public class BPSimExchange implements BPExchange {
                 // should use a mark price for more accuracy
                 double currPrice = bPHistoricKlines.getOpen(entry.getKey(), timestamp);
                 entry.getValue().currPrice = currPrice;
-                double pnl = (entry.getValue().currPrice - entry.getValue().openPrice) * entry.getValue().quantity;
+                double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
                 entry.getValue().pnl = pnl;
                 marginBalance += pnl;
                 
@@ -100,7 +100,7 @@ public class BPSimExchange implements BPExchange {
                 // should use a mark price for more accuracy
                 double currPrice = bPHistoricKlines.getOpen(entry.getKey(), timestamp);
                 entry.getValue().currPrice = currPrice;
-                double pnl = (entry.getValue().openPrice - entry.getValue().currPrice) * entry.getValue().quantity;
+                double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
                 entry.getValue().pnl = pnl;
                 marginBalance += pnl;
             }
@@ -152,6 +152,20 @@ public class BPSimExchange implements BPExchange {
                 shortPositions = new HashMap<>();
             }
         }
+
+        @Override
+        public Double getLongQty(String symbol) {
+            
+            // TODO Auto-generated method stub
+            return null;
+        }
+
+        @Override
+        public Double getShortQty(String symbol) {
+            
+            // TODO Auto-generated method stub
+            return null;
+        }
     }
     
     private static final long FUNDING_INTERVAL_MILLIS = 28800000; // 8 hours
@@ -169,7 +183,8 @@ public class BPSimExchange implements BPExchange {
     private BPHistoricFundingRates bPHistoricFundingRates;
     
     // TODO use more accurate information for maintenance and initial margin and symbol price and quantity
-    // TODO buy() sell()
+    // TODO buy() sell() , include slippage on avgOpenPrice of market orders
+    //TODO simulate sub-accounts, ie: decompose positions to those of separate strategies
     
     public BPSimExchange(double walletBalance) {
         
@@ -185,6 +200,27 @@ public class BPSimExchange implements BPExchange {
         accInfo.updateAccountInfo(timestamp);
         
         return accInfo;
+    }
+
+    @Override
+    public boolean isRandomFailingOrdersEnabled() {
+        
+        // TODO Auto-generated method stub
+        return false;
+    }
+
+    @Override
+    public String[] getLongPositionSymbols() {
+        
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public String[] getShortPositionSymbols() {
+        
+        // TODO Auto-generated method stub
+        return null;
     }
     
 }
