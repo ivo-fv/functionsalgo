@@ -54,7 +54,6 @@ public class BPSimExchange implements BPExchange {
             lastUpdatedTime = 0;
         }
         
-        // TODO put these methods in the exchange class
         void updateAccountInfo(long timestamp) {
             
             if (timestamp <= lastUpdatedTime) {
@@ -161,31 +160,25 @@ public class BPSimExchange implements BPExchange {
         }
         
         @Override
-        public double getLongClosePriceWithSlippage(String symbol, double symbolQty) {
+        public double getLongClosePriceWithSlippage(String symbol, double notionalValue) {
             
-            // TODO should be just quantity needed
-            // return longPositions.get(symbol).currPrice * (1 - (SLIPPAGE_MODEL.getSlippage(SHOULD_BE_JUST_QTY, symbol) -
-            // 1));
-            return 0;
+            return longPositions.get(symbol).currPrice * (1 - (slippageModel.getSlippage(notionalValue, symbol) - 1));
         }
         
         @Override
-        public double getShortClosePriceWithSlippage(String symbol, double symbolQty) {
+        public double getShortClosePriceWithSlippage(String symbol, double notionalValue) {
             
-            // TODO should be just quantity needed
-            // return longPositions.get(symbol).currPrice * SLIPPAGE_MODEL.getSlippage(SHOULD_BE_JUST_QTY, symbol);
-            return 0;
+            return shortPositions.get(symbol).currPrice * slippageModel.getSlippage(notionalValue, symbol);
         }
         
-        // TODO change Double to double
         @Override
-        public Double getLongQty(String symbol) {
+        public double getLongQty(String symbol) {
             
             return longPositions.get(symbol).quantity;
         }
         
         @Override
-        public Double getShortQty(String symbol) {
+        public double getShortQty(String symbol) {
             
             return shortPositions.get(symbol).quantity;
         }
@@ -220,9 +213,9 @@ public class BPSimExchange implements BPExchange {
     
     private BPHistoricKlines bpHistoricKlines;
     private BPHistoricFundingRates bpHistoricFundingRates;
+    private BPSlippageModel slippageModel;
     
     // TODO use more accurate information for maintenance and initial margin and symbol price and quantity
-    // TODO buy() sell() , include slippage on avgOpenPrice of market orders
     // TODO simulate sub-accounts, ie: decompose positions to those of separate strategies
     
     public BPSimExchange(double walletBalance, short defaultLeverage) {
@@ -231,6 +224,7 @@ public class BPSimExchange implements BPExchange {
         this.defaultLeverage = defaultLeverage;
         bpHistoricKlines = BPHistoricKlines.loadKlines(BPHistoricKlines.KLINES_FILE);
         bpHistoricFundingRates = BPHistoricFundingRates.loadFundingRates(BPHistoricFundingRates.FUND_RATES_FILE);
+        slippageModel = BPSlippageModel.LoadSlippageModel(BPSlippageModel.MODEL_FILE);
     }
     
     @Override
@@ -252,10 +246,9 @@ public class BPSimExchange implements BPExchange {
         
         double openPrice = bpHistoricKlines.getOpen(symbol, accInfo.lastUpdatedTime);
         if (isLong) {
-            // TODO openPrice *= SLIPPAGE_MODEL.getSlippage(just_qty_needed, symbol);
-            // test on previous if just qty is fine
+            openPrice *= slippageModel.getSlippage(openPrice * symbolQty, symbol);
         } else {
-            // TODO openPrice *= 1 - (SLIPPAGE_MODEL.getSlippage(just_qty_needed, symbol) - 1);
+            openPrice *= 1 - (slippageModel.getSlippage(openPrice * symbolQty, symbol) - 1);
         }
         double notionalValue = openPrice * symbolQty;
         double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
@@ -321,7 +314,8 @@ public class BPSimExchange implements BPExchange {
         
         if (accInfo.longPositions.containsKey(symbol)) {
             
-            double closePrice = accInfo.getLongClosePriceWithSlippage(symbol, accInfo.longPositions.get(symbol).quantity);
+            double nValSlippage = accInfo.longPositions.get(symbol).quantity * accInfo.longPositions.get(symbol).currPrice;
+            double closePrice = accInfo.getLongClosePriceWithSlippage(symbol, nValSlippage);
             double notionalValue = closePrice * accInfo.longPositions.get(symbol).quantity;
             double pnl = (closePrice - accInfo.longPositions.get(symbol).avgOpenPrice)
                     * accInfo.longPositions.get(symbol).quantity;
@@ -343,7 +337,8 @@ public class BPSimExchange implements BPExchange {
         
         if (accInfo.shortPositions.containsKey(symbol)) {
             
-            double closePrice = accInfo.getShortClosePriceWithSlippage(symbol, accInfo.shortPositions.get(symbol).quantity);
+            double nValSlippage = accInfo.shortPositions.get(symbol).quantity * accInfo.shortPositions.get(symbol).currPrice;
+            double closePrice = accInfo.getShortClosePriceWithSlippage(symbol, nValSlippage);
             double notionalValue = closePrice * accInfo.shortPositions.get(symbol).quantity;
             double pnl = (accInfo.shortPositions.get(symbol).avgOpenPrice - closePrice)
                     * accInfo.shortPositions.get(symbol).quantity;
@@ -366,7 +361,8 @@ public class BPSimExchange implements BPExchange {
         if (accInfo.longPositions.containsKey(symbol)) {
             if (accInfo.longPositions.get(symbol).quantity > symbolQty) {
                 
-                double closePrice = accInfo.getLongClosePriceWithSlippage(symbol, symbolQty);
+                double nValSlippage = accInfo.longPositions.get(symbol).quantity * accInfo.longPositions.get(symbol).currPrice;
+                double closePrice = accInfo.getLongClosePriceWithSlippage(symbol, nValSlippage);
                 double notionalValue = closePrice * symbolQty;
                 double pnl = (closePrice - accInfo.longPositions.get(symbol).avgOpenPrice) * symbolQty;
                 double closeFee = Math.abs(notionalValue + pnl) * MAKER_OPEN_CLOSE_FEE;
@@ -396,7 +392,8 @@ public class BPSimExchange implements BPExchange {
         if (accInfo.shortPositions.containsKey(symbol)) {
             if (accInfo.shortPositions.get(symbol).quantity > symbolQty) {
                 
-                double closePrice = accInfo.getShortClosePriceWithSlippage(symbol, symbolQty);
+                double nValSlippage = accInfo.shortPositions.get(symbol).quantity * accInfo.shortPositions.get(symbol).currPrice;
+                double closePrice = accInfo.getShortClosePriceWithSlippage(symbol, nValSlippage);
                 double notionalValue = closePrice * symbolQty;
                 double pnl = (accInfo.shortPositions.get(symbol).avgOpenPrice - closePrice) * symbolQty;
                 double closeFee = Math.abs(notionalValue + pnl) * MAKER_OPEN_CLOSE_FEE;
