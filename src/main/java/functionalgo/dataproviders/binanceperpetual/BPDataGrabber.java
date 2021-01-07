@@ -36,8 +36,6 @@ public class BPDataGrabber {
             "ETCUSDT", "LINKUSDT", "XLMUSDT", "ADAUSDT", "XMRUSDT", "DASHUSDT", "ZECUSDT", "XTZUSDT", "BNBUSDT", "ATOMUSDT",
             "ONTUSDT", "IOTAUSDT", "BATUSDT", "VETUSDT", "NEOUSDT", "QTUMUSDT", "IOSTUSDT" };
     
-    public static final String JSON_DATA_FOLDER = "data/binance_perp_json_data";
-    
     private int currentWeightValue = -1;
     private int responseCode = -1;
     private long cronometer = -1;
@@ -53,37 +51,40 @@ public class BPDataGrabber {
         
         BPDataGrabber grabber = new BPDataGrabber();
         
-        short interval = 5;
-        
         long startTime = LocalDateTime.of(2019, 4, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli();
         long endTime = LocalDateTime.of(2021, 4, 10, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli();
         
-        File binanceDataDir = new File(JSON_DATA_FOLDER);
-        binanceDataDir.mkdir();
+        System.out.println("Klines start");
+        
+        Interval interval = Interval._5m;
+        
+        String klinesDirName = BPHistoricKlines.getDirName(interval);
+        new File(klinesDirName).mkdirs();
         
         TreeMap<String, File> symbolFile = new TreeMap<>();
         
         for (String symbol : getSymbols()) {
             
-            symbolFile.put(symbol,
-                    new File(JSON_DATA_FOLDER + "/" + symbol + "_" + interval + "_" + startTime + "_" + endTime + ".json"));
+            symbolFile.put(symbol, new File(
+                    klinesDirName + "/" + symbol + "_" + interval.toString() + "_" + startTime + "_" + endTime + ".json"));
         }
-        
-        System.out.println("Klines start");
         
         grabber.saveMultipleSymbolKlines(symbolFile, interval, startTime, endTime);
         
         System.out.println("Klines end");
+        
+        System.out.println("Funding rate start");
+        
+        String fundRatesFileName = BPHistoricFundingRates.getDirName();
+        new File(fundRatesFileName).mkdirs();
         
         TreeMap<String, File> symbolFratesFile = new TreeMap<>();
         
         for (String symbol : getSymbols()) {
             
             symbolFratesFile.put(symbol,
-                    new File(JSON_DATA_FOLDER + "/" + symbol + "_FundingRate_" + startTime + "_" + endTime + ".json"));
+                    new File(fundRatesFileName + "/" + symbol + "_FundingRate_" + startTime + "_" + endTime + ".json"));
         }
-        
-        System.out.println("Funding rate start");
         
         grabber.saveMultipleSymbolFundingRates(symbolFratesFile, startTime, endTime);
         
@@ -114,7 +115,7 @@ public class BPDataGrabber {
     }
     
     /**
-     * Similar to saveSymbolKlines but for funding rates. The interval is 480
+     * Similar to saveSymbolKlines but for funding rates. The candleInterval is 480
      * minutes as that's the amount of time between each funding event
      * 
      * @param symbol
@@ -129,19 +130,19 @@ public class BPDataGrabber {
         
         // https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&startTime=1554076800000&endTime=1618012800000&limit=1000
         
-        saveSymbolData(symbol, (short) 480, startTime, endTime, outFile, MAX_FUNDING_RATE_REQUEST, FUNDING_RATE_URL);
+        saveSymbolData(symbol, Interval._8h, startTime, endTime, outFile, MAX_FUNDING_RATE_REQUEST, FUNDING_RATE_URL);
     }
     
     /**
      * @param symbolFile
      *            key is the symbol and value is its respective file
-     * @param interval
+     * @param candleInterval
      * @param startTime
      * @param endTime
      * @throws InterruptedException
      * @throws IOException
      */
-    public void saveMultipleSymbolKlines(Map<String, File> symbolFile, short interval, long startTime, long endTime)
+    public void saveMultipleSymbolKlines(Map<String, File> symbolFile, Interval interval, long startTime, long endTime)
             throws InterruptedException, IOException {
         
         for (Map.Entry<String, File> entry : symbolFile.entrySet()) {
@@ -151,12 +152,12 @@ public class BPDataGrabber {
     }
     
     /**
-     * Get all klines of interval from the period startTime to endTime and save them
+     * Get all klines of candleInterval from the period startTime to endTime and save them
      * to outFile, overwriting it if it already exists
      * 
      * @param symbol
      *            ex: "BTCUSDT"
-     * @param interval
+     * @param candleInterval
      *            1 , 3 , 5 , 15 , 30 minutes only
      * @param startTime
      *            unix timestamp beggining of period
@@ -165,10 +166,10 @@ public class BPDataGrabber {
      * @throws InterruptedException
      * @throws IOException
      */
-    public void saveSymbolKlines(String symbol, short interval, long startTime, long endTime, File outFile)
+    public void saveSymbolKlines(String symbol, Interval interval, long startTime, long endTime, File outFile)
             throws InterruptedException, IOException {
         
-        // https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1m&startTime=1577836800&endTime=1577836800&limit=1500
+        // https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&candleInterval=1m&startTime=1577836800&endTime=1577836800&limit=1500
         
         saveSymbolData(symbol, interval, startTime, endTime, outFile, MAX_KLINES_REQUEST, KLINES_URL);
     }
@@ -189,7 +190,7 @@ public class BPDataGrabber {
             }
         }
         
-        saveSymbolDataSingle(symbol, (short) -1, -1, -1, depth, ORDERBOOK_URL, outFile, true);
+        saveSymbolDataSingle(symbol, -1, -1, -1, depth, ORDERBOOK_URL, outFile, true);
         
         try (FileOutputStream output = new FileOutputStream(outFile, true)) {
             output.getChannel().write(ByteBuffer.wrap("]".getBytes(StandardCharsets.UTF_8)));
@@ -203,8 +204,8 @@ public class BPDataGrabber {
      * Made to save JSON Arrays to a file. If file already exists it is first deleted.
      * 
      * @param symbol
-     * @param interval
-     *            interval in minutes between each individual data point, ex: a
+     * @param candleInterval
+     *            candleInterval in minutes between each individual data point, ex: a
      *            kline/candle or funding rate
      * @param startTime
      * @param endTime
@@ -217,7 +218,7 @@ public class BPDataGrabber {
      * @throws IOException
      * @throws InterruptedException
      */
-    public void saveSymbolData(String symbol, short interval, long startTime, long endTime, File outFile, short maxRequest,
+    public void saveSymbolData(String symbol, Interval interval, long startTime, long endTime, File outFile, short maxRequest,
             String apiDataUrl) throws IOException, InterruptedException {
         
         if (outFile.exists()) {
@@ -228,13 +229,13 @@ public class BPDataGrabber {
         long newTime = times[0];
         endTime = times[1];
         
-        long timeToAdd = (long) maxRequest * interval * 60000; // 60000ms is 1min
+        long timeToAdd = (long) maxRequest * interval.toMilliseconds();
         
         utilSaveJSONArrayInUrlToFile(null, true, outFile, true);
         
         while (newTime < endTime) {
             
-            String getUrl = API_FUTURES_URL + apiDataUrl + "?symbol=" + symbol + "&interval=" + interval + "m&startTime="
+            String getUrl = API_FUTURES_URL + apiDataUrl + "?symbol=" + symbol + "&candleInterval=" + interval + "m&startTime="
                     + newTime + "&endTime=" + endTime + "&limit=" + maxRequest;
             
             utilSaveJSONArrayInUrlToFile(getUrl, false, outFile, true);
@@ -245,12 +246,12 @@ public class BPDataGrabber {
         utilSaveJSONArrayInUrlToFile(null, false, outFile, true);
     }
     
-    public void saveSymbolDataSingle(String symbol, short interval, long startTime, long endTime, short maxRequest,
+    public void saveSymbolDataSingle(String symbol, int interval, long startTime, long endTime, short maxRequest,
             String apiDataUrl, File outFile, boolean append) throws IOException, InterruptedException {
         
         try (FileOutputStream output = new FileOutputStream(outFile, append)) {
             
-            String getUrl = API_FUTURES_URL + apiDataUrl + "?symbol=" + symbol + "&interval=" + interval + "m&startTime="
+            String getUrl = API_FUTURES_URL + apiDataUrl + "?symbol=" + symbol + "&candleInterval=" + interval + "m&startTime="
                     + startTime + "&endTime=" + endTime + "&limit=" + maxRequest;
             
             output.getChannel().write(ByteBuffer.wrap(utilGetUrlToString(getUrl).getBytes(StandardCharsets.UTF_8)));
@@ -259,25 +260,21 @@ public class BPDataGrabber {
     
     /**
      * @param symbol
-     * @param interval
+     * @param candleInterval
      * @param startTime
      * @param endTime
      * @return [0] is first candle, [1] is last candle open time
      * @throws IOException
      * @throws InterruptedException
      */
-    public long[] getFirstAndLastCandleOpenTime(String symbol, int interval, long startTime, long endTime)
+    public long[] getFirstAndLastCandleOpenTime(String symbol, Interval interval, long startTime, long endTime)
             throws IOException, InterruptedException {
         
-        if (interval > 30 || interval < 0) {
-            interval = 30;
-        }
-        
-        String firstUrl = API_FUTURES_URL + KLINES_URL + "?symbol=" + symbol + "&interval=" + interval + "m&startTime="
+        String firstUrl = API_FUTURES_URL + KLINES_URL + "?symbol=" + symbol + "&candleInterval=" + interval.toString() + "&startTime="
                 + startTime + "&limit=" + 1;
         
-        String lastUrl = API_FUTURES_URL + KLINES_URL + "?symbol=" + symbol + "&interval=" + interval + "m&endTime=" + endTime
-                + "&limit=" + 1;
+        String lastUrl = API_FUTURES_URL + KLINES_URL + "?symbol=" + symbol + "&candleInterval=" + interval.toString() + "&endTime="
+                + endTime + "&limit=" + 1;
         
         long[] times = new long[2];
         times[0] = utilGetFirstLongInString(utilGetUrlToString(firstUrl));

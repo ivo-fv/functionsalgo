@@ -12,11 +12,13 @@ public interface BPExchangeAccountInfo extends ExchangeAccountInfo {
     
     double getInitialMargin(String positionId);
     
-    double getPnL(String positionId);
+    double getMarketClosePnL(String positionId, double qtyToClose);
     
     int getLeverage(String symbol);
     
     double getTotalFundingFees(String positionId);
     
     double getTakerFee();
+
+    double getMarginBalance();
 }

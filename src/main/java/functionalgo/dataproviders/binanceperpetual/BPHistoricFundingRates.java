@@ -23,8 +23,8 @@ public class BPHistoricFundingRates implements Serializable {
     
     private static final long serialVersionUID = 1L;
     
-    public static final String FUND_RATES_FILE = "data/binance_perp_fund_rates";
-    public static final String JSON_DATA_FOLDER = "data/binance_perp_json_data";
+    private static final String FUND_RATES_FILE = "data/binance_perp_fund_rates";
+    private static final String JSON_DATA_FOLDER = "data/binance_perp_json_data/fund_rates";
     
     private long fundingIntervalMillis = 28800000; // 8 hours
     private HashMap<String, HashMap<Long, Double>> rates;
@@ -50,11 +50,7 @@ public class BPHistoricFundingRates implements Serializable {
         
         for (File file : (new File(JSON_DATA_FOLDER)).listFiles((dir, name) -> name.endsWith(".json"))) {
             
-            String[] fileData = file.getName().split("_", 3);
-            
-            if (fileData[1].equals("FundingRate")) {
-                fundratesFiles.add(file);
-            }
+            fundratesFiles.add(file);
         }
         
         if (!fundratesFiles.isEmpty()) {
@@ -80,6 +76,8 @@ public class BPHistoricFundingRates implements Serializable {
                 out.writeObject(fundratesObj);
                 out.flush();
             }
+        } else {
+            System.out.println("Couldn't find the .json files.");
         }
         
         System.out.println("Finished creating funding rates file.");
@@ -104,9 +102,10 @@ public class BPHistoricFundingRates implements Serializable {
         rates = new HashMap<>();
     }
     
-    public static BPHistoricFundingRates loadFundingRates(String file) {
+    public static BPHistoricFundingRates loadFundingRates() {
         
-        try (ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(new FileInputStream(new File(file))))) {
+        try (ObjectInputStream in = new ObjectInputStream(
+                new BufferedInputStream(new FileInputStream(new File(FUND_RATES_FILE))))) {
             return (BPHistoricFundingRates) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
             e.printStackTrace();
@@ -122,6 +121,11 @@ public class BPHistoricFundingRates implements Serializable {
     public long getFundingIntervalMillis() {
         
         return fundingIntervalMillis;
+    }
+    
+    public static String getDirName() {
+        
+        return JSON_DATA_FOLDER;
     }
     
 }

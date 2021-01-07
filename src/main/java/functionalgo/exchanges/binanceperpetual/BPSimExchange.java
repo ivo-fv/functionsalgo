@@ -5,6 +5,7 @@ import java.util.Map;
 
 import functionalgo.dataproviders.binanceperpetual.BPHistoricFundingRates;
 import functionalgo.dataproviders.binanceperpetual.BPHistoricKlines;
+import functionalgo.dataproviders.binanceperpetual.Interval;
 
 // TODO executor merge with exchange, execution strat on strat
 public class BPSimExchange implements BPExchange {
@@ -20,7 +21,6 @@ public class BPSimExchange implements BPExchange {
         double currPrice;
         double quantity;
         double initialMargin;
-        double pnl; // not with mark price
         double totalFundingFees;
         
         PositionData(String symbol, boolean isLong, double avgOpenPrice, double quantity, double initialMargin) {
@@ -31,7 +31,6 @@ public class BPSimExchange implements BPExchange {
             this.currPrice = avgOpenPrice;
             this.quantity = quantity;
             this.initialMargin = initialMargin;
-            this.pnl = 0;
             this.totalFundingFees = 0;
         }
     }
@@ -66,7 +65,7 @@ public class BPSimExchange implements BPExchange {
             
             if (lastUpdatedTime != 0) {
                 
-                for (long time = lastUpdatedTime + UPDATE_INTERVAL_MILLIS; time <= timestamp; time += UPDATE_INTERVAL_MILLIS) {
+                for (long time = lastUpdatedTime + updateIntervalMillis; time <= timestamp; time += updateIntervalMillis) {
                     
                     calculateMarginBalanceAndUpdatePositionData(time);
                     checkMaintenanceMargin();
@@ -79,7 +78,7 @@ public class BPSimExchange implements BPExchange {
                 }
                 // TODO in debug make sure lastUpdatedTime is sequential on every proper updateAccountInfo() call
                 // ie: it's the same as the last time passed to the methods inside the loop
-                lastUpdatedTime = (timestamp / UPDATE_INTERVAL_MILLIS) * UPDATE_INTERVAL_MILLIS;
+                lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
                 
             } else {
                 // TODO make sure in debug that (timestamp / FUNDING_INTERVAL_MILLIS) is not a decimal
@@ -88,7 +87,7 @@ public class BPSimExchange implements BPExchange {
                 calculateMarginBalanceAndUpdatePositionData(timestamp);
                 checkMaintenanceMargin();
                 
-                lastUpdatedTime = (timestamp / UPDATE_INTERVAL_MILLIS) * UPDATE_INTERVAL_MILLIS;
+                lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
             }
             
         }
@@ -103,13 +102,11 @@ public class BPSimExchange implements BPExchange {
                     double currPrice = bpHistoricKlines.getOpen(entry.getKey(), timestamp);
                     entry.getValue().currPrice = currPrice;
                     double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
-                    entry.getValue().pnl = pnl;
                     marginBalance += pnl;
                 } else {
                     double currPrice = bpHistoricKlines.getOpen(entry.getKey(), timestamp);
                     entry.getValue().currPrice = currPrice;
                     double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
-                    entry.getValue().pnl = pnl;
                     marginBalance += pnl;
                 }
             }
@@ -145,7 +142,9 @@ public class BPSimExchange implements BPExchange {
             // the maintenance margin is *always less* than 50% of the initial margin
             if (marginBalance <= highestInitialMargin / 2) {
                 // TODO log to exchange about possible liq
-                
+                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                System.out.println("!!! Probably going to get liquidated !!!");
+                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
                 marginBalance = 0;
                 walletBalance = 0;
                 positions = new HashMap<>();
@@ -177,9 +176,22 @@ public class BPSimExchange implements BPExchange {
         }
         
         @Override
-        public double getPnL(String positionId) {
+        public double getMarketClosePnL(String positionId, double qtyToClose) {
             
-            return positions.get(positionId).pnl;
+            String symbol = accInfo.positions.get(positionId).symbol;
+            double nValSlipp = qtyToClose * accInfo.positions.get(positionId).currPrice;
+            double closePrice;
+            double pnl;
+            if (accInfo.positions.get(positionId).isLong) {
+                closePrice = accInfo.positions.get(positionId).currPrice
+                        * (1 - (slippageModel.getSlippage(nValSlipp, symbol) - 1));
+                pnl = (closePrice - accInfo.positions.get(positionId).avgOpenPrice) * qtyToClose;
+            } else {
+                closePrice = accInfo.positions.get(positionId).currPrice * slippageModel.getSlippage(nValSlipp, symbol);
+                pnl = (accInfo.positions.get(positionId).avgOpenPrice - closePrice) * qtyToClose;
+            }
+            
+            return pnl;
         }
         
         @Override
@@ -199,12 +211,17 @@ public class BPSimExchange implements BPExchange {
             
             return takerFee;
         }
+        
+        @Override
+        public double getMarginBalance() {
+            
+            return marginBalance;
+        }
     }
     
     @SuppressWarnings("unused")
     private static final boolean IS_HEDGE_MODE = true;
     
-    private static final long UPDATE_INTERVAL_MILLIS = 300000; // 5 minutes TODO change to 1 minute
     private static final double OPEN_LOSS_SIM_MULT = 1.06; // will probably never be this high
     
     public static final double TAKER_OPEN_CLOSE_FEE = 0.0004;
@@ -215,20 +232,21 @@ public class BPSimExchange implements BPExchange {
     private long fundingIntervalMillis;
     private long nextFundingTime;
     private short defaultLeverage;
+    private long updateIntervalMillis;
     
     private BPHistoricKlines bpHistoricKlines;
     private BPHistoricFundingRates bpHistoricFundingRates;
     private BPSlippageModel slippageModel;
     
     // TODO use more accurate information for maintenance and initial margin and symbol price and quantity
-    // TODO simulate sub-accounts, ie: decompose positions to those of separate strategies
     
-    public BPSimExchange(double walletBalance, short defaultLeverage) {
+    public BPSimExchange(double walletBalance, short defaultLeverage, Interval updateInterval) {
         
         accInfo = new AccountInfo(walletBalance);
         this.defaultLeverage = defaultLeverage;
-        bpHistoricKlines = BPHistoricKlines.loadKlines(BPHistoricKlines.KLINES_FILE);
-        bpHistoricFundingRates = BPHistoricFundingRates.loadFundingRates(BPHistoricFundingRates.FUND_RATES_FILE);
+        updateIntervalMillis = updateInterval.toMilliseconds();
+        bpHistoricKlines = BPHistoricKlines.loadKlines(updateInterval);
+        bpHistoricFundingRates = BPHistoricFundingRates.loadFundingRates();
         fundingIntervalMillis = bpHistoricFundingRates.getFundingIntervalMillis();
         slippageModel = BPSlippageModel.LoadSlippageModel(BPSlippageModel.MODEL_FILE);
     }
@@ -319,7 +337,7 @@ public class BPSimExchange implements BPExchange {
                 double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
                 double initialMargin = notionalValue / leverage;
                 accInfo.positions.get(positionId).initialMargin -= initialMargin;
-                accInfo.positions.get(positionId).pnl -= pnl;
+                accInfo.marginUsed -= initialMargin;
                 accInfo.positions.get(positionId).quantity -= qtyToClose;
                 
                 // TODO log successful long close
@@ -343,7 +361,10 @@ public class BPSimExchange implements BPExchange {
                 accInfo.marginBalance -= closeFee;
                 accInfo.walletBalance += pnl;
                 
+                accInfo.marginUsed -= accInfo.positions.get(positionId).initialMargin;
+                
                 accInfo.positions.remove(positionId);
+                
             }
         } else {
             // TODO log no position with positionId

@@ -11,21 +11,20 @@ public abstract class Strategy {
     public static Strategy setupStrategy(String stratClassName, boolean isLive) throws StandardJavaException {
         
         try {
-            return (Strategy) Class.forName(stratClassName).getConstructor().newInstance(false);
+            return (Strategy) Class.forName(stratClassName).getConstructor().newInstance(isLive);
         } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
                 | NoSuchMethodException | SecurityException | ClassNotFoundException e) {
             throw new StandardJavaException(e);
         }
     }
     
-    protected Strategy(boolean isLive){
+    protected Strategy(boolean isLive) {
+        
         this.isLive = isLive;
     }
     
     /**
-     * TODO (redo doc) First decide which exchange to get information from, grab the needed data
-     * (candles...), then decide what actions to take, then execute those actions.
-     * Execute the actions by sending them to the Exchange, and Log them.
+     * Runs the strategy logic for the given timestamp.
      * 
      * @param timestamp
      *            current unix timestamp in miliseconds

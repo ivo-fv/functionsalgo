@@ -11,15 +11,33 @@ public class BPBacktestDataProvider implements BPDataProvider {
         return 0;
     }
 
+
     @Override
-    public double getOpen(String symbol, long timestamp) {
+    public long getFundingInterval() {
         
         // TODO Auto-generated method stub
         return 0;
     }
 
+
     @Override
-    public long getFundingInterval() {
+    public double getOpen(String symbol, long timestamp, Interval interval) {
+        
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+
+    @Override
+    public long getEarliestTimestamp() {
+        
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+
+    @Override
+    public long getLatestTimestamp() {
         
         // TODO Auto-generated method stub
         return 0;

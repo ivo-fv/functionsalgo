@@ -38,56 +38,59 @@ public class BPHistoricKlines implements Serializable {
         private int trades; // number of trades
     }
     
-    public static final String KLINES_FILE = "data/binance_perp_klines";
-    public static final String JSON_DATA_FOLDER = "data/binance_perp_json_data";
+    private static final String KLINES_FILE = "data/binance_perp_klines_";
+    private static final String JSON_DATA_FOLDER = "data/binance_perp_json_data";
     
-    private short interval;
+    private Interval interval;
     
     private HashMap<String, HashMap<Long, Candle>> klines;
     
     public static void main(String[] args) throws JsonSyntaxException, JsonIOException, IOException {
         
-        System.out.println("Creating the klines file...");
-        
-        List<File> klineFiles = new ArrayList<>();
-        
-        for (File file : (new File(JSON_DATA_FOLDER)).listFiles((dir, name) -> name.endsWith(".json"))) {
+        for (Interval interval : Interval.values()) {
             
-            String[] fileData = file.getName().split("_", 3);
-            
-            if (Character.isDigit(fileData[1].toCharArray()[0])) {
-                klineFiles.add(file);
-            }
-        }
-        
-        if (!klineFiles.isEmpty()) {
-            
-            short interval = Short.parseShort(klineFiles.get(0).getName().split("_", 3)[1]);
-            
-            BPHistoricKlines klinesObj = new BPHistoricKlines(interval);
-            
-            Gson gson = new Gson();
-            
-            for (File file : klineFiles) {
+            File klinesDir = new File(getDirName(interval));
+            if (klinesDir.exists()) {
                 
-                String[] fileData = file.getName().split("_", 2);
-                String symbol = fileData[0];
+                System.out.println("Creating the " + interval.toString() + " klines file...");
                 
-                BigDecimal[][] parsedSymbolKlines = gson
-                        .fromJson(new BufferedReader(new InputStreamReader(new FileInputStream(file))), BigDecimal[][].class);
+                List<File> klineFiles = new ArrayList<>();
                 
-                klinesObj.addSymbolData(symbol, parsedSymbolKlines);
-            }
-            
-            try (ObjectOutputStream out = new ObjectOutputStream(
-                    new BufferedOutputStream(new FileOutputStream(new File(KLINES_FILE))))) {
+                for (File file : (klinesDir).listFiles((dir, name) -> name.endsWith(".json"))) {
+                    
+                    klineFiles.add(file);
+                }
                 
-                out.writeObject(klinesObj);
-                out.flush();
-            }
-        }
-        
-        System.out.println("Finished creating klines file.");
+                if (!klineFiles.isEmpty()) {
+                    
+                    BPHistoricKlines klinesObj = new BPHistoricKlines(interval);
+                    
+                    Gson gson = new Gson();
+                    
+                    for (File file : klineFiles) {
+                        
+                        String[] fileData = file.getName().split("_", 2);
+                        String symbol = fileData[0];
+                        
+                        BigDecimal[][] parsedSymbolKlines = gson.fromJson(
+                                new BufferedReader(new InputStreamReader(new FileInputStream(file))), BigDecimal[][].class);
+                        
+                        klinesObj.addSymbolData(symbol, parsedSymbolKlines);
+                    }
+                    
+                    try (ObjectOutputStream out = new ObjectOutputStream(
+                            new BufferedOutputStream(new FileOutputStream(new File(KLINES_FILE + interval.toString()))))) {
+                        
+                        out.writeObject(klinesObj);
+                        out.flush();
+                    }
+                    
+                    System.out.println("Finished creating the " + interval.toString() + " klines file.");
+                } else {
+                    System.out.println("Couldn't find the .json files for the" + interval.toString() + " candleInterval.");
+                }
+            }            
+        }        
     }
     
     private void addSymbolData(String symbol, BigDecimal[][] parsedSymbolKlines) {
@@ -113,15 +116,16 @@ public class BPHistoricKlines implements Serializable {
         klines.put(symbol, symbolData);
     }
     
-    private BPHistoricKlines(short interval) {
+    private BPHistoricKlines(Interval interval) {
         
         this.interval = interval;
         klines = new HashMap<>();
     }
     
-    public static BPHistoricKlines loadKlines(String file) {
+    public static BPHistoricKlines loadKlines(Interval interval) {
         
-        try (ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(new FileInputStream(new File(file))))) {
+        try (ObjectInputStream in = new ObjectInputStream(
+                new BufferedInputStream(new FileInputStream(new File(KLINES_FILE + interval.toString()))))) {
             return (BPHistoricKlines) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
             e.printStackTrace();
@@ -134,8 +138,13 @@ public class BPHistoricKlines implements Serializable {
         return klines.get(symbol).get(timestamp).open;
     }
     
-    public short getInterval() {
+    public Interval getInterval() {
         
         return interval;
+    }
+    
+    public static String getDirName(Interval interval) {
+        
+        return JSON_DATA_FOLDER + "/klines_" + interval.toString();
     }
 }
