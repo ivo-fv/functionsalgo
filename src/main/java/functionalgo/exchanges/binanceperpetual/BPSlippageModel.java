@@ -44,7 +44,7 @@ public class BPSlippageModel implements Serializable {
      * false = will only generate order books, appending to existing ones
      * true = will only calculate from existing order books
      */
-    private static final boolean CALCULATE_SLIPPAGE = true;
+    private static final boolean CALCULATE_SLIPPAGE = false;
     
     private static final short DEFAULT_DEPTH = 100;
     private static final int MAX_RANGE_VALUE = 285000;

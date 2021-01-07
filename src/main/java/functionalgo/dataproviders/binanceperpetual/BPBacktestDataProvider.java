@@ -17,5 +17,12 @@ public class BPBacktestDataProvider implements BPDataProvider {
         // TODO Auto-generated method stub
         return 0;
     }
+
+    @Override
+    public long getFundingInterval() {
+        
+        // TODO Auto-generated method stub
+        return 0;
+    }
     
 }

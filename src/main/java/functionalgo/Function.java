@@ -20,7 +20,7 @@ public class Function {
             
             long initialTime = 0;
             long endTime = 0;
-            long interval = 0;
+            long interval = 0; // usar UPDATE_INTERVAL_MILLIS da BPSimExchange
             
             Function function = new Function(Strategy.setupStrategy(STRATEGY_NAME, false));
             

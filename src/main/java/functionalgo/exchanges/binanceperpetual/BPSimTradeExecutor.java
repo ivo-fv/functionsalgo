@@ -27,14 +27,14 @@ public class BPSimTradeExecutor implements BPTradeExecutor {
     }
     
     @Override
-    public void marketOpenLong(String symbol, double symbolQty) {
+    public void marketOpen(String positionId, String symbol, boolean isLong, double symbolQty) {
         
         Order order = new Order() {
             
             @Override
             public void execute() {
                 
-                exchange.marketOpenLong(symbol, symbolQty);
+                exchange.marketOpen(positionId, symbol, isLong, symbolQty);
             }
         };
         
@@ -42,74 +42,14 @@ public class BPSimTradeExecutor implements BPTradeExecutor {
     }
     
     @Override
-    public void marketOpenShort(String symbol, double symbolQty) {
+    public void marketClose(String positionId, double qtyToClose) {
         
         Order order = new Order() {
             
             @Override
             public void execute() {
                 
-                exchange.marketOpenShort(symbol, symbolQty);
-            }
-        };
-        
-        orders.add(order);
-    }
-    
-    @Override
-    public void marketCloseLong(String symbol) {
-        
-        Order order = new Order() {
-            
-            @Override
-            public void execute() {
-                
-                exchange.marketCloseLong(symbol);
-            }
-        };
-        
-        orders.add(order);
-    }
-    
-    @Override
-    public void marketCloseShort(String symbol) {
-        
-        Order order = new Order() {
-            
-            @Override
-            public void execute() {
-                
-                exchange.marketCloseShort(symbol);
-            }
-        };
-        
-        orders.add(order);
-    }
-    
-    @Override
-    public void marketReduceLong(String symbol, double symbolQty) {
-        
-        Order order = new Order() {
-            
-            @Override
-            public void execute() {
-                
-                exchange.marketReduceLong(symbol, symbolQty);
-            }
-        };
-        
-        orders.add(order);
-    }
-    
-    @Override
-    public void marketReduceShort(String symbol, double symbolQty) {
-        
-        Order order = new Order() {
-            
-            @Override
-            public void execute() {
-                
-                exchange.marketReduceShort(symbol, symbolQty);
+                exchange.marketClose(positionId, qtyToClose);
             }
         };
         

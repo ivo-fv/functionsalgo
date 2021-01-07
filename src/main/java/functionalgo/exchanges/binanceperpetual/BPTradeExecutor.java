@@ -4,15 +4,7 @@ import functionalgo.ExchangeTradeExecutor;
 
 public interface BPTradeExecutor extends ExchangeTradeExecutor {
     
-    void marketOpenLong(String symbol, double symbolQty);
-    
-    void marketOpenShort(String symbol, double symbolQty);
-    
-    void marketCloseLong(String symbol);
-    
-    void marketCloseShort(String symbol);
-    
-    void marketReduceLong(String symbol, double symbolQty);
-    
-    void marketReduceShort(String symbol, double symbolQty);
+    void marketOpen(String positionId, String symbol, boolean isLong, double symbolQty);
+
+    void marketClose(String positionId, double qtyToClose);
 }

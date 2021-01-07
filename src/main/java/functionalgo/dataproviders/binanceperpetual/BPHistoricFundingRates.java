@@ -26,6 +26,7 @@ public class BPHistoricFundingRates implements Serializable {
     public static final String FUND_RATES_FILE = "data/binance_perp_fund_rates";
     public static final String JSON_DATA_FOLDER = "data/binance_perp_json_data";
     
+    private long fundingIntervalMillis = 28800000; // 8 hours
     private HashMap<String, HashMap<Long, Double>> rates;
     
     /**
@@ -116,6 +117,11 @@ public class BPHistoricFundingRates implements Serializable {
     public double getRate(String symbol, long timestamp) {
         
         return rates.get(symbol).get(timestamp);
+    }
+    
+    public long getFundingIntervalMillis() {
+        
+        return fundingIntervalMillis;
     }
     
 }

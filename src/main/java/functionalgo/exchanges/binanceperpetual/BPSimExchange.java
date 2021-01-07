@@ -6,6 +6,7 @@ import java.util.Map;
 import functionalgo.dataproviders.binanceperpetual.BPHistoricFundingRates;
 import functionalgo.dataproviders.binanceperpetual.BPHistoricKlines;
 
+// TODO executor merge with exchange, execution strat on strat
 public class BPSimExchange implements BPExchange {
     
     private class PositionData {
@@ -13,6 +14,8 @@ public class BPSimExchange implements BPExchange {
         @SuppressWarnings("unused")
         private static final String MARGIN_TYPE = "CROSSED"; // 8 hours
         
+        String symbol;
+        boolean isLong;
         double avgOpenPrice;
         double currPrice;
         double quantity;
@@ -20,8 +23,10 @@ public class BPSimExchange implements BPExchange {
         double pnl; // not with mark price
         double totalFundingFees;
         
-        PositionData(double avgOpenPrice, double quantity, double initialMargin) {
+        PositionData(String symbol, boolean isLong, double avgOpenPrice, double quantity, double initialMargin) {
             
+            this.symbol = symbol;
+            this.isLong = isLong;
             this.avgOpenPrice = avgOpenPrice;
             this.currPrice = avgOpenPrice;
             this.quantity = quantity;
@@ -37,9 +42,9 @@ public class BPSimExchange implements BPExchange {
         double walletBalance;
         double marginUsed;
         HashMap<String, Short> leverages;
-        HashMap<String, PositionData> longPositions;
-        HashMap<String, PositionData> shortPositions;
+        HashMap<String, PositionData> positions;
         long lastUpdatedTime;
+        double takerFee = TAKER_OPEN_CLOSE_FEE;
         
         AccountInfo(double walletBalance) {
             
@@ -47,8 +52,7 @@ public class BPSimExchange implements BPExchange {
             marginBalance = walletBalance;
             marginUsed = 0;
             
-            longPositions = new HashMap<>();
-            shortPositions = new HashMap<>();
+            positions = new HashMap<>();
             leverages = new HashMap<>();
             
             lastUpdatedTime = 0;
@@ -70,7 +74,7 @@ public class BPSimExchange implements BPExchange {
                     // TODO simrandom downtime, sim random position close
                     
                     if (time >= nextFundingTime) {
-                        nextFundingTime += FUNDING_INTERVAL_MILLIS;
+                        nextFundingTime += fundingIntervalMillis;
                     }
                 }
                 // TODO in debug make sure lastUpdatedTime is sequential on every proper updateAccountInfo() call
@@ -79,7 +83,7 @@ public class BPSimExchange implements BPExchange {
                 
             } else {
                 // TODO make sure in debug that (timestamp / FUNDING_INTERVAL_MILLIS) is not a decimal
-                nextFundingTime = ((timestamp / FUNDING_INTERVAL_MILLIS) * FUNDING_INTERVAL_MILLIS) + FUNDING_INTERVAL_MILLIS;
+                nextFundingTime = ((timestamp / fundingIntervalMillis) * fundingIntervalMillis) + fundingIntervalMillis;
                 
                 calculateMarginBalanceAndUpdatePositionData(timestamp);
                 checkMaintenanceMargin();
@@ -93,43 +97,38 @@ public class BPSimExchange implements BPExchange {
             
             marginBalance = walletBalance;
             
-            for (Map.Entry<String, PositionData> entry : longPositions.entrySet()) {
-                
-                // should use a mark price for more accuracy
-                double currPrice = bpHistoricKlines.getOpen(entry.getKey(), timestamp);
-                entry.getValue().currPrice = currPrice;
-                double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
-                entry.getValue().pnl = pnl;
-                marginBalance += pnl;
-                
-            }
-            for (Map.Entry<String, PositionData> entry : shortPositions.entrySet()) {
-                
-                // should use a mark price for more accuracy
-                double currPrice = bpHistoricKlines.getOpen(entry.getKey(), timestamp);
-                entry.getValue().currPrice = currPrice;
-                double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
-                entry.getValue().pnl = pnl;
-                marginBalance += pnl;
+            for (Map.Entry<String, PositionData> entry : positions.entrySet()) {
+                // use mark price for more accuracy
+                if (entry.getValue().isLong) {
+                    double currPrice = bpHistoricKlines.getOpen(entry.getKey(), timestamp);
+                    entry.getValue().currPrice = currPrice;
+                    double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
+                    entry.getValue().pnl = pnl;
+                    marginBalance += pnl;
+                } else {
+                    double currPrice = bpHistoricKlines.getOpen(entry.getKey(), timestamp);
+                    entry.getValue().currPrice = currPrice;
+                    double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
+                    entry.getValue().pnl = pnl;
+                    marginBalance += pnl;
+                }
             }
             
             if (timestamp >= nextFundingTime) {
-                for (Map.Entry<String, PositionData> entry : longPositions.entrySet()) {
-                    
-                    double fundingRate = bpHistoricFundingRates.getRate(entry.getKey(), timestamp);
-                    double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
-                    marginBalance -= funding;
-                    walletBalance -= funding;
-                    entry.getValue().totalFundingFees += funding;
-                }
-                
-                for (Map.Entry<String, PositionData> entry : shortPositions.entrySet()) {
-                    
-                    double fundingRate = bpHistoricFundingRates.getRate(entry.getKey(), timestamp);
-                    double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
-                    marginBalance += funding;
-                    walletBalance += funding;
-                    entry.getValue().totalFundingFees -= funding;
+                for (Map.Entry<String, PositionData> entry : positions.entrySet()) {
+                    if (entry.getValue().isLong) {
+                        double fundingRate = bpHistoricFundingRates.getRate(entry.getKey(), timestamp);
+                        double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
+                        marginBalance -= funding;
+                        walletBalance -= funding;
+                        entry.getValue().totalFundingFees += funding;
+                    } else {
+                        double fundingRate = bpHistoricFundingRates.getRate(entry.getKey(), timestamp);
+                        double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
+                        marginBalance += funding;
+                        walletBalance += funding;
+                        entry.getValue().totalFundingFees -= funding;
+                    }
                 }
             }
         }
@@ -139,67 +138,72 @@ public class BPSimExchange implements BPExchange {
             // assuming crossed margin type
             double highestInitialMargin = 0;
             
-            for (Map.Entry<String, PositionData> entry : longPositions.entrySet()) {
+            for (Map.Entry<String, PositionData> entry : positions.entrySet()) {
                 
                 highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().initialMargin);
             }
-            for (Map.Entry<String, PositionData> entry : shortPositions.entrySet()) {
-                
-                highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().initialMargin);
-            }
-            
             // the maintenance margin is *always less* than 50% of the initial margin
             if (marginBalance <= highestInitialMargin / 2) {
                 // TODO log to exchange about possible liq
                 
                 marginBalance = 0;
                 walletBalance = 0;
-                longPositions = new HashMap<>();
-                shortPositions = new HashMap<>();
+                positions = new HashMap<>();
             }
         }
         
         @Override
-        public double getLongClosePriceWithSlippage(String symbol, double notionalValue) {
+        public long getLastUpdateTimestamp() {
             
-            return longPositions.get(symbol).currPrice * (1 - (slippageModel.getSlippage(notionalValue, symbol) - 1));
+            return lastUpdatedTime;
         }
         
         @Override
-        public double getShortClosePriceWithSlippage(String symbol, double notionalValue) {
+        public double getWalletBalance() {
             
-            return shortPositions.get(symbol).currPrice * slippageModel.getSlippage(notionalValue, symbol);
+            return walletBalance;
         }
         
         @Override
-        public double getLongQty(String symbol) {
+        public double getQty(String positionId) {
             
-            return longPositions.get(symbol).quantity;
+            return positions.get(positionId).quantity;
         }
         
         @Override
-        public double getShortQty(String symbol) {
+        public double getInitialMargin(String positionId) {
             
-            return shortPositions.get(symbol).quantity;
+            return positions.get(positionId).initialMargin;
         }
         
         @Override
-        public String[] getLongPositionSymbols() {
+        public double getPnL(String positionId) {
             
-            return (String[]) longPositions.keySet().toArray();
+            return positions.get(positionId).pnl;
         }
         
         @Override
-        public String[] getShortPositionSymbols() {
+        public int getLeverage(String symbol) {
             
-            return (String[]) shortPositions.keySet().toArray();
+            return leverages.get(symbol);
+        }
+        
+        @Override
+        public double getTotalFundingFees(String positionId) {
+            
+            return positions.get(positionId).totalFundingFees;
+        }
+        
+        @Override
+        public double getTakerFee() {
+            
+            return takerFee;
         }
     }
     
     @SuppressWarnings("unused")
     private static final boolean IS_HEDGE_MODE = true;
     
-    private static final long FUNDING_INTERVAL_MILLIS = 28800000; // 8 hours
     private static final long UPDATE_INTERVAL_MILLIS = 300000; // 5 minutes TODO change to 1 minute
     private static final double OPEN_LOSS_SIM_MULT = 1.06; // will probably never be this high
     
@@ -208,6 +212,7 @@ public class BPSimExchange implements BPExchange {
     
     private AccountInfo accInfo;
     
+    private long fundingIntervalMillis;
     private long nextFundingTime;
     private short defaultLeverage;
     
@@ -224,6 +229,7 @@ public class BPSimExchange implements BPExchange {
         this.defaultLeverage = defaultLeverage;
         bpHistoricKlines = BPHistoricKlines.loadKlines(BPHistoricKlines.KLINES_FILE);
         bpHistoricFundingRates = BPHistoricFundingRates.loadFundingRates(BPHistoricFundingRates.FUND_RATES_FILE);
+        fundingIntervalMillis = bpHistoricFundingRates.getFundingIntervalMillis();
         slippageModel = BPSlippageModel.LoadSlippageModel(BPSlippageModel.MODEL_FILE);
     }
     
@@ -242,7 +248,8 @@ public class BPSimExchange implements BPExchange {
         return false;
     }
     
-    private void openPosition(String symbol, double symbolQty, boolean isLong) {
+    @Override
+    public void marketOpen(String positionId, String symbol, boolean isLong, double symbolQty) {
         
         double openPrice = bpHistoricKlines.getOpen(symbol, accInfo.lastUpdatedTime);
         if (isLong) {
@@ -269,102 +276,40 @@ public class BPSimExchange implements BPExchange {
         accInfo.marginBalance -= openFee;
         accInfo.walletBalance -= openFee;
         
-        if (isLong) {
-            if (accInfo.longPositions.containsKey(symbol)) {
-                accInfo.longPositions.get(symbol).initialMargin += initialMargin;
-                double newQty = accInfo.longPositions.get(symbol).quantity + symbolQty;
-                double percOldQty = accInfo.longPositions.get(symbol).quantity / newQty;
-                double prevAvgOpenPrice = accInfo.longPositions.get(symbol).avgOpenPrice;
-                double percNewQty = symbolQty / newQty;
-                accInfo.longPositions.get(symbol).avgOpenPrice = (prevAvgOpenPrice * percOldQty) + (openPrice * percNewQty);
-                accInfo.longPositions.get(symbol).quantity = newQty;
-            } else {
-                accInfo.longPositions.put(symbol, new PositionData(openPrice, symbolQty, initialMargin));
-            }
+        if (accInfo.positions.containsKey(positionId)) {
+            accInfo.positions.get(positionId).initialMargin += initialMargin;
+            double newQty = accInfo.positions.get(positionId).quantity + symbolQty;
+            double percOldQty = accInfo.positions.get(positionId).quantity / newQty;
+            double prevAvgOpenPrice = accInfo.positions.get(positionId).avgOpenPrice;
+            double percNewQty = symbolQty / newQty;
+            accInfo.positions.get(positionId).avgOpenPrice = (prevAvgOpenPrice * percOldQty) + (openPrice * percNewQty);
+            accInfo.positions.get(positionId).quantity = newQty;
         } else {
-            if (accInfo.shortPositions.containsKey(symbol)) {
-                accInfo.shortPositions.get(symbol).initialMargin += initialMargin;
-                double newQty = accInfo.shortPositions.get(symbol).quantity + symbolQty;
-                double percOldQty = accInfo.shortPositions.get(symbol).quantity / newQty;
-                double prevAvgOpenPrice = accInfo.shortPositions.get(symbol).avgOpenPrice;
-                double percNewQty = symbolQty / newQty;
-                accInfo.shortPositions.get(symbol).avgOpenPrice = (prevAvgOpenPrice * percOldQty) + (openPrice * percNewQty);
-                accInfo.shortPositions.get(symbol).quantity = newQty;
-            } else {
-                accInfo.shortPositions.put(symbol, new PositionData(openPrice, symbolQty, initialMargin));
-            }
+            accInfo.positions.put(positionId, new PositionData(symbol, isLong, openPrice, symbolQty, initialMargin));
         }
     }
     
     @Override
-    public void marketOpenLong(String symbol, double symbolQty) {
+    public void marketClose(String positionId, double qtyToClose) {
         
-        openPosition(symbol, symbolQty, true);
-    }
-    
-    @Override
-    public void marketOpenShort(String symbol, double symbolQty) {
-        
-        openPosition(symbol, symbolQty, false);
-        
-    }
-    
-    @Override
-    public void marketCloseLong(String symbol) {
-        
-        if (accInfo.longPositions.containsKey(symbol)) {
+        if (accInfo.positions.containsKey(positionId)) {
             
-            double nValSlippage = accInfo.longPositions.get(symbol).quantity * accInfo.longPositions.get(symbol).currPrice;
-            double closePrice = accInfo.getLongClosePriceWithSlippage(symbol, nValSlippage);
-            double notionalValue = closePrice * accInfo.longPositions.get(symbol).quantity;
-            double pnl = (closePrice - accInfo.longPositions.get(symbol).avgOpenPrice)
-                    * accInfo.longPositions.get(symbol).quantity;
-            double closeFee = Math.abs(notionalValue + pnl) * MAKER_OPEN_CLOSE_FEE;
+            String symbol = accInfo.positions.get(positionId).symbol;
             
-            accInfo.walletBalance -= closeFee;
-            accInfo.marginBalance -= closeFee;
-            accInfo.walletBalance += pnl;
-            
-            accInfo.longPositions.remove(symbol);
-            // TODO log successful long close
-        } else {
-            // TODO log no long position with symbol
-        }
-    }
-    
-    @Override
-    public void marketCloseShort(String symbol) {
-        
-        if (accInfo.shortPositions.containsKey(symbol)) {
-            
-            double nValSlippage = accInfo.shortPositions.get(symbol).quantity * accInfo.shortPositions.get(symbol).currPrice;
-            double closePrice = accInfo.getShortClosePriceWithSlippage(symbol, nValSlippage);
-            double notionalValue = closePrice * accInfo.shortPositions.get(symbol).quantity;
-            double pnl = (accInfo.shortPositions.get(symbol).avgOpenPrice - closePrice)
-                    * accInfo.shortPositions.get(symbol).quantity;
-            double closeFee = Math.abs(notionalValue + pnl) * MAKER_OPEN_CLOSE_FEE;
-            
-            accInfo.walletBalance -= closeFee;
-            accInfo.marginBalance -= closeFee;
-            accInfo.walletBalance += pnl;
-            
-            accInfo.shortPositions.remove(symbol);
-            // TODO log successful short close
-        } else {
-            // TODO log no short position with symbol
-        }
-    }
-    
-    @Override
-    public void marketReduceLong(String symbol, double symbolQty) {
-        
-        if (accInfo.longPositions.containsKey(symbol)) {
-            if (accInfo.longPositions.get(symbol).quantity > symbolQty) {
+            if (accInfo.positions.get(positionId).quantity > qtyToClose) {
                 
-                double nValSlippage = accInfo.longPositions.get(symbol).quantity * accInfo.longPositions.get(symbol).currPrice;
-                double closePrice = accInfo.getLongClosePriceWithSlippage(symbol, nValSlippage);
-                double notionalValue = closePrice * symbolQty;
-                double pnl = (closePrice - accInfo.longPositions.get(symbol).avgOpenPrice) * symbolQty;
+                double nValSlipp = qtyToClose * accInfo.positions.get(positionId).currPrice;
+                double closePrice;
+                double pnl;
+                if (accInfo.positions.get(positionId).isLong) {
+                    closePrice = accInfo.positions.get(positionId).currPrice
+                            * (1 - (slippageModel.getSlippage(nValSlipp, symbol) - 1));
+                    pnl = (closePrice - accInfo.positions.get(positionId).avgOpenPrice) * qtyToClose;
+                } else {
+                    closePrice = accInfo.positions.get(positionId).currPrice * slippageModel.getSlippage(nValSlipp, symbol);
+                    pnl = (accInfo.positions.get(positionId).avgOpenPrice - closePrice) * qtyToClose;
+                }
+                double notionalValue = closePrice * qtyToClose;
                 double closeFee = Math.abs(notionalValue + pnl) * MAKER_OPEN_CLOSE_FEE;
                 
                 accInfo.walletBalance -= closeFee;
@@ -373,47 +318,36 @@ public class BPSimExchange implements BPExchange {
                 
                 double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
                 double initialMargin = notionalValue / leverage;
-                accInfo.longPositions.get(symbol).initialMargin -= initialMargin;
-                accInfo.longPositions.get(symbol).pnl -= pnl;
-                accInfo.longPositions.get(symbol).quantity -= symbolQty;
+                accInfo.positions.get(positionId).initialMargin -= initialMargin;
+                accInfo.positions.get(positionId).pnl -= pnl;
+                accInfo.positions.get(positionId).quantity -= qtyToClose;
                 
                 // TODO log successful long close
             } else {
-                marketCloseLong(symbol);
-            }
-        } else {
-            // TODO log no long position with symbol
-        }
-    }
-    
-    @Override
-    public void marketReduceShort(String symbol, double symbolQty) {
-        
-        if (accInfo.shortPositions.containsKey(symbol)) {
-            if (accInfo.shortPositions.get(symbol).quantity > symbolQty) {
-                
-                double nValSlippage = accInfo.shortPositions.get(symbol).quantity * accInfo.shortPositions.get(symbol).currPrice;
-                double closePrice = accInfo.getShortClosePriceWithSlippage(symbol, nValSlippage);
-                double notionalValue = closePrice * symbolQty;
-                double pnl = (accInfo.shortPositions.get(symbol).avgOpenPrice - closePrice) * symbolQty;
+                double quantity = accInfo.positions.get(positionId).quantity;
+                double nValSlipp = quantity * accInfo.positions.get(positionId).currPrice;
+                double closePrice;
+                double pnl;
+                if (accInfo.positions.get(positionId).isLong) {
+                    closePrice = accInfo.positions.get(positionId).currPrice
+                            * (1 - (slippageModel.getSlippage(nValSlipp, symbol) - 1));
+                    pnl = (closePrice - accInfo.positions.get(positionId).avgOpenPrice) * quantity;
+                } else {
+                    closePrice = accInfo.positions.get(positionId).currPrice * slippageModel.getSlippage(nValSlipp, symbol);
+                    pnl = (accInfo.positions.get(positionId).avgOpenPrice - closePrice) * quantity;
+                }
+                double notionalValue = closePrice * quantity;
                 double closeFee = Math.abs(notionalValue + pnl) * MAKER_OPEN_CLOSE_FEE;
                 
                 accInfo.walletBalance -= closeFee;
                 accInfo.marginBalance -= closeFee;
                 accInfo.walletBalance += pnl;
                 
-                double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
-                double initialMargin = notionalValue / leverage;
-                accInfo.shortPositions.get(symbol).initialMargin -= initialMargin;
-                accInfo.shortPositions.get(symbol).pnl -= pnl;
-                accInfo.shortPositions.get(symbol).quantity -= symbolQty;
-                
-                // TODO log successful short close
-            } else {
-                marketCloseShort(symbol);
+                accInfo.positions.remove(positionId);
             }
         } else {
-            // TODO log no short position with symbol
+            // TODO log no position with positionId
         }
     }
+    
 }

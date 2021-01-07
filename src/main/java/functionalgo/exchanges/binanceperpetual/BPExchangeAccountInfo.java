@@ -4,16 +4,19 @@ import functionalgo.ExchangeAccountInfo;
 
 public interface BPExchangeAccountInfo extends ExchangeAccountInfo {
     
-    double getLongQty(String symbol);
+    double getQty(String positionId);
     
-    double getShortQty(String symbol);
+    long getLastUpdateTimestamp();
     
-    String[] getLongPositionSymbols();
+    double getWalletBalance();
     
-    String[] getShortPositionSymbols();
-
-    double getLongClosePriceWithSlippage(String symbol, double notionalValue);
-
-    double getShortClosePriceWithSlippage(String symbol, double notionalValue);
+    double getInitialMargin(String positionId);
     
+    double getPnL(String positionId);
+    
+    int getLeverage(String symbol);
+    
+    double getTotalFundingFees(String positionId);
+    
+    double getTakerFee();
 }
