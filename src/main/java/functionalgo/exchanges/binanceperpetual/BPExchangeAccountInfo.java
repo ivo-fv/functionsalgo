@@ -21,4 +21,6 @@ public interface BPExchangeAccountInfo extends ExchangeAccountInfo {
     double getTakerFee();
 
     double getMarginBalance();
+
+    double getOpenPrice(String positionId);
 }

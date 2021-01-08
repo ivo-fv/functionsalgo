@@ -9,7 +9,7 @@ public interface BPExchange extends Exchange {
     
     boolean isRandomFailingOrdersEnabled();
     
-    void marketOpen(String positionId, String symbol, boolean isLong, double symbolQty);
+    boolean marketOpen(String positionId, String symbol, boolean isLong, double symbolQty);
     
-    void marketClose(String positionId, double qtyToClose);
+    boolean marketClose(String positionId, double qtyToClose);
 }

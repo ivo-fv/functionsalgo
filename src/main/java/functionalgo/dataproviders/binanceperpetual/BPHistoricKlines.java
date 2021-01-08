@@ -128,7 +128,7 @@ public class BPHistoricKlines implements Serializable {
                 new BufferedInputStream(new FileInputStream(new File(KLINES_FILE + interval.toString()))))) {
             return (BPHistoricKlines) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return null;
         }
     }

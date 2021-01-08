@@ -1,33 +1,19 @@
 package functionalgo.dataproviders.binanceperpetual;
 
 import functionalgo.DataProvider;
+import functionalgo.exceptions.NoDataAvailableException;
 
 public interface BPDataProvider extends DataProvider {
     
-    double getFundingRate(String symbol, long timestamp);
+    double getFundingRate(String symbol, long timestamp) throws NoDataAvailableException;
     
     /**
      * @param symbol
      * @param timestamp
-     * @return the open pice of symbol at timestamp. If symbol does not have information returns
-     *         Double.NEGATIVE_INFINITY
+     * @return the open pice of symbol at timestamp
      */
-    double getOpen(String symbol, long timestamp, Interval interval);
+    double getOpen(String symbol, long timestamp, Interval interval) throws NoDataAvailableException;
     
     long getFundingInterval();
-    
-    /**
-     * Return 0 if not a backtest data provider.
-     * 
-     * @return
-     */
-    long getEarliestTimestamp();
-    
-    /**
-     * Return 0 if not a backtest data provider.
-     * 
-     * @return
-     */
-    long getLatestTimestamp();
     
 }
