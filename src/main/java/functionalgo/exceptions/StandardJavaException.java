@@ -8,7 +8,6 @@ public class StandardJavaException extends Exception {
     
     public StandardJavaException(Exception cause) {
         
-        // TODO log exception
         this.cause = cause;
     }
     

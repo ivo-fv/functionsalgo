@@ -20,20 +20,19 @@ public enum Interval {
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "3m";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 180000;
         }
-    }, _5m {
+    },
+    _5m {
         
         @Override
-        public String toString() {            
+        public String toString() {
             
             return "5m";
         }
@@ -43,97 +42,92 @@ public enum Interval {
             
             return 300000;
         }
-    }, _15m {
+    },
+    _15m {
         
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "15m";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 900000;
         }
-    }, _30m {
+    },
+    _30m {
         
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "30m";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 1800000;
         }
-    }, _1h {
+    },
+    _1h {
         
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "1h";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 3600000;
         }
-    }, _2h {
+    },
+    _2h {
         
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "2h";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 7200000;
         }
-    }, _4h {
+    },
+    _4h {
         
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "4h";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 14400000;
         }
-    }, _6h {
+    },
+    _6h {
         
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "6h";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 21600000;
         }
-    }, _8h {
+    },
+    _8h {
         
         @Override
         public String toString() {
@@ -146,80 +140,75 @@ public enum Interval {
             
             return 28800000;
         }
-    }, _12h {
+    },
+    _12h {
         
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "12h";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 43200000;
         }
-    }, _1d {
+    },
+    _1d {
         
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "1d";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 86400000;
         }
-    }, _3d {
+    },
+    _3d {
         
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "3d";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 259200000;
         }
-    }, _1w {
+    },
+    _1w {
         
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "1w";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 604800000;
         }
-    }, _1M {
+    },
+    _1M {
         
         @Override
         public String toString() {
             
-            // TODO Auto-generated method stub
-            return null;
+            return "1M";
         }
         
         @Override
         public long toMilliseconds() {
             
-            // TODO Auto-generated method stub
-            return 0;
+            return 2629800000L;
         }
     };
     

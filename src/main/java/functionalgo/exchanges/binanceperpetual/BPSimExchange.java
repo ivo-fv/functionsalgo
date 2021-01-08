@@ -7,7 +7,7 @@ import functionalgo.dataproviders.binanceperpetual.BPHistoricFundingRates;
 import functionalgo.dataproviders.binanceperpetual.BPHistoricKlines;
 import functionalgo.dataproviders.binanceperpetual.Interval;
 
-// TODO executor merge with exchange, execution strat on strat
+// TODO check for liquidation with highest lowest
 public class BPSimExchange implements BPExchange {
     
     private class PositionData {
@@ -68,18 +68,13 @@ public class BPSimExchange implements BPExchange {
                     calculateMarginBalanceAndUpdatePositionData(time);
                     checkMaintenanceMargin();
                     
-                    // TODO simrandom downtime, sim random position close
-                    
                     if (time >= nextFundingTime) {
                         nextFundingTime += fundingIntervalMillis;
                     }
                 }
-                // TODO in debug make sure lastUpdatedTime is sequential on every proper updateAccountInfo() call
-                // ie: it's the same as the last time passed to the methods inside the loop
-                lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
                 
+                lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
             } else {
-                // TODO make sure in debug that (timestamp / FUNDING_INTERVAL_MILLIS) is not a decimal
                 nextFundingTime = ((timestamp / fundingIntervalMillis) * fundingIntervalMillis) + fundingIntervalMillis;
                 
                 calculateMarginBalanceAndUpdatePositionData(timestamp);
@@ -93,7 +88,7 @@ public class BPSimExchange implements BPExchange {
         void calculateMarginBalanceAndUpdatePositionData(long timestamp) {
             
             marginBalance = walletBalance;
-            // TODO refactor to use positions.values...
+            
             for (Map.Entry<String, PositionData> entry : positions.entrySet()) {
                 // use mark price for more accuracy
                 if (entry.getValue().isLong) {
@@ -108,7 +103,7 @@ public class BPSimExchange implements BPExchange {
                     marginBalance += pnl;
                 }
             }
-            // TODO refactor to use positions.values...
+            
             if (timestamp >= nextFundingTime) {
                 for (Map.Entry<String, PositionData> entry : positions.entrySet()) {
                     if (entry.getValue().isLong) {
@@ -242,8 +237,6 @@ public class BPSimExchange implements BPExchange {
     private BPHistoricFundingRates bpHistoricFundingRates;
     private BPSlippageModel slippageModel;
     
-    // TODO use more accurate information for maintenance and initial margin and symbol price and quantity
-    
     public BPSimExchange(double walletBalance, short defaultLeverage, Interval updateInterval) {
         
         accInfo = new AccountInfo(walletBalance);
@@ -266,7 +259,7 @@ public class BPSimExchange implements BPExchange {
     @Override
     public boolean isRandomFailingOrdersEnabled() {
         
-        // TODO Auto-generated method stub
+        // TODO sim random position close and random downtime
         return false;
     }
     
@@ -274,25 +267,24 @@ public class BPSimExchange implements BPExchange {
     public boolean marketOpen(String positionId, String symbol, boolean isLong, double symbolQty) {
         
         double openPrice = bpHistoricKlines.getOpen(symbol, accInfo.lastUpdatedTime);
+        double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
+        double initialMargin = (openPrice * symbolQty) / leverage;
         if (isLong) {
             openPrice *= slippageModel.getSlippage(openPrice * symbolQty, symbol);
         } else {
             openPrice *= 1 - (slippageModel.getSlippage(openPrice * symbolQty, symbol) - 1);
         }
         double notionalValue = openPrice * symbolQty;
-        double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
-        double initialMargin = notionalValue / leverage;
         
-        // TODO verify if it's checked against marginBalance or walletBalance
-        double balanceToCheck = Math.min(accInfo.marginBalance, accInfo.walletBalance);
         double marginUsed = 0;
         for (Map.Entry<String, PositionData> entry : accInfo.positions.entrySet()) {
-            // TODO try with += entry.getValue() * OPEN_LOSS_SIM_MULT
             marginUsed += entry.getValue().initialMargin;
         }
-        if (marginUsed + (initialMargin * OPEN_LOSS_SIM_MULT) >= balanceToCheck) {
-            // TODO log that order can't be executed due to insuficient initial margin
-            System.out.println("Not enough margin to open position.");
+        if (marginUsed + (initialMargin * OPEN_LOSS_SIM_MULT) >= accInfo.marginBalance) {
+            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            System.out.println("!!! Not enough margin to open position. !!!");
+            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            // TODO log no margin to open position
             return false;
         }
         
@@ -311,7 +303,7 @@ public class BPSimExchange implements BPExchange {
         } else {
             accInfo.positions.put(positionId, new PositionData(symbol, isLong, openPrice, symbolQty, initialMargin));
         }
-        // log successful open
+        // TODO log successful open
         return true;
     }
     
@@ -347,7 +339,7 @@ public class BPSimExchange implements BPExchange {
                 accInfo.positions.get(positionId).initialMargin -= initialMargin;
                 accInfo.positions.get(positionId).quantity -= qtyToClose;
                 
-                // TODO log successful long close
+                // TODO log successful close
             } else {
                 double quantity = accInfo.positions.get(positionId).quantity;
                 double nValSlipp = quantity * accInfo.positions.get(positionId).currPrice;
@@ -370,7 +362,7 @@ public class BPSimExchange implements BPExchange {
                 
                 accInfo.positions.remove(positionId);
                 
-                // TODO log log successful long close
+                // TODO log successful close
             }
         } else {
             // TODO log no position with positionId
