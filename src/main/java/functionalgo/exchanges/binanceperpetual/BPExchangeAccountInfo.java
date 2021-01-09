@@ -23,4 +23,6 @@ public interface BPExchangeAccountInfo extends ExchangeAccountInfo {
     double getMarginBalance();
 
     double getOpenPrice(String positionId);
+
+    double getWorstMarginBalance();
 }

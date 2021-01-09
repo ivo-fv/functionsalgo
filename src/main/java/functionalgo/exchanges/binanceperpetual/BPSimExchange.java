@@ -226,6 +226,12 @@ public class BPSimExchange implements BPExchange {
             
             return positions.get(positionId).avgOpenPrice;
         }
+
+        @Override
+        public double getWorstMarginBalance() {
+            
+            return worstMarginBalance;
+        }
     }
     
     @SuppressWarnings("unused")
