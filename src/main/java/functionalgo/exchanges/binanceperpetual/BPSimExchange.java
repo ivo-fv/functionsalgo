@@ -7,7 +7,6 @@ import functionalgo.dataproviders.binanceperpetual.BPHistoricFundingRates;
 import functionalgo.dataproviders.binanceperpetual.BPHistoricKlines;
 import functionalgo.dataproviders.binanceperpetual.Interval;
 
-// TODO check for liquidation with highest lowest
 public class BPSimExchange implements BPExchange {
     
     private class PositionData {
@@ -43,11 +42,13 @@ public class BPSimExchange implements BPExchange {
         HashMap<String, PositionData> positions;
         long lastUpdatedTime;
         double takerFee = TAKER_OPEN_CLOSE_FEE;
+        private double worstMarginBalance;
         
         AccountInfo(double walletBalance) {
             
             this.walletBalance = walletBalance;
             marginBalance = walletBalance;
+            worstMarginBalance = walletBalance;
             
             positions = new HashMap<>();
             leverages = new HashMap<>();
@@ -66,7 +67,7 @@ public class BPSimExchange implements BPExchange {
                 for (long time = lastUpdatedTime + updateIntervalMillis; time <= timestamp; time += updateIntervalMillis) {
                     
                     calculateMarginBalanceAndUpdatePositionData(time);
-                    checkMaintenanceMargin();
+                    checkMaintenanceMargin(time);
                     
                     if (time >= nextFundingTime) {
                         nextFundingTime += fundingIntervalMillis;
@@ -78,7 +79,7 @@ public class BPSimExchange implements BPExchange {
                 nextFundingTime = ((timestamp / fundingIntervalMillis) * fundingIntervalMillis) + fundingIntervalMillis;
                 
                 calculateMarginBalanceAndUpdatePositionData(timestamp);
-                checkMaintenanceMargin();
+                checkMaintenanceMargin(timestamp);
                 
                 lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
             }
@@ -88,6 +89,7 @@ public class BPSimExchange implements BPExchange {
         void calculateMarginBalanceAndUpdatePositionData(long timestamp) {
             
             marginBalance = walletBalance;
+            worstMarginBalance = walletBalance;
             
             for (Map.Entry<String, PositionData> entry : positions.entrySet()) {
                 // use mark price for more accuracy
@@ -96,11 +98,17 @@ public class BPSimExchange implements BPExchange {
                     entry.getValue().currPrice = currPrice;
                     double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
                     marginBalance += pnl;
+                    double worstPrice = bpHistoricKlines.getLow(entry.getValue().symbol, timestamp);
+                    double worstPnL = (worstPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
+                    worstMarginBalance += worstPnL;
                 } else {
                     double currPrice = bpHistoricKlines.getOpen(entry.getValue().symbol, timestamp);
                     entry.getValue().currPrice = currPrice;
                     double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
                     marginBalance += pnl;
+                    double worstPrice = bpHistoricKlines.getHigh(entry.getValue().symbol, timestamp);
+                    double worstPnL = (entry.getValue().avgOpenPrice - worstPrice) * entry.getValue().quantity;
+                    worstMarginBalance += worstPnL;
                 }
             }
             
@@ -111,19 +119,21 @@ public class BPSimExchange implements BPExchange {
                         double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                         marginBalance -= funding;
                         walletBalance -= funding;
+                        worstMarginBalance -= funding;
                         entry.getValue().totalFundingFees += funding;
                     } else {
                         double fundingRate = bpHistoricFundingRates.getRate(entry.getValue().symbol, timestamp);
                         double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                         marginBalance += funding;
                         walletBalance += funding;
+                        worstMarginBalance += funding;
                         entry.getValue().totalFundingFees -= funding;
                     }
                 }
             }
         }
         
-        void checkMaintenanceMargin() {
+        void checkMaintenanceMargin(long time) {
             
             // assuming crossed margin type
             double highestInitialMargin = 0;
@@ -133,10 +143,10 @@ public class BPSimExchange implements BPExchange {
                 highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().initialMargin);
             }
             // the maintenance margin is *always less* than 50% of the initial margin
-            if (marginBalance <= highestInitialMargin / 2) {
+            if (worstMarginBalance <= highestInitialMargin / 2) {
                 // TODO log to exchange about possible liq
                 System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                System.out.println("!!! Probably going to get liquidated !!!");
+                System.out.println("!!! Probably going to get liquidated at: " + time);
                 System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
                 marginBalance = 0;
                 walletBalance = 0;
@@ -282,7 +292,7 @@ public class BPSimExchange implements BPExchange {
         }
         if (marginUsed + (initialMargin * OPEN_LOSS_SIM_MULT) >= accInfo.marginBalance) {
             System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            System.out.println("!!! Not enough margin to open position. !!!");
+            System.out.println("!!! Not enough margin to open position at: " + accInfo.lastUpdatedTime);
             System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             // TODO log no margin to open position
             return false;

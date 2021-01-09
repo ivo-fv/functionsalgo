@@ -89,8 +89,8 @@ public class BPHistoricKlines implements Serializable {
                 } else {
                     System.out.println("Couldn't find the .json files for the" + interval.toString() + " candleInterval.");
                 }
-            }            
-        }        
+            }
+        }
     }
     
     private void addSymbolData(String symbol, BigDecimal[][] parsedSymbolKlines) {
@@ -128,7 +128,7 @@ public class BPHistoricKlines implements Serializable {
                 new BufferedInputStream(new FileInputStream(new File(KLINES_FILE + interval.toString()))))) {
             return (BPHistoricKlines) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
-            //e.printStackTrace();
+            // e.printStackTrace();
             return null;
         }
     }
@@ -146,5 +146,15 @@ public class BPHistoricKlines implements Serializable {
     public static String getDirName(Interval interval) {
         
         return JSON_DATA_FOLDER + "/klines_" + interval.toString();
+    }
+    
+    public double getLow(String symbol, long timestamp) {
+        
+        return klines.get(symbol).get(timestamp).low;
+    }
+    
+    public double getHigh(String symbol, long timestamp) {
+        
+        return klines.get(symbol).get(timestamp).high;
     }
 }
