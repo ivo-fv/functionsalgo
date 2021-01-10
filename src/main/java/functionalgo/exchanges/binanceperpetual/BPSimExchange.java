@@ -12,14 +12,14 @@ public class BPSimExchange implements BPExchange {
     private class PositionData {
         
         @SuppressWarnings("unused")
-        private static final String MARGIN_TYPE = "CROSSED"; // 8 hours
+        private static final String MARGIN_TYPE = "CROSSED";
         
         String symbol;
         boolean isLong;
         double avgOpenPrice;
         double currPrice;
         double quantity;
-        double initialMargin;
+        double margin;
         double totalFundingFees;
         
         PositionData(String symbol, boolean isLong, double avgOpenPrice, double quantity, double initialMargin) {
@@ -29,7 +29,7 @@ public class BPSimExchange implements BPExchange {
             this.avgOpenPrice = avgOpenPrice;
             this.currPrice = avgOpenPrice;
             this.quantity = quantity;
-            this.initialMargin = initialMargin;
+            this.margin = initialMargin;
             this.totalFundingFees = 0;
         }
     }
@@ -58,6 +58,7 @@ public class BPSimExchange implements BPExchange {
         
         void updateAccountInfo(long timestamp) {
             
+            // TODO random position adl close, simulate not being able to trade for a period of time
             if (timestamp <= lastUpdatedTime) {
                 throw new IllegalArgumentException("timestamp must be larger than the previous");
             }
@@ -101,6 +102,9 @@ public class BPSimExchange implements BPExchange {
                     double worstPrice = bpHistoricKlines.getLow(entry.getValue().symbol, timestamp);
                     double worstPnL = (worstPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
                     worstMarginBalance += worstPnL;
+                    short leverage = leverages.containsKey(entry.getValue().symbol) ? leverages.get(entry.getValue().symbol)
+                            : defaultLeverage;
+                    entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
                 } else {
                     double currPrice = bpHistoricKlines.getOpen(entry.getValue().symbol, timestamp);
                     entry.getValue().currPrice = currPrice;
@@ -109,6 +113,9 @@ public class BPSimExchange implements BPExchange {
                     double worstPrice = bpHistoricKlines.getHigh(entry.getValue().symbol, timestamp);
                     double worstPnL = (entry.getValue().avgOpenPrice - worstPrice) * entry.getValue().quantity;
                     worstMarginBalance += worstPnL;
+                    short leverage = leverages.containsKey(entry.getValue().symbol) ? leverages.get(entry.getValue().symbol)
+                            : defaultLeverage;
+                    entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
                 }
             }
             
@@ -140,7 +147,7 @@ public class BPSimExchange implements BPExchange {
             
             for (Map.Entry<String, PositionData> entry : positions.entrySet()) {
                 
-                highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().initialMargin);
+                highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().margin);
             }
             // the maintenance margin is *always less* than 50% of the initial margin
             if (worstMarginBalance <= highestInitialMargin / 2) {
@@ -170,12 +177,6 @@ public class BPSimExchange implements BPExchange {
         public double getQty(String positionId) {
             
             return positions.get(positionId).quantity;
-        }
-        
-        @Override
-        public double getInitialMargin(String positionId) {
-            
-            return positions.get(positionId).initialMargin;
         }
         
         @Override
@@ -226,7 +227,7 @@ public class BPSimExchange implements BPExchange {
             
             return positions.get(positionId).avgOpenPrice;
         }
-
+        
         @Override
         public double getWorstMarginBalance() {
             
@@ -273,13 +274,6 @@ public class BPSimExchange implements BPExchange {
     }
     
     @Override
-    public boolean isRandomFailingOrdersEnabled() {
-        
-        // TODO sim random position close and random downtime
-        return false;
-    }
-    
-    @Override
     public boolean marketOpen(String positionId, String symbol, boolean isLong, double symbolQty) {
         
         double openPrice = bpHistoricKlines.getOpen(symbol, accInfo.lastUpdatedTime);
@@ -294,7 +288,7 @@ public class BPSimExchange implements BPExchange {
         
         double marginUsed = 0;
         for (Map.Entry<String, PositionData> entry : accInfo.positions.entrySet()) {
-            marginUsed += entry.getValue().initialMargin;
+            marginUsed += entry.getValue().margin;
         }
         if (marginUsed + (initialMargin * OPEN_LOSS_SIM_MULT) >= accInfo.marginBalance) {
             System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
@@ -309,7 +303,7 @@ public class BPSimExchange implements BPExchange {
         accInfo.walletBalance -= openFee;
         
         if (accInfo.positions.containsKey(positionId)) {
-            accInfo.positions.get(positionId).initialMargin += initialMargin;
+            accInfo.positions.get(positionId).margin += initialMargin;
             double newQty = accInfo.positions.get(positionId).quantity + symbolQty;
             double percOldQty = accInfo.positions.get(positionId).quantity / newQty;
             double prevAvgOpenPrice = accInfo.positions.get(positionId).avgOpenPrice;
@@ -351,8 +345,8 @@ public class BPSimExchange implements BPExchange {
                 accInfo.walletBalance += pnl;
                 
                 double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
-                double initialMargin = notionalValue / leverage;
-                accInfo.positions.get(positionId).initialMargin -= initialMargin;
+                double margin = notionalValue / leverage;
+                accInfo.positions.get(positionId).margin -= margin;
                 accInfo.positions.get(positionId).quantity -= qtyToClose;
                 
                 // TODO log successful close
@@ -386,6 +380,29 @@ public class BPSimExchange implements BPExchange {
         }
         
         return true;
+    }
+    
+    @Override
+    public void batchMarketOpen(String positionId, String symbol, boolean isLong, double symbolQty) {
+        
+        // TODO Auto-generated method stub
+        
+    }
+    
+    @Override
+    public void batchMarketClose(String positionId, double qtyToClose) {
+        
+        // TODO Auto-generated method stub
+        
+    }
+    
+    @Override
+    public BPExchangeAccountInfo executeBatchedOrders() {
+        
+        return null;
+        
+        // TODO Auto-generated method stub
+        
     }
     
 }
