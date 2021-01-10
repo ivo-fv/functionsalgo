@@ -7,17 +7,19 @@ public interface BPExchange extends Exchange {
     @Override
     BPExchangeAccountInfo getAccountInfo(long timestamp);
     
-    boolean marketOpen(String positionId, String symbol, boolean isLong, double symbolQty);
+    boolean marketOpen(String symbol, boolean isLong, double symbolQty);
     
-    boolean marketClose(String positionId, double qtyToClose);
+    boolean marketClose(String symbol, boolean isLong, double qtyToClose);
     
-    void batchMarketOpen(String positionId, String symbol, boolean isLong, double symbolQty);
+    void batchMarketOpen(String symbol, boolean isLong, double symbolQty);
     
-    void batchMarketClose(String positionId, double qtyToClose);
+    void batchMarketClose(String symbol, boolean isLong, double qtyToClose);
     
     /**
-     * It is necessary to call getAccountInfo before every execution of this method.
-     * This method may not execute every batched order.
+     * It is recommended to call getAccountInfo() at least once for every interval the strategy monitors before
+     * calling executeBatchedOrders() an arbitrary amount of times.
+     * This method may fail to execute every batched order. Every batch order will be consumed even if it didn't get
+     * executed. It will execute in the order the orders were batched.
      * The BPExchangeAccountInfo instance returned by executeBatchedOrders will contain the state of the account's
      * positions.
      * After executeBatchedOrders returns it's important to check if the positions opened by the executed orders

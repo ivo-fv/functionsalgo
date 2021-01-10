@@ -5,26 +5,32 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SSLSocketFactory;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import functionalgo.Utils;
+import functionalgo.exceptions.ErrorParsingJsonException;
 
 public class BPLiveExchange implements BPExchange {
     
     // TODO when instantiate set leverages to init and hedge mode and cross mode
     // TODO log every transaction, failures and issue
+    // TODO make service methods to manually correct problems such as if the store was wiped
+    // TODO when logging include json error message and http code
+    // TODO include a logger as parameter to livexchange constructor
     public static void main(String[] args) throws IOException {
         
         String privateKey = "***REMOVED***";
@@ -62,41 +68,48 @@ public class BPLiveExchange implements BPExchange {
     private SSLSocketFactory tlsSocketFactory;
     private int ipLimitWeight1M;
     private int httpStatusCode;
-    private boolean canExecuteAndSet;
+    
+    private AccountInfo accountInfo;
+    
+    private List<BatchedOrder> batchedMarketOrders;
     
     private class BatchedOrder {
         
-        String positionId;
         String symbol;
         boolean isLong;
         double quantity;
-        double qtyToClose;
+        boolean isOpen;
         
-        public BatchedOrder(String positionId, String symbol, boolean isLong, double quantity, double qtyToClose) {
+        public BatchedOrder(String symbol, boolean isLong, double quantity, boolean isOpen) {
             
-            this.positionId = positionId;
             this.symbol = symbol;
             this.isLong = isLong;
             this.quantity = quantity;
-            this.qtyToClose = qtyToClose;
+            this.isOpen = isOpen;
         }
     }
     
     class AccountInfo implements BPExchangeAccountInfo {
         
-        public double totalInitialMargin;
-        public double marginBalance;
-        public double walletBalance;
+        double totalInitialMargin = 0;
+        double marginBalance = 0;
+        double walletBalance = 0;
+        HashMap<String, Integer> leverages;
+        
+        public AccountInfo() {
+            
+            leverages = new HashMap<>();
+        }
         
         @Override
-        public double getQty(String positionId) {
+        public double getQuantity(String positionId) {
             
             // TODO Auto-generated method stub
             return 0;
         }
         
         @Override
-        public long getLastUpdateTimestamp() {
+        public long getTimestamp() {
             
             // TODO Auto-generated method stub
             return 0;
@@ -110,21 +123,7 @@ public class BPLiveExchange implements BPExchange {
         }
         
         @Override
-        public double getMarketClosePnL(String positionId, double qtyToClose) {
-            
-            // TODO Auto-generated method stub
-            return 0;
-        }
-        
-        @Override
         public int getLeverage(String symbol) {
-            
-            // TODO Auto-generated method stub
-            return 0;
-        }
-        
-        @Override
-        public double getTotalFundingFees(String positionId) {
             
             // TODO Auto-generated method stub
             return 0;
@@ -145,7 +144,7 @@ public class BPLiveExchange implements BPExchange {
         }
         
         @Override
-        public double getOpenPrice(String positionId) {
+        public double getAverageOpenPrice(String positionId) {
             
             // TODO Auto-generated method stub
             return 0;
@@ -158,19 +157,32 @@ public class BPLiveExchange implements BPExchange {
             return 0;
         }
         
+        @Override
+        public double getCurrentPrice(String symbol) {
+            
+            // TODO Auto-generated method stub
+            return 0;
+        }
+        
+        @Override
+        public long getNextFundingTime() {
+            
+            // TODO Auto-generated method stub
+            return 0;
+        }
+        
+        @Override
+        public double getFundingRate(String symbol) {
+            
+            // TODO Auto-generated method stub
+            return 0;
+        }
+        
     }
-    
-    private AccountInfo accountInfo;
-    
-    private List<BatchedOrder> batchedMarketOpenOders;
-    private List<BatchedOrder> batchedMarketCloseOders;
-    
-    private JsonElement exchangeInfo;
     
     public BPLiveExchange(BPLiveStore store, String privateKey, String apiKey) {
         
         // TODO when instantiate set leverages to init and hedge mode and cross mode
-        // TODO get the saved state from db using a map with the apiKey as key
         try {
             this.store = store;
             this.apiKey = apiKey;
@@ -181,10 +193,8 @@ public class BPLiveExchange implements BPExchange {
             
             tlsSocketFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
             
-            batchedMarketOpenOders = new ArrayList<>();
-            batchedMarketCloseOders = new ArrayList<>();
+            batchedMarketOrders = new ArrayList<>();
             
-            canExecuteAndSet = false;
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             // TODO throw custom exception
         }
@@ -193,31 +203,28 @@ public class BPLiveExchange implements BPExchange {
     @Override
     public BPExchangeAccountInfo getAccountInfo(long timestamp) {
         
-        accountInfo = store.getAccountInfo();
+        accountInfo = store.getAccountInfo(apiKey);
         if (accountInfo == null) {
             // TODO log this
-            return null;
+            accountInfo = new AccountInfo();
         }
-        
-        // TODO check if the accountInfo positions at the end of the previous executeBatchedOrders match the positions
-        // gotten from the exchange, verify the quantity with getPositionInformation() (endpoint is /v2/positionRisk)
-        // maybe include order ids and a previous known correct consistent state to compare to and maybe if needed
-        // play out transaction history. Log any inconsistencies and try to automatically adjust accountInfo to match
-        // what the real aggregated positions are
         
         try {
             String jsonAccInfo = getAccountInformation();
             JsonElement elemAccInfo = JsonParser.parseString(jsonAccInfo);
-            // TODO complete
-            accountInfo.totalInitialMargin = 0;
-            accountInfo.marginBalance = 0;
-            accountInfo.walletBalance = 0;
-        } catch (IOException e) {
-            // TODO log this
+            JsonObject objAccInfo = elemAccInfo.getAsJsonObject();
+            accountInfo.totalInitialMargin = objAccInfo.get("totalInitialMargin").getAsDouble();
+            accountInfo.marginBalance = objAccInfo.get("totalMarginBalance").getAsDouble();
+            accountInfo.walletBalance = objAccInfo.get("totalWalletBalance").getAsDouble();
+            JsonArray arrPositions = objAccInfo.get("positions").getAsJsonArray();
+            for (JsonElement elem : arrPositions) {
+                JsonObject elemObj = elem.getAsJsonObject();
+                accountInfo.leverages.put(elemObj.get("symbol").getAsString(), elemObj.get("leverage").getAsInt());
+            }
+        } catch (Exception e) {
+            // TODO log this, if it's not IOException, it's a json parsing problem
             return null;
         }
-        
-        canExecuteAndSet = true;
         
         return accountInfo;
     }
@@ -241,12 +248,12 @@ public class BPLiveExchange implements BPExchange {
     }
     
     @Override
-    public boolean marketOpen(String positionId, String symbol, boolean isLong, double symbolQty) {
+    public boolean marketOpen(String symbol, boolean isLong, double symbolQty) {
         
         // TODO position management store in a db once request to exchange was successful
         
         try {
-            sendMarketOpen(symbol, symbol, isLong, symbolQty);
+            sendMarketOpen(symbol, isLong, symbolQty);
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -255,7 +262,7 @@ public class BPLiveExchange implements BPExchange {
         return false;
     }
     
-    public void sendMarketOpen(String positionId, String symbol, boolean isLong, double symbolQty) throws IOException {
+    public void sendMarketOpen(String symbol, boolean isLong, double symbolQty) throws IOException {
         // TODO limits throttling
         // TODO should return be a string json?
         
@@ -295,7 +302,7 @@ public class BPLiveExchange implements BPExchange {
     }
     
     @Override
-    public boolean marketClose(String positionId, double qtyToClose) {
+    public boolean marketClose(String positionId, boolean isLong, double qtyToClose) {
         
         // TODO position management store in a db once request to exchange was successful
         
@@ -303,56 +310,80 @@ public class BPLiveExchange implements BPExchange {
     }
     
     @Override
-    public void batchMarketOpen(String positionId, String symbol, boolean isLong, double symbolQty) {
+    public void batchMarketOpen(String symbol, boolean isLong, double symbolQty) {
         
-        batchedMarketOpenOders.add(new BatchedOrder(positionId, symbol, isLong, symbolQty, 0));
+        batchedMarketOrders.add(new BatchedOrder(symbol, isLong, symbolQty, true));
         
     }
     
     @Override
-    public void batchMarketClose(String positionId, double qtyToClose) {
+    public void batchMarketClose(String symbol, boolean isLong, double qtyToClose) {
         
-        batchedMarketCloseOders.add(new BatchedOrder(positionId, null, false, 0, qtyToClose));
+        batchedMarketOrders.add(new BatchedOrder(symbol, isLong, qtyToClose, false));
         
     }
     
     @Override
     public BPExchangeAccountInfo executeBatchedOrders() {
         
-        if (canExecuteAndSet == false) {
-            throw new IllegalStateException("Must call getAccountInfo before executing orders.");
-        }
         // remove batch from list to execute whether or not it was successful
-        
+        JsonElement exchangeInfo;
         try {
-            populateExchangeInfo();
-        } catch (IOException e) {
+            exchangeInfo = getExchangeInfo();
+            //
+            
+        } catch (Exception e) {
             // TODO log the event
             return null;
         }
+        // parse exchangeinfo in try or later and return null if exchangeinfo is null???
         
         // check if all of the orders will be executed, check necessary info with the exchangeInfo JSON element
-        // if not, return false;
+        // if not, return null, empty batch lists regardless;
+        // truncate as needed
+        double sumInitialMargin = accountInfo.totalInitialMargin;
+        
+        // TODO get mark price on getaccinfo, throttle getaccinfo
+        for (BatchedOrder order : batchedMarketOrders) {
+            if (order.isOpen) {
+                // order.quantity = truncate qty as needed
+                // sumInitialMargin += ((order.quantity * mark price of order.symbol) / leverage) * some open loss%
+                // check exchangeInfo filters like max order limit
+                
+            } else {
+                // order.quantity = truncate qty as needed
+                // sumInitialMargin -= (order.quantity * mark price of order.symbol) / leverage
+            }
+        }
+        
+        for (BatchedOrder order : batchedMarketOrders) {
+            if (order.isOpen) {
+                if (sumInitialMargin < accountInfo.marginBalance) {
+                    try {
+                        // execute order
+                    } catch (Exception e) {
+                        // log this
+                    }
+                }
+            } else {
+                try {
+                    // execute order
+                } catch (Exception e) {
+                    // log this
+                }
+            }
+        }
         
         // must have acc info already, check margins, check order limits etc
         
-        // TODO if successful update accountInfo
-        
-        store.setAccountInfo(accountInfo); // TODO if error in set, still return accountInfo, strat should not be concerned
-        
-        canExecuteAndSet = false;
+        // TODO if successful update accountInfo, call /fapi/v2/balance to get updated balances
+        // TODO if error in set, still return accountInfo, strat should not be concerned
+        store.setAccountInfo(apiKey, accountInfo);
         
         return accountInfo;
     }
     
-    private void populateExchangeInfo() throws IOException {
-        
-        String jsonInfo = getExchangeInfo();
-        exchangeInfo = JsonParser.parseString(jsonInfo);
-        
-    }
-    
-    private String getExchangeInfo() throws IOException {
+    private JsonElement getExchangeInfo() throws IOException {
         
         try (Socket socket = tlsSocketFactory.createSocket(HOST, 443)) {
             
@@ -360,7 +391,7 @@ public class BPLiveExchange implements BPExchange {
             output.write(EXCHANGE_INFO_REQ.getBytes(StandardCharsets.UTF_8));
             output.flush();
             
-            return getHTTPResponse(socket.getInputStream());
+            return JsonParser.parseString(getHTTPResponse(socket.getInputStream()));
         }
     }
     

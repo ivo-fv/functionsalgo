@@ -20,7 +20,6 @@ public class BPSimExchange implements BPExchange {
         double currPrice;
         double quantity;
         double margin;
-        double totalFundingFees;
         
         PositionData(String symbol, boolean isLong, double avgOpenPrice, double quantity, double initialMargin) {
             
@@ -30,7 +29,6 @@ public class BPSimExchange implements BPExchange {
             this.currPrice = avgOpenPrice;
             this.quantity = quantity;
             this.margin = initialMargin;
-            this.totalFundingFees = 0;
         }
     }
     
@@ -127,14 +125,12 @@ public class BPSimExchange implements BPExchange {
                         marginBalance -= funding;
                         walletBalance -= funding;
                         worstMarginBalance -= funding;
-                        entry.getValue().totalFundingFees += funding;
                     } else {
                         double fundingRate = bpHistoricFundingRates.getRate(entry.getValue().symbol, timestamp);
                         double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                         marginBalance += funding;
                         walletBalance += funding;
                         worstMarginBalance += funding;
-                        entry.getValue().totalFundingFees -= funding;
                     }
                 }
             }
@@ -162,7 +158,7 @@ public class BPSimExchange implements BPExchange {
         }
         
         @Override
-        public long getLastUpdateTimestamp() {
+        public long getTimestamp() {
             
             return lastUpdatedTime;
         }
@@ -174,40 +170,15 @@ public class BPSimExchange implements BPExchange {
         }
         
         @Override
-        public double getQty(String positionId) {
+        public double getQuantity(String positionId) {
             
             return positions.get(positionId).quantity;
-        }
-        
-        @Override
-        public double getMarketClosePnL(String positionId, double qtyToClose) {
-            
-            String symbol = accInfo.positions.get(positionId).symbol;
-            double nValSlipp = qtyToClose * accInfo.positions.get(positionId).currPrice;
-            double closePrice;
-            double pnl;
-            if (accInfo.positions.get(positionId).isLong) {
-                closePrice = accInfo.positions.get(positionId).currPrice
-                        * (1 - (slippageModel.getSlippage(nValSlipp, symbol) - 1));
-                pnl = (closePrice - accInfo.positions.get(positionId).avgOpenPrice) * qtyToClose;
-            } else {
-                closePrice = accInfo.positions.get(positionId).currPrice * slippageModel.getSlippage(nValSlipp, symbol);
-                pnl = (accInfo.positions.get(positionId).avgOpenPrice - closePrice) * qtyToClose;
-            }
-            
-            return pnl;
         }
         
         @Override
         public int getLeverage(String symbol) {
             
             return leverages.get(symbol);
-        }
-        
-        @Override
-        public double getTotalFundingFees(String positionId) {
-            
-            return positions.get(positionId).totalFundingFees;
         }
         
         @Override
@@ -223,7 +194,7 @@ public class BPSimExchange implements BPExchange {
         }
         
         @Override
-        public double getOpenPrice(String positionId) {
+        public double getAverageOpenPrice(String positionId) {
             
             return positions.get(positionId).avgOpenPrice;
         }
@@ -232,6 +203,27 @@ public class BPSimExchange implements BPExchange {
         public double getWorstMarginBalance() {
             
             return worstMarginBalance;
+        }
+        
+        @Override
+        public double getCurrentPrice(String symbol) {
+            
+            // TODO Auto-generated method stub
+            return 0;
+        }
+        
+        @Override
+        public long getNextFundingTime() {
+            
+            // TODO Auto-generated method stub
+            return 0;
+        }
+        
+        @Override
+        public double getFundingRate(String symbol) {
+            
+            // TODO Auto-generated method stub
+            return 0;
         }
     }
     
@@ -274,7 +266,9 @@ public class BPSimExchange implements BPExchange {
     }
     
     @Override
-    public boolean marketOpen(String positionId, String symbol, boolean isLong, double symbolQty) {
+    public boolean marketOpen(String symbol, boolean isLong, double symbolQty) {
+        
+        String positionId = symbol + "_" + isLong;
         
         double openPrice = bpHistoricKlines.getOpen(symbol, accInfo.lastUpdatedTime);
         double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
@@ -318,11 +312,11 @@ public class BPSimExchange implements BPExchange {
     }
     
     @Override
-    public boolean marketClose(String positionId, double qtyToClose) {
+    public boolean marketClose(String symbol, boolean isLong, double qtyToClose) {
+        
+        String positionId = symbol + "_" + isLong;
         
         if (accInfo.positions.containsKey(positionId)) {
-            
-            String symbol = accInfo.positions.get(positionId).symbol;
             
             if (accInfo.positions.get(positionId).quantity > qtyToClose) {
                 
@@ -383,14 +377,14 @@ public class BPSimExchange implements BPExchange {
     }
     
     @Override
-    public void batchMarketOpen(String positionId, String symbol, boolean isLong, double symbolQty) {
+    public void batchMarketOpen(String symbol, boolean isLong, double symbolQty) {
         
         // TODO Auto-generated method stub
         
     }
     
     @Override
-    public void batchMarketClose(String positionId, double qtyToClose) {
+    public void batchMarketClose(String symbol, boolean isLong, double qtyToClose) {
         
         // TODO Auto-generated method stub
         
