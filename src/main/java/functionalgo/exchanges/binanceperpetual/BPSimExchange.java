@@ -1,11 +1,14 @@
 package functionalgo.exchanges.binanceperpetual;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import functionalgo.dataproviders.binanceperpetual.BPHistoricFundingRates;
 import functionalgo.dataproviders.binanceperpetual.BPHistoricKlines;
 import functionalgo.dataproviders.binanceperpetual.Interval;
+import functionalgo.exceptions.ExchangeException;
 
 public class BPSimExchange implements BPExchange {
     
@@ -41,6 +44,7 @@ public class BPSimExchange implements BPExchange {
         long lastUpdatedTime;
         double takerFee = TAKER_OPEN_CLOSE_FEE;
         private double worstMarginBalance;
+        public HashMap<String, ExchangeException> ordersWithErrors;
         
         AccountInfo(double walletBalance) {
             
@@ -50,6 +54,7 @@ public class BPSimExchange implements BPExchange {
             
             positions = new HashMap<>();
             leverages = new HashMap<>();
+            ordersWithErrors = new HashMap<>();
             
             lastUpdatedTime = 0;
         }
@@ -205,7 +210,6 @@ public class BPSimExchange implements BPExchange {
             return worstMarginBalance;
         }
         
-        
         @Override
         public long getNextFundingTime(String symbol) {
             
@@ -225,6 +229,18 @@ public class BPSimExchange implements BPExchange {
             
             // TODO Auto-generated method stub
             return 0;
+        }
+        
+        @Override
+        public ExchangeException getOrderError(String orderId) {
+            
+            return ordersWithErrors.get(orderId);
+        }
+        
+        @Override
+        public boolean isBalancesDesynch() {
+            
+            return false;
         }
     }
     
@@ -247,6 +263,26 @@ public class BPSimExchange implements BPExchange {
     private BPHistoricFundingRates bpHistoricFundingRates;
     private BPSlippageModel slippageModel;
     
+    private List<BatchedOrder> batchedMarketOrders;
+    
+    private class BatchedOrder {
+        
+        String orderId;
+        String symbol;
+        boolean isLong;
+        double quantity;
+        boolean isOpen;
+        
+        public BatchedOrder(String orderId, String symbol, boolean isLong, double quantity, boolean isOpen) {
+            
+            this.orderId = orderId;
+            this.symbol = symbol;
+            this.isLong = isLong;
+            this.quantity = quantity;
+            this.isOpen = isOpen;
+        }
+    }
+    
     public BPSimExchange(double walletBalance, short defaultLeverage, Interval updateInterval) {
         
         accInfo = new AccountInfo(walletBalance);
@@ -256,6 +292,7 @@ public class BPSimExchange implements BPExchange {
         bpHistoricFundingRates = BPHistoricFundingRates.loadFundingRates();
         fundingIntervalMillis = bpHistoricFundingRates.getFundingIntervalMillis();
         slippageModel = BPSlippageModel.LoadSlippageModel(BPSlippageModel.MODEL_FILE);
+        batchedMarketOrders = new ArrayList<>();
     }
     
     @Override
@@ -266,8 +303,7 @@ public class BPSimExchange implements BPExchange {
         return accInfo;
     }
     
-    @Override
-    public boolean marketOpen(String symbol, boolean isLong, double symbolQty) {
+    private boolean marketOpen(String symbol, boolean isLong, double symbolQty) {
         
         String positionId = getPositionId(symbol, isLong);
         
@@ -312,8 +348,7 @@ public class BPSimExchange implements BPExchange {
         return true;
     }
     
-    @Override
-    public boolean marketClose(String symbol, boolean isLong, double qtyToClose) {
+    private boolean marketClose(String symbol, boolean isLong, double qtyToClose) {
         
         String positionId = getPositionId(symbol, isLong);
         
@@ -383,26 +418,40 @@ public class BPSimExchange implements BPExchange {
     }
     
     @Override
-    public void batchMarketOpen(String symbol, boolean isLong, double symbolQty) {
+    public void batchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty) {
         
-        // TODO Auto-generated method stub
-        
+        accInfo.ordersWithErrors.remove(orderId);
+        batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, symbolQty, true));
     }
     
     @Override
-    public void batchMarketClose(String symbol, boolean isLong, double qtyToClose) {
+    public void batchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose) {
         
-        // TODO Auto-generated method stub
-        
+        accInfo.ordersWithErrors.remove(orderId);
+        batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, qtyToClose, false));
     }
     
     @Override
     public BPExchangeAccountInfo executeBatchedOrders() {
         
-        return null;
+        ArrayList<BatchedOrder> tempBatch = new ArrayList<>(batchedMarketOrders);
+        batchedMarketOrders.clear();
         
-        // TODO Auto-generated method stub
+        for (BatchedOrder order : tempBatch) {
+            if (order.isOpen) {
+                if (!marketOpen(order.symbol, order.isLong, order.quantity)) {
+                    accInfo.ordersWithErrors.put(order.orderId,
+                            new ExchangeException(1, "Not enough margin to open", "Backtest"));
+                }
+                
+            } else {
+                if (!marketClose(order.symbol, order.isLong, order.quantity)) {
+                    accInfo.ordersWithErrors.put(order.orderId, new ExchangeException(2, "Error when closing", "Backtest"));
+                }
+            }
+        }
         
+        return accInfo;
     }
     
 }

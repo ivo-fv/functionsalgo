@@ -23,7 +23,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import functionalgo.Utils;
-import functionalgo.exceptions.ErrorParsingJsonException;
+import functionalgo.exceptions.ExchangeException;
 
 public class BPLiveExchange implements BPExchange {
     
@@ -35,22 +35,22 @@ public class BPLiveExchange implements BPExchange {
     // TODO make service methods to manually correct problems such as if the store was wiped
     // TODO when logging include json error message and http code
     // TODO include a logger as parameter to livexchange constructor
-    // TODO rename ErrorParsingJsonException
+    // TODO rename ExchangeException
     // TODO log on successes as well
     
     public static void main(String[] args) throws IOException {
         
         String privateKey = "***REMOVED***";
         String apiKey = "***REMOVED***";
-        BPLiveStore store = new BPLiveFileAWSStore();
-        BPExchange exchange = new BPLiveExchange(store, privateKey, apiKey);
+        
+        BPExchange exchange = new BPLiveExchange(privateKey, apiKey);
         
         System.out.println("Sending test order...");
         
         exchange.getAccountInfo(System.currentTimeMillis());
-        exchange.batchMarketOpen("ETHUSDT", true, 1.34562);
-        exchange.batchMarketOpen("BTCUSDT", false, 0.12345);
-        exchange.batchMarketClose("BCHUSDT", false, 0.1005);
+        exchange.batchMarketOpen("id1", "ETHUSDT", true, 1.34562);
+        exchange.batchMarketOpen("id2", "BTCUSDT", false, 0.12345);
+        exchange.batchMarketClose("id3", "BCHUSDT", false, 0.1005);
         exchange.executeBatchedOrders();
         // TODO test "under load" see if prints as expected
         
@@ -70,8 +70,12 @@ public class BPLiveExchange implements BPExchange {
     private static final long RECV_WINDOW = 15000;
     private static final String TRADING_STATUS = "TRADING";
     private static final double OPEN_LOSS = 1.03;
+    private static final int ERROR_CODE_UPPER_BOUND = 100;
+    private static final String ENDPOINT_ACCOUNT_INFO = "/fapi/v2/account";
+    private static final String ENDPOINT_POSITION_INFO = "/fapi/v2/positionRisk";
+    private static final String ENDPOINT_ACCOUNT_BALANCE = "/fapi/v2/balance";
+    private static final Object QUOTE_ASSET = "USDT";
     
-    private BPLiveStore store;
     private Mac signHMAC;
     private String apiKey;
     private SSLSocketFactory tlsSocketFactory;
@@ -84,13 +88,15 @@ public class BPLiveExchange implements BPExchange {
     
     private class BatchedOrder {
         
+        String orderId;
         String symbol;
         boolean isLong;
         double quantity;
         boolean isOpen;
         
-        public BatchedOrder(String symbol, boolean isLong, double quantity, boolean isOpen) {
+        public BatchedOrder(String orderId, String symbol, boolean isLong, double quantity, boolean isOpen) {
             
+            this.orderId = orderId;
             this.symbol = symbol;
             this.isLong = isLong;
             this.quantity = quantity;
@@ -133,12 +139,14 @@ public class BPLiveExchange implements BPExchange {
         double walletBalance = 0;
         long timestamp;
         boolean isHedgeMode;
+        boolean isBalancesDesynch;
         HashMap<String, Integer> leverages;
         HashMap<String, Boolean> isSymbolIsolated;
         HashMap<String, PositionData> longPositions;
         HashMap<String, PositionData> shortPositions;
         HashMap<String, PositionData> bothPositions;
         HashMap<String, SymbolData> symbolData;
+        HashMap<String, ExchangeException> ordersWithErrors;
         
         public AccountInfo() {
             
@@ -149,6 +157,7 @@ public class BPLiveExchange implements BPExchange {
             shortPositions = new HashMap<>();
             bothPositions = new HashMap<>();
             symbolData = new HashMap<>();
+            ordersWithErrors = new HashMap<>();
         }
         
         @Override
@@ -224,12 +233,23 @@ public class BPLiveExchange implements BPExchange {
             
             return symbolData.get(symbol).markPrice;
         }
+        
+        @Override
+        public ExchangeException getOrderError(String orderId) {
+            
+            return ordersWithErrors.get(orderId);
+        }
+        
+        @Override
+        public boolean isBalancesDesynch() {
+            
+            return isBalancesDesynch;
+        }
     }
     
-    public BPLiveExchange(BPLiveStore store, String privateKey, String apiKey) {
+    public BPLiveExchange(String privateKey, String apiKey) {
         
         try {
-            this.store = store;
             this.apiKey = apiKey;
             
             signHMAC = Mac.getInstance("HmacSHA256");
@@ -241,6 +261,7 @@ public class BPLiveExchange implements BPExchange {
             batchedMarketOrders = new ArrayList<>();
             
         } catch (Exception e) {
+            e.printStackTrace();
             // TODO throw custom exception
             // and log
         }
@@ -249,23 +270,16 @@ public class BPLiveExchange implements BPExchange {
     @Override
     public BPExchangeAccountInfo getAccountInfo(long timestamp) {
         
-        // TODO store probably not needed
-        accountInfo = store.getAccountInfo(apiKey);
-        if (accountInfo == null) {
-            // TODO log this
-            accountInfo = new AccountInfo();
-        }
+        accountInfo = new AccountInfo();
         
         try {
             String jsonAccInfo = getAccountInformation();
-            if (jsonAccInfo == null || jsonAccInfo.length() < 2) {
-                throw new ErrorParsingJsonException("JSON account information response couldn't be parsed");
-            }
-            JsonElement elemAccInfo = JsonParser.parseString(jsonAccInfo);
+            JsonElement elemAccInfo = parseStringAndCheckErrors(jsonAccInfo);
             JsonObject objAccInfo = elemAccInfo.getAsJsonObject();
             accountInfo.totalInitialMargin = objAccInfo.get("totalInitialMargin").getAsDouble();
             accountInfo.marginBalance = objAccInfo.get("totalMarginBalance").getAsDouble();
             accountInfo.walletBalance = objAccInfo.get("totalWalletBalance").getAsDouble();
+            accountInfo.isBalancesDesynch = false;
             JsonArray arrPositions = objAccInfo.get("positions").getAsJsonArray();
             for (JsonElement elem : arrPositions) {
                 JsonObject elemObj = elem.getAsJsonObject();
@@ -279,10 +293,7 @@ public class BPLiveExchange implements BPExchange {
             }
             
             String jsonPosInfo = getPositionInformation();
-            if (jsonPosInfo == null || jsonPosInfo.length() < 2) {
-                throw new ErrorParsingJsonException("JSON position information response couldn't be parsed");
-            }
-            JsonElement elemPosInfo = JsonParser.parseString(jsonPosInfo);
+            JsonElement elemPosInfo = parseStringAndCheckErrors(jsonPosInfo);
             JsonArray arrPosInfo = elemPosInfo.getAsJsonArray();
             for (JsonElement elem : arrPosInfo) {
                 JsonObject objElem = elem.getAsJsonObject();
@@ -298,16 +309,14 @@ public class BPLiveExchange implements BPExchange {
                         accountInfo.bothPositions.put(objElem.get("symbol").getAsString(),
                                 accountInfo.new PositionData(quantity, objElem.get("entryPrice").getAsDouble()));
                     } else {
-                        throw new ErrorParsingJsonException("JSON position information symbol was not LONG, SHORT or BOTH");
+                        throw new ExchangeException(0, "",
+                                "JSON position information symbol was not LONG, SHORT or BOTH: getAccountInfo");
                     }
                 }
             }
             
             String jsonSymbolData = getPremiumIndex();
-            if (jsonSymbolData == null || jsonSymbolData.length() < 2) {
-                throw new ErrorParsingJsonException("JSON position information response couldn't be parsed");
-            }
-            JsonElement objSymbolData = JsonParser.parseString(jsonSymbolData);
+            JsonElement objSymbolData = parseStringAndCheckErrors(jsonSymbolData);
             JsonArray arrSymbolData = objSymbolData.getAsJsonArray();
             for (JsonElement elem : arrSymbolData) {
                 JsonObject objElem = elem.getAsJsonObject();
@@ -326,8 +335,7 @@ public class BPLiveExchange implements BPExchange {
         return accountInfo;
     }
     
-    @Override
-    public boolean marketOpen(String symbol, boolean isLong, double symbolQty) {
+    private String marketOpen(String symbol, boolean isLong, double symbolQty) {
         
         // TODO position management store in a db once request to exchange was successful
         
@@ -338,10 +346,10 @@ public class BPLiveExchange implements BPExchange {
             e.printStackTrace();
         }
         
-        return false;
+        return null;
     }
     
-    public void sendMarketOpen(String symbol, boolean isLong, double symbolQty) throws IOException {
+    private void sendMarketOpen(String symbol, boolean isLong, double symbolQty) throws IOException {
         // TODO limits throttling
         // TODO should return be a string json?
         
@@ -380,25 +388,24 @@ public class BPLiveExchange implements BPExchange {
         
     }
     
-    @Override
-    public boolean marketClose(String positionId, boolean isLong, double qtyToClose) {
+    private String marketClose(String positionId, boolean isLong, double qtyToClose) {
         
-        // TODO position management store in a db once request to exchange was successful
-        
-        return false;
+        return null;
     }
     
     @Override
-    public void batchMarketOpen(String symbol, boolean isLong, double symbolQty) {
+    public void batchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty) {
         
-        batchedMarketOrders.add(new BatchedOrder(symbol, isLong, symbolQty, true));
+        accountInfo.ordersWithErrors.remove(orderId);
+        batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, symbolQty, true));
         
     }
     
     @Override
-    public void batchMarketClose(String symbol, boolean isLong, double qtyToClose) {
+    public void batchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose) {
         
-        batchedMarketOrders.add(new BatchedOrder(symbol, isLong, qtyToClose, false));
+        accountInfo.ordersWithErrors.remove(orderId);
+        batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, qtyToClose, false));
         
     }
     
@@ -414,10 +421,7 @@ public class BPLiveExchange implements BPExchange {
         double sumInitialMargin = accountInfo.totalInitialMargin;
         try {
             String exchangeInfoJson = getExchangeInfo();
-            if (exchangeInfoJson == null || exchangeInfoJson.length() < 2) {
-                throw new ErrorParsingJsonException("JSON exchange information response couldn't be parsed");
-            }
-            exchangeInfo = JsonParser.parseString(exchangeInfoJson);
+            exchangeInfo = parseStringAndCheckErrors(exchangeInfoJson);
             JsonObject objExchangeInfo = exchangeInfo.getAsJsonObject();
             JsonArray arrExchangeInfoSymbols = objExchangeInfo.get("symbols").getAsJsonArray();
             boolean found = false;
@@ -432,7 +436,7 @@ public class BPLiveExchange implements BPExchange {
                             if (objFilter.get("filterType").getAsString().equals("LOT_SIZE")) {
                                 double stepSize = objFilter.get("stepSize").getAsDouble();
                                 if (order.quantity < stepSize) {
-                                    throw new ErrorParsingJsonException("Market order quantity too low");
+                                    throw new ExchangeException(0, "", "Market order quantity too low: executeBatchedOrders");
                                 }
                                 order.quantity = Math.floor(order.quantity / stepSize) * stepSize;
                                 if (order.isOpen) {
@@ -450,7 +454,8 @@ public class BPLiveExchange implements BPExchange {
                     }
                 }
                 if (!found) {
-                    throw new ErrorParsingJsonException("Could not find expected members in exchangeInfo");
+                    throw new ExchangeException(0, "",
+                            "Could not find expected JSON members in exchangeInfo: executeBatchedOrders");
                 } else {
                     found = false;
                 }
@@ -463,40 +468,66 @@ public class BPLiveExchange implements BPExchange {
         if (sumInitialMargin >= accountInfo.marginBalance) {
             // TODO log insufficient margin to open
         }
-        // TODO test sum initial margin if mark price and sum gets done properly
-        
-        // parse exchangeinfo in try or later and return null if exchangeinfo is null???
-        
-        // check if all of the orders will be executed, check necessary info with the exchangeInfo JSON element
-        // if not, return null, empty batch lists regardless;
-        // truncate as needed
-        
-        // TODO get mark price on getaccinfo, throttle getaccinfo
         
         for (BatchedOrder order : tempBatch) {
             if (order.isOpen) {
                 if (sumInitialMargin < accountInfo.marginBalance) {
                     try {
-                        // execute order
+                        // TODO marketOpen(order.symbol, order.isLong, order.quantity);
                     } catch (Exception e) {
-                        // log this
+                        // TODO log this
+                        // TODO add msg error to return accinfo
+                        if (e instanceof ExchangeException) {
+                            accountInfo.ordersWithErrors.put(order.orderId, (ExchangeException) e);
+                        } else {
+                            accountInfo.ordersWithErrors.put(order.orderId,
+                                    new ExchangeException(-1, "Execution error", e.toString()));
+                        }
+                        e.printStackTrace();
                     }
                 }
             } else {
                 try {
-                    // execute order
+                    // TODO marketClose(order.symbol, order.isLong, order.quantity);
                 } catch (Exception e) {
-                    // log this
+                    // TODO log this
+                    // TODO add msg error to return accinfo
+                    if (e instanceof ExchangeException) {
+                        accountInfo.ordersWithErrors.put(order.orderId, (ExchangeException) e);
+                    } else {
+                        accountInfo.ordersWithErrors.put(order.orderId,
+                                new ExchangeException(-1, "Execution error", e.toString()));
+                    }
+                    e.printStackTrace();
                 }
             }
         }
         
-        // TODO if successful update accountInfo, call /fapi/v2/balance to get updated balances
-        // TODO include order error msgs in accountInfo
-        // TODO if error in set, still return accountInfo, strat should not be concerned
-        store.setAccountInfo(apiKey, accountInfo);
+        try {
+            String balancesJson = getAccountBalance();
+            JsonElement balancesElem = parseStringAndCheckErrors(balancesJson);
+            JsonArray balancesArr = balancesElem.getAsJsonArray();
+            for (JsonElement elem : balancesArr) {
+                JsonObject objElem = elem.getAsJsonObject();
+                if (objElem.get("asset").getAsString().equals(QUOTE_ASSET)) {
+                    accountInfo.walletBalance = objElem.get("balance").getAsDouble();
+                    accountInfo.marginBalance = accountInfo.walletBalance + objElem.get("crossUnPnl").getAsDouble();
+                    accountInfo.totalInitialMargin = accountInfo.marginBalance - objElem.get("availableBalance").getAsDouble();
+                    accountInfo.isBalancesDesynch = false;
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            // TODO log this
+            accountInfo.isBalancesDesynch = true;
+        }
         
         return accountInfo;
+    }
+    
+    private String getAccountBalance() throws IOException {
+        
+        return apiGetSignedRequestResponseNoParams(ENDPOINT_ACCOUNT_BALANCE);
     }
     
     private String getPremiumIndex() throws IOException {
@@ -506,24 +537,12 @@ public class BPLiveExchange implements BPExchange {
     
     private String getPositionInformation() throws IOException {
         
-        long timestamp = getCurrentTimestampMillis();
-        String params = "recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
-        String signature = Utils.bytesToHex(signHMAC.doFinal(params.getBytes(StandardCharsets.UTF_8)));
-        String posInfoReq = "GET /fapi/v2/positionRisk?" + params + "&signature=" + signature
-                + " HTTP/1.1\r\nConnection: close\r\nHost: " + HOST + "\r\n" + AUTH + apiKey + "\r\n\r\n";
-        
-        return apiGetRequestResponse(posInfoReq);
+        return apiGetSignedRequestResponseNoParams(ENDPOINT_POSITION_INFO);
     }
     
     private String getAccountInformation() throws IOException {
         
-        long timestamp = getCurrentTimestampMillis();
-        String params = "recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
-        String signature = Utils.bytesToHex(signHMAC.doFinal(params.getBytes(StandardCharsets.UTF_8)));
-        String accInfoReq = "GET /fapi/v2/account?" + params + "&signature=" + signature
-                + " HTTP/1.1\r\nConnection: close\r\nHost: " + HOST + "\r\n" + AUTH + apiKey + "\r\n\r\n";
-        
-        return apiGetRequestResponse(accInfoReq);
+        return apiGetSignedRequestResponseNoParams(ENDPOINT_ACCOUNT_INFO);
     }
     
     private String getExchangeInfo() throws IOException {
@@ -531,8 +550,20 @@ public class BPLiveExchange implements BPExchange {
         return apiGetRequestResponse(EXCHANGE_INFO_REQ);
     }
     
+    private String apiGetSignedRequestResponseNoParams(String endpoint) throws IOException {
+        
+        long timestamp = getCurrentTimestampMillis();
+        String params = "recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
+        String signature = Utils.bytesToHex(signHMAC.doFinal(params.getBytes(StandardCharsets.UTF_8)));
+        String accInfoReq = "GET " + endpoint + "?" + params + "&signature=" + signature
+                + " HTTP/1.1\r\nConnection: close\r\nHost: " + HOST + "\r\n" + AUTH + apiKey + "\r\n\r\n";
+        
+        return apiGetRequestResponse(accInfoReq);
+    }
+    
     private String apiGetRequestResponse(String request) throws IOException {
         
+        // TODO retry a few times
         try (Socket socket = tlsSocketFactory.createSocket(HOST, 443)) {
             
             OutputStream output = socket.getOutputStream();
@@ -540,6 +571,28 @@ public class BPLiveExchange implements BPExchange {
             output.flush();
             
             return getHTTPResponse(socket.getInputStream());
+        }
+    }
+    
+    private JsonElement parseStringAndCheckErrors(String jsonString) throws Exception {
+        
+        try {
+            if (jsonString == null || jsonString.length() < 2) {
+                throw new ExchangeException(0, "", "JSON account information response couldn't be parsed");
+            }
+            JsonElement elem = JsonParser.parseString(jsonString);
+            if (elem.isJsonObject()) {
+                JsonObject objElem = elem.getAsJsonObject();
+                if (objElem.has("code") && objElem.has("msg")) {
+                    int code = objElem.get("code").getAsInt();
+                    if (code < ERROR_CODE_UPPER_BOUND) {
+                        throw new ExchangeException(code, objElem.get("msg").getAsString(), "parseStringAndCheckErrors");
+                    }
+                }
+            }
+            return elem;
+        } catch (Exception e) {
+            throw e;
         }
     }
     
