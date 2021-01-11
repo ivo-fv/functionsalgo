@@ -170,9 +170,9 @@ public class BPSimExchange implements BPExchange {
         }
         
         @Override
-        public double getQuantity(String positionId) {
+        public double getQuantity(String symbol, boolean isLong) {
             
-            return positions.get(positionId).quantity;
+            return positions.get(getPositionId(symbol, isLong)).quantity;
         }
         
         @Override
@@ -194,9 +194,9 @@ public class BPSimExchange implements BPExchange {
         }
         
         @Override
-        public double getAverageOpenPrice(String positionId) {
+        public double getAverageOpenPrice(String symbol, boolean isLong) {
             
-            return positions.get(positionId).avgOpenPrice;
+            return positions.get(getPositionId(symbol, isLong)).avgOpenPrice;
         }
         
         @Override
@@ -205,15 +205,9 @@ public class BPSimExchange implements BPExchange {
             return worstMarginBalance;
         }
         
-        @Override
-        public double getCurrentPrice(String symbol) {
-            
-            // TODO Auto-generated method stub
-            return 0;
-        }
         
         @Override
-        public long getNextFundingTime() {
+        public long getNextFundingTime(String symbol) {
             
             // TODO Auto-generated method stub
             return 0;
@@ -221,6 +215,13 @@ public class BPSimExchange implements BPExchange {
         
         @Override
         public double getFundingRate(String symbol) {
+            
+            // TODO Auto-generated method stub
+            return 0;
+        }
+        
+        @Override
+        public double getMarkPrice(String symbol) {
             
             // TODO Auto-generated method stub
             return 0;
@@ -268,7 +269,7 @@ public class BPSimExchange implements BPExchange {
     @Override
     public boolean marketOpen(String symbol, boolean isLong, double symbolQty) {
         
-        String positionId = symbol + "_" + isLong;
+        String positionId = getPositionId(symbol, isLong);
         
         double openPrice = bpHistoricKlines.getOpen(symbol, accInfo.lastUpdatedTime);
         double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
@@ -314,7 +315,7 @@ public class BPSimExchange implements BPExchange {
     @Override
     public boolean marketClose(String symbol, boolean isLong, double qtyToClose) {
         
-        String positionId = symbol + "_" + isLong;
+        String positionId = getPositionId(symbol, isLong);
         
         if (accInfo.positions.containsKey(positionId)) {
             
@@ -374,6 +375,11 @@ public class BPSimExchange implements BPExchange {
         }
         
         return true;
+    }
+    
+    private String getPositionId(String symbol, boolean isLong) {
+        
+        return symbol + "_" + isLong;
     }
     
     @Override

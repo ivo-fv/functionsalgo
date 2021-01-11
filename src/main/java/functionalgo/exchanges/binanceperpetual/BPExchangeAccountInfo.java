@@ -14,15 +14,15 @@ public interface BPExchangeAccountInfo extends ExchangeAccountInfo {
     
     double getMarginBalance();
     
-    double getQuantity(String symbol);
+    double getQuantity(String symbol, boolean isLong);
     
-    double getAverageOpenPrice(String symbol);
+    double getAverageOpenPrice(String symbol, boolean isLong);
     
-    double getCurrentPrice(String symbol);
-    
-    long getNextFundingTime();
+    long getNextFundingTime(String symbol);
     
     double getFundingRate(String symbol);
     
     double getWorstMarginBalance();
+    
+    double getMarkPrice(String symbol);
 }
