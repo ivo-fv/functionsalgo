@@ -12,238 +12,6 @@ import functionalgo.exceptions.ExchangeException;
 
 public class BPSimExchange implements BPExchange {
     
-    private class PositionData {
-        
-        @SuppressWarnings("unused")
-        private static final String MARGIN_TYPE = "CROSSED";
-        
-        String symbol;
-        boolean isLong;
-        double avgOpenPrice;
-        double currPrice;
-        double quantity;
-        double margin;
-        
-        PositionData(String symbol, boolean isLong, double avgOpenPrice, double quantity, double initialMargin) {
-            
-            this.symbol = symbol;
-            this.isLong = isLong;
-            this.avgOpenPrice = avgOpenPrice;
-            this.currPrice = avgOpenPrice;
-            this.quantity = quantity;
-            this.margin = initialMargin;
-        }
-    }
-    
-    private class AccountInfo implements BPExchangeAccountInfo {
-        
-        double marginBalance;
-        double walletBalance;
-        HashMap<String, Short> leverages;
-        HashMap<String, PositionData> positions;
-        long lastUpdatedTime;
-        double takerFee = TAKER_OPEN_CLOSE_FEE;
-        private double worstMarginBalance;
-        public HashMap<String, ExchangeException> ordersWithErrors;
-        
-        AccountInfo(double walletBalance) {
-            
-            this.walletBalance = walletBalance;
-            marginBalance = walletBalance;
-            worstMarginBalance = walletBalance;
-            
-            positions = new HashMap<>();
-            leverages = new HashMap<>();
-            ordersWithErrors = new HashMap<>();
-            
-            lastUpdatedTime = 0;
-        }
-        
-        void updateAccountInfo(long timestamp) {
-            
-            // TODO random position adl close, simulate not being able to trade for a period of time
-            if (timestamp <= lastUpdatedTime) {
-                throw new IllegalArgumentException("timestamp must be larger than the previous");
-            }
-            
-            if (lastUpdatedTime != 0) {
-                
-                for (long time = lastUpdatedTime + updateIntervalMillis; time <= timestamp; time += updateIntervalMillis) {
-                    
-                    calculateMarginBalanceAndUpdatePositionData(time);
-                    checkMaintenanceMargin(time);
-                    
-                    if (time >= nextFundingTime) {
-                        nextFundingTime += fundingIntervalMillis;
-                    }
-                }
-                
-                lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
-            } else {
-                nextFundingTime = ((timestamp / fundingIntervalMillis) * fundingIntervalMillis) + fundingIntervalMillis;
-                
-                calculateMarginBalanceAndUpdatePositionData(timestamp);
-                checkMaintenanceMargin(timestamp);
-                
-                lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
-            }
-            
-        }
-        
-        void calculateMarginBalanceAndUpdatePositionData(long timestamp) {
-            
-            marginBalance = walletBalance;
-            worstMarginBalance = walletBalance;
-            
-            for (Map.Entry<String, PositionData> entry : positions.entrySet()) {
-                // use mark price for more accuracy
-                if (entry.getValue().isLong) {
-                    double currPrice = bpHistoricKlines.getOpen(entry.getValue().symbol, timestamp);
-                    entry.getValue().currPrice = currPrice;
-                    double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
-                    marginBalance += pnl;
-                    double worstPrice = bpHistoricKlines.getLow(entry.getValue().symbol, timestamp);
-                    double worstPnL = (worstPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
-                    worstMarginBalance += worstPnL;
-                    short leverage = leverages.containsKey(entry.getValue().symbol) ? leverages.get(entry.getValue().symbol)
-                            : defaultLeverage;
-                    entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
-                } else {
-                    double currPrice = bpHistoricKlines.getOpen(entry.getValue().symbol, timestamp);
-                    entry.getValue().currPrice = currPrice;
-                    double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
-                    marginBalance += pnl;
-                    double worstPrice = bpHistoricKlines.getHigh(entry.getValue().symbol, timestamp);
-                    double worstPnL = (entry.getValue().avgOpenPrice - worstPrice) * entry.getValue().quantity;
-                    worstMarginBalance += worstPnL;
-                    short leverage = leverages.containsKey(entry.getValue().symbol) ? leverages.get(entry.getValue().symbol)
-                            : defaultLeverage;
-                    entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
-                }
-            }
-            
-            if (timestamp >= nextFundingTime) {
-                for (Map.Entry<String, PositionData> entry : positions.entrySet()) {
-                    if (entry.getValue().isLong) {
-                        double fundingRate = bpHistoricFundingRates.getRate(entry.getValue().symbol, timestamp);
-                        double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
-                        marginBalance -= funding;
-                        walletBalance -= funding;
-                        worstMarginBalance -= funding;
-                    } else {
-                        double fundingRate = bpHistoricFundingRates.getRate(entry.getValue().symbol, timestamp);
-                        double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
-                        marginBalance += funding;
-                        walletBalance += funding;
-                        worstMarginBalance += funding;
-                    }
-                }
-            }
-        }
-        
-        void checkMaintenanceMargin(long time) {
-            
-            // assuming crossed margin type
-            double highestInitialMargin = 0;
-            
-            for (Map.Entry<String, PositionData> entry : positions.entrySet()) {
-                
-                highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().margin);
-            }
-            // the maintenance margin is *always less* than 50% of the initial margin
-            if (worstMarginBalance <= highestInitialMargin / 2) {
-                // TODO log to exchange about possible liq
-                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                System.out.println("!!! Probably going to get liquidated at: " + time);
-                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                marginBalance = 0;
-                walletBalance = 0;
-                positions = new HashMap<>();
-            }
-        }
-        
-        @Override
-        public long getTimestamp() {
-            
-            return lastUpdatedTime;
-        }
-        
-        @Override
-        public double getWalletBalance() {
-            
-            return walletBalance;
-        }
-        
-        @Override
-        public double getQuantity(String symbol, boolean isLong) {
-            
-            return positions.get(getPositionId(symbol, isLong)).quantity;
-        }
-        
-        @Override
-        public int getLeverage(String symbol) {
-            
-            return leverages.get(symbol);
-        }
-        
-        @Override
-        public double getTakerFee() {
-            
-            return takerFee;
-        }
-        
-        @Override
-        public double getMarginBalance() {
-            
-            return marginBalance;
-        }
-        
-        @Override
-        public double getAverageOpenPrice(String symbol, boolean isLong) {
-            
-            return positions.get(getPositionId(symbol, isLong)).avgOpenPrice;
-        }
-        
-        @Override
-        public double getWorstMarginBalance() {
-            
-            return worstMarginBalance;
-        }
-        
-        @Override
-        public long getNextFundingTime(String symbol) {
-            
-            // TODO Auto-generated method stub
-            return 0;
-        }
-        
-        @Override
-        public double getFundingRate(String symbol) {
-            
-            // TODO Auto-generated method stub
-            return 0;
-        }
-        
-        @Override
-        public double getMarkPrice(String symbol) {
-            
-            // TODO Auto-generated method stub
-            return 0;
-        }
-        
-        @Override
-        public ExchangeException getOrderError(String orderId) {
-            
-            return ordersWithErrors.get(orderId);
-        }
-        
-        @Override
-        public boolean isBalancesDesynch() {
-            
-            return false;
-        }
-    }
-    
     @SuppressWarnings("unused")
     private static final boolean IS_HEDGE_MODE = true;
     
@@ -252,7 +20,7 @@ public class BPSimExchange implements BPExchange {
     public static final double TAKER_OPEN_CLOSE_FEE = 0.0004;
     public static final double MAKER_OPEN_CLOSE_FEE = 0.0002;
     
-    private AccountInfo accInfo;
+    private BPSimAccount accInfo;
     
     private long fundingIntervalMillis;
     private long nextFundingTime;
@@ -285,7 +53,7 @@ public class BPSimExchange implements BPExchange {
     
     public BPSimExchange(double walletBalance, short defaultLeverage, Interval updateInterval) {
         
-        accInfo = new AccountInfo(walletBalance);
+        accInfo = new BPSimAccount(walletBalance);
         this.defaultLeverage = defaultLeverage;
         updateIntervalMillis = updateInterval.toMilliseconds();
         bpHistoricKlines = BPHistoricKlines.loadKlines(updateInterval);
@@ -296,11 +64,116 @@ public class BPSimExchange implements BPExchange {
     }
     
     @Override
-    public BPExchangeAccountInfo getAccountInfo(long timestamp) {
+    public BPAccount getAccountInfo(long timestamp) {
         
-        accInfo.updateAccountInfo(timestamp);
+        updateAccountInfo(timestamp);
         
         return accInfo;
+    }
+    
+    void updateAccountInfo(long timestamp) {
+        
+        // TODO random position adl close, simulate not being able to trade for a period of time
+        if (timestamp <= accInfo.lastUpdatedTime) {
+            throw new IllegalArgumentException("timestamp must be larger than the previous");
+        }
+        
+        if (accInfo.lastUpdatedTime != 0) {
+            
+            for (long time = accInfo.lastUpdatedTime + updateIntervalMillis; time <= timestamp; time += updateIntervalMillis) {
+                
+                calculateMarginBalanceAndUpdatePositionData(time);
+                checkMaintenanceMargin(time);
+                
+                if (time >= nextFundingTime) {
+                    nextFundingTime += fundingIntervalMillis;
+                }
+            }
+            
+            accInfo.lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
+        } else {
+            nextFundingTime = ((timestamp / fundingIntervalMillis) * fundingIntervalMillis) + fundingIntervalMillis;
+            
+            calculateMarginBalanceAndUpdatePositionData(timestamp);
+            checkMaintenanceMargin(timestamp);
+            
+            accInfo.lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
+        }
+        
+    }
+    
+    void calculateMarginBalanceAndUpdatePositionData(long timestamp) {
+        
+        accInfo.marginBalance = accInfo.walletBalance;
+        accInfo.worstMarginBalance = accInfo.walletBalance;
+        
+        for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
+            // use mark price for more accuracy
+            if (entry.getValue().isLong) {
+                double currPrice = bpHistoricKlines.getOpen(entry.getValue().symbol, timestamp);
+                entry.getValue().currPrice = currPrice;
+                double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
+                accInfo.marginBalance += pnl;
+                double worstPrice = bpHistoricKlines.getLow(entry.getValue().symbol, timestamp);
+                double worstPnL = (worstPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
+                accInfo.worstMarginBalance += worstPnL;
+                short leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
+                        ? accInfo.leverages.get(entry.getValue().symbol)
+                        : defaultLeverage;
+                entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
+            } else {
+                double currPrice = bpHistoricKlines.getOpen(entry.getValue().symbol, timestamp);
+                entry.getValue().currPrice = currPrice;
+                double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
+                accInfo.marginBalance += pnl;
+                double worstPrice = bpHistoricKlines.getHigh(entry.getValue().symbol, timestamp);
+                double worstPnL = (entry.getValue().avgOpenPrice - worstPrice) * entry.getValue().quantity;
+                accInfo.worstMarginBalance += worstPnL;
+                short leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
+                        ? accInfo.leverages.get(entry.getValue().symbol)
+                        : defaultLeverage;
+                entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
+            }
+        }
+        
+        if (timestamp >= nextFundingTime) {
+            for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
+                if (entry.getValue().isLong) {
+                    double fundingRate = bpHistoricFundingRates.getRate(entry.getValue().symbol, timestamp);
+                    double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
+                    accInfo.marginBalance -= funding;
+                    accInfo.walletBalance -= funding;
+                    accInfo.worstMarginBalance -= funding;
+                } else {
+                    double fundingRate = bpHistoricFundingRates.getRate(entry.getValue().symbol, timestamp);
+                    double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
+                    accInfo.marginBalance += funding;
+                    accInfo.walletBalance += funding;
+                    accInfo.worstMarginBalance += funding;
+                }
+            }
+        }
+    }
+    
+    void checkMaintenanceMargin(long time) {
+        
+        // assuming crossed margin type
+        double highestInitialMargin = 0;
+        
+        for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
+            
+            highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().margin);
+        }
+        // the maintenance margin is *always less* than 50% of the initial margin
+        if (accInfo.worstMarginBalance <= highestInitialMargin / 2) {
+            // TODO log to exchange about possible liq
+            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            System.out.println("!!! Probably going to get liquidated at: " + time);
+            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            accInfo.marginBalance = 0;
+            accInfo.walletBalance = 0;
+            accInfo.positions = new HashMap<>();
+        }
     }
     
     private boolean marketOpen(String symbol, boolean isLong, double symbolQty) {
@@ -318,7 +191,7 @@ public class BPSimExchange implements BPExchange {
         double notionalValue = openPrice * symbolQty;
         
         double marginUsed = 0;
-        for (Map.Entry<String, PositionData> entry : accInfo.positions.entrySet()) {
+        for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
             marginUsed += entry.getValue().margin;
         }
         if (marginUsed + (initialMargin * OPEN_LOSS_SIM_MULT) >= accInfo.marginBalance) {
@@ -342,7 +215,7 @@ public class BPSimExchange implements BPExchange {
             accInfo.positions.get(positionId).avgOpenPrice = (prevAvgOpenPrice * percOldQty) + (openPrice * percNewQty);
             accInfo.positions.get(positionId).quantity = newQty;
         } else {
-            accInfo.positions.put(positionId, new PositionData(symbol, isLong, openPrice, symbolQty, initialMargin));
+            accInfo.positions.put(positionId, accInfo.new PositionData(symbol, isLong, openPrice, symbolQty, initialMargin));
         }
         // TODO log successful open
         return true;
@@ -412,7 +285,7 @@ public class BPSimExchange implements BPExchange {
         return true;
     }
     
-    private String getPositionId(String symbol, boolean isLong) {
+    public static String getPositionId(String symbol, boolean isLong) {
         
         return symbol + "_" + isLong;
     }
@@ -432,7 +305,7 @@ public class BPSimExchange implements BPExchange {
     }
     
     @Override
-    public BPExchangeAccountInfo executeBatchedOrders() {
+    public BPAccount executeBatchedOrders() {
         
         ArrayList<BatchedOrder> tempBatch = new ArrayList<>(batchedMarketOrders);
         batchedMarketOrders.clear();

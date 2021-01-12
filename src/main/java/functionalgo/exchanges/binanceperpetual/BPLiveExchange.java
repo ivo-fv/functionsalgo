@@ -5,10 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +25,7 @@ import functionalgo.exceptions.ExchangeException;
 public class BPLiveExchange implements BPExchange {
     
     // TODO test if even if header limit not found still return response (should return)
-    // TODO refactor AccountInfo to separate class on live and sim
+    // TODO refactor BPSimAccount to separate class on live and sim
     // TODO refactor api get calls to one method for similar enough code
     // TODO when instantiate set leverages to init and hedge mode and cross mode
     // TODO log every transaction, failures and issue
@@ -82,7 +79,7 @@ public class BPLiveExchange implements BPExchange {
     private int ipLimitWeight1M;
     private int httpStatusCode;
     
-    private AccountInfo accountInfo;
+    private BPLiveAccount accountInfo;
     
     private List<BatchedOrder> batchedMarketOrders;
     
@@ -102,150 +99,7 @@ public class BPLiveExchange implements BPExchange {
             this.quantity = quantity;
             this.isOpen = isOpen;
         }
-    }
-    
-    class AccountInfo implements BPExchangeAccountInfo {
-        
-        class PositionData {
-            
-            double quantity;
-            double avgOpenPrice;
-            
-            PositionData(double quantity, double avgOpenPrice) {
-                
-                this.quantity = quantity;
-                this.avgOpenPrice = avgOpenPrice;
-            }
-        }
-        
-        class SymbolData {
-            
-            double fundingRate;
-            double markPrice;
-            long nextFundingTime;
-            
-            SymbolData(double fundingRate, double markPrice, long nextFundingTime) {
-                
-                this.fundingRate = fundingRate;
-                this.markPrice = markPrice;
-                this.nextFundingTime = nextFundingTime;
-            }
-        }
-        
-        private static final double TAKER_FEE = 0.0004;
-        
-        double totalInitialMargin = 0;
-        double marginBalance = 0;
-        double walletBalance = 0;
-        long timestamp;
-        boolean isHedgeMode;
-        boolean isBalancesDesynch;
-        HashMap<String, Integer> leverages;
-        HashMap<String, Boolean> isSymbolIsolated;
-        HashMap<String, PositionData> longPositions;
-        HashMap<String, PositionData> shortPositions;
-        HashMap<String, PositionData> bothPositions;
-        HashMap<String, SymbolData> symbolData;
-        HashMap<String, ExchangeException> ordersWithErrors;
-        
-        public AccountInfo() {
-            
-            // TODO no need for exchange store if accountinfo doesn't need to save permanent state
-            leverages = new HashMap<>();
-            isSymbolIsolated = new HashMap<>();
-            longPositions = new HashMap<>();
-            shortPositions = new HashMap<>();
-            bothPositions = new HashMap<>();
-            symbolData = new HashMap<>();
-            ordersWithErrors = new HashMap<>();
-        }
-        
-        @Override
-        public double getQuantity(String symbol, boolean isLong) {
-            
-            if (isLong) {
-                return longPositions.get(symbol).quantity;
-            } else {
-                return shortPositions.get(symbol).quantity;
-            }
-        }
-        
-        @Override
-        public long getTimestamp() {
-            
-            return timestamp;
-        }
-        
-        @Override
-        public double getWalletBalance() {
-            
-            return walletBalance;
-        }
-        
-        @Override
-        public int getLeverage(String symbol) {
-            
-            return leverages.get(symbol);
-        }
-        
-        @Override
-        public double getTakerFee() {
-            
-            return TAKER_FEE;
-        }
-        
-        @Override
-        public double getMarginBalance() {
-            
-            return marginBalance;
-        }
-        
-        @Override
-        public double getAverageOpenPrice(String symbol, boolean isLong) {
-            
-            if (isLong) {
-                return longPositions.get(symbol).avgOpenPrice;
-            } else {
-                return shortPositions.get(symbol).avgOpenPrice;
-            }
-        }
-        
-        @Override
-        public double getWorstMarginBalance() {
-            
-            return marginBalance;
-        }
-        
-        @Override
-        public long getNextFundingTime(String symbol) {
-            
-            return symbolData.get(symbol).nextFundingTime;
-        }
-        
-        @Override
-        public double getFundingRate(String symbol) {
-            
-            return symbolData.get(symbol).fundingRate;
-        }
-        
-        @Override
-        public double getMarkPrice(String symbol) {
-            
-            return symbolData.get(symbol).markPrice;
-        }
-        
-        @Override
-        public ExchangeException getOrderError(String orderId) {
-            
-            return ordersWithErrors.get(orderId);
-        }
-        
-        @Override
-        public boolean isBalancesDesynch() {
-            
-            return isBalancesDesynch;
-        }
-    }
+    }   
     
     public BPLiveExchange(String privateKey, String apiKey) {
         
@@ -268,9 +122,9 @@ public class BPLiveExchange implements BPExchange {
     }
     
     @Override
-    public BPExchangeAccountInfo getAccountInfo(long timestamp) {
+    public BPAccount getAccountInfo(long timestamp) {
         
-        accountInfo = new AccountInfo();
+        accountInfo = new BPLiveAccount();
         
         try {
             String jsonAccInfo = getAccountInformation();
@@ -410,7 +264,7 @@ public class BPLiveExchange implements BPExchange {
     }
     
     @Override
-    public BPExchangeAccountInfo executeBatchedOrders() {
+    public BPAccount executeBatchedOrders() {
         
         // remove batch from list to execute whether or not it was successful
         ArrayList<BatchedOrder> tempBatch = new ArrayList<>(batchedMarketOrders);

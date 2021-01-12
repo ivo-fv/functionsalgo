@@ -3,7 +3,7 @@ package functionalgo.exchanges.binanceperpetual;
 import functionalgo.ExchangeAccountInfo;
 import functionalgo.exceptions.ExchangeException;
 
-public interface BPExchangeAccountInfo extends ExchangeAccountInfo {
+public interface BPAccount extends ExchangeAccountInfo {
     
     long getTimestamp();
     
