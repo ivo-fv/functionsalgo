@@ -47,6 +47,7 @@ class BPLiveAccount implements BPAccount {
     HashMap<String, PositionData> bothPositions;
     HashMap<String, SymbolData> symbolData;
     HashMap<String, ExchangeException> ordersWithErrors;
+    HashMap<String, Double> ordersWithQuantities;
     
     public BPLiveAccount() {
         
@@ -57,6 +58,7 @@ class BPLiveAccount implements BPAccount {
         bothPositions = new HashMap<>();
         symbolData = new HashMap<>();
         ordersWithErrors = new HashMap<>();
+        ordersWithQuantities = new HashMap<>();
     }
     
     @Override
@@ -137,6 +139,12 @@ class BPLiveAccount implements BPAccount {
     public ExchangeException getOrderError(String orderId) {
         
         return ordersWithErrors.get(orderId);
+    }
+    
+    @Override
+    public double getOrderQuantity(String orderId) {
+        
+        return ordersWithQuantities.get(orderId);
     }
     
     @Override

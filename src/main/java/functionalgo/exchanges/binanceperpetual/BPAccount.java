@@ -33,6 +33,8 @@ public interface BPAccount extends ExchangeAccountInfo {
      * @return the error, or null if no error
      */
     ExchangeException getOrderError(String orderId);
-
+    
+    double getOrderQuantity(String orderId);
+    
     boolean isBalancesDesynch();
 }

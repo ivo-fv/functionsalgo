@@ -7,7 +7,6 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import javax.crypto.Mac;
@@ -35,7 +34,7 @@ public class BPLiveExchange implements BPExchange {
     // TODO rename ExchangeException
     // TODO log on successes as well
     
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, ExchangeException {
         
         String privateKey = "***REMOVED***";
         String apiKey = "***REMOVED***";
@@ -45,11 +44,11 @@ public class BPLiveExchange implements BPExchange {
         System.out.println("Sending test order...");
         
         exchange.getAccountInfo(System.currentTimeMillis());
-        exchange.batchMarketOpen("id1", "ETHUSDT", true, 1.34562);
-        exchange.batchMarketOpen("id2", "BTCUSDT", false, 0.12345);
-        exchange.batchMarketClose("id3", "BCHUSDT", false, 0.1005);
+        exchange.batchMarketOpen("id0", "ETHUSDT", true, 1.34562);
+        // exchange.batchMarketClose("id1", "ETHUSDT", true, 1.34562);
+        // exchange.batchMarketOpen("id2", "BTCUSDT", false, 0.02345);
+        // exchange.batchMarketClose("id3", "BTCUSDT", false, 0.02345);
         exchange.executeBatchedOrders();
-        // TODO test "under load" see if prints as expected
         
         // TODO Auto-generated method stub
     }
@@ -71,6 +70,7 @@ public class BPLiveExchange implements BPExchange {
     private static final String ENDPOINT_ACCOUNT_INFO = "/fapi/v2/account";
     private static final String ENDPOINT_POSITION_INFO = "/fapi/v2/positionRisk";
     private static final String ENDPOINT_ACCOUNT_BALANCE = "/fapi/v2/balance";
+    private static final String ENDPOINT_NEW_ORDER = "/fapi/v1/order";
     private static final Object QUOTE_ASSET = "USDT";
     
     private Mac signHMAC;
@@ -99,7 +99,7 @@ public class BPLiveExchange implements BPExchange {
             this.quantity = quantity;
             this.isOpen = isOpen;
         }
-    }   
+    }
     
     public BPLiveExchange(String privateKey, String apiKey) {
         
@@ -189,82 +189,33 @@ public class BPLiveExchange implements BPExchange {
         return accountInfo;
     }
     
-    private String marketOpen(String symbol, boolean isLong, double symbolQty) {
+    @Override
+    public void batchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty) throws ExchangeException {
         
-        // TODO position management store in a db once request to exchange was successful
-        
-        try {
-            sendMarketOpen(symbol, isLong, symbolQty);
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        
-        return null;
-    }
-    
-    private void sendMarketOpen(String symbol, boolean isLong, double symbolQty) throws IOException {
-        // TODO limits throttling
-        // TODO should return be a string json?
-        
-        long timestamp = getCurrentTimestampMillis();
-        
-        String orderString = "symbol=BTCUSDT&side=SELL&type=LIMIT&quantity=1.035&price=30000&timeInForce=GTC&recvWindow="
-                + RECV_WINDOW + "&timestamp=" + timestamp;
-        
-        String signature = Utils.bytesToHex(signHMAC.doFinal(orderString.getBytes(StandardCharsets.UTF_8)));
-        System.out.println(signature);
-        
-        String host = "testnet.binancefuture.com";
-        String auth = "X-MBX-APIKEY: " + apiKey;
-        String path = "/fapi/v1/order"
-                + "?symbol=BTCUSDT&side=SELL&type=LIMIT&quantity=1.035&price=30000&timeInForce=GTC&recvWindow= " + RECV_WINDOW
-                + "&timestamp=" + timestamp + "&signature=" + signature;
-        
-        try (Socket socket = tlsSocketFactory.createSocket(host, 443)) {
-            
-            String req = "POST " + path + " HTTP/1.1" + "\r\n" + "Connection: close" + "\r\n" + "Host: " + host + "\r\n" + auth
-                    + "\r\n\r\n";
-            
-            OutputStream output = socket.getOutputStream();
-            output.write(req.getBytes(StandardCharsets.UTF_8));
-            output.flush();
-            
-            InputStream input = socket.getInputStream();
-            
-            byte[] buffer = new byte[1024];
-            int length = 0;
-            
-            while ((length = input.read(buffer)) > 0) {
-                System.out.write(buffer, 0, length);
-            }
+        if (accountInfo != null) {
+            accountInfo.ordersWithErrors.remove(orderId);
+            batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, symbolQty, true));
+        } else {
+            // TODO log this
+            throw new ExchangeException(-3, "accountInfo was null", "Must call getAccountInfo");
         }
         
     }
     
-    private String marketClose(String positionId, boolean isLong, double qtyToClose) {
+    @Override
+    public void batchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose) throws ExchangeException {
         
-        return null;
+        if (accountInfo != null) {
+            accountInfo.ordersWithErrors.remove(orderId);
+            batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, qtyToClose, false));
+        } else {
+            // TODO log this
+            throw new ExchangeException(-3, "accountInfo was null", "Must call getAccountInfo");
+        }
     }
     
     @Override
-    public void batchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty) {
-        
-        accountInfo.ordersWithErrors.remove(orderId);
-        batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, symbolQty, true));
-        
-    }
-    
-    @Override
-    public void batchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose) {
-        
-        accountInfo.ordersWithErrors.remove(orderId);
-        batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, qtyToClose, false));
-        
-    }
-    
-    @Override
-    public BPAccount executeBatchedOrders() {
+    public BPAccount executeBatchedOrders() throws ExchangeException {
         
         // remove batch from list to execute whether or not it was successful
         ArrayList<BatchedOrder> tempBatch = new ArrayList<>(batchedMarketOrders);
@@ -316,43 +267,69 @@ public class BPLiveExchange implements BPExchange {
             }
         } catch (Exception e) {
             // TODO log the event
-            e.printStackTrace();
-            return null;
+            throw new ExchangeException(-2, "Pre execution error", e.toString());
         }
         if (sumInitialMargin >= accountInfo.marginBalance) {
             // TODO log insufficient margin to open
+            System.out.println("Not enough margin!");
         }
         
         for (BatchedOrder order : tempBatch) {
             if (order.isOpen) {
                 if (sumInitialMargin < accountInfo.marginBalance) {
                     try {
-                        // TODO marketOpen(order.symbol, order.isLong, order.quantity);
+                        if (accountInfo.isHedgeMode) {
+                            String marketOpenRes = marketOpenHedgeMode(order.symbol, order.isLong, order.quantity);
+                            JsonElement elemMkt = parseStringAndCheckErrors(marketOpenRes);
+                            JsonObject objMkt = elemMkt.getAsJsonObject();
+                            if (objMkt.has("symbol") && objMkt.get("symbol").getAsString().equals(order.symbol)) {
+                                // TODO log success
+                                accountInfo.ordersWithQuantities.put(order.orderId, order.quantity);
+                            } else {
+                                throw new ExchangeException(-10, "returned json doesn't have expected members",
+                                        "returned json doesn't have expected members");
+                            }
+                        } else {
+                            throw new ExchangeException(3, "Only hedge mode orders supported",
+                                    "Only hedge mode orders supported: executeBatchedOrders");
+                        }
                     } catch (Exception e) {
                         // TODO log this
-                        // TODO add msg error to return accinfo
                         if (e instanceof ExchangeException) {
                             accountInfo.ordersWithErrors.put(order.orderId, (ExchangeException) e);
                         } else {
                             accountInfo.ordersWithErrors.put(order.orderId,
                                     new ExchangeException(-1, "Execution error", e.toString()));
                         }
-                        e.printStackTrace();
+                        e.printStackTrace(); // TODO remove after logger done
                     }
                 }
             } else {
                 try {
-                    // TODO marketClose(order.symbol, order.isLong, order.quantity);
+                    if (accountInfo.isHedgeMode) {
+                        String marketCloseRes = marketCloseHedgeMode(order.symbol, order.isLong, order.quantity);
+                        JsonElement elemMkt = parseStringAndCheckErrors(marketCloseRes);
+                        JsonObject objMkt = elemMkt.getAsJsonObject();
+                        if (objMkt.has("symbol") && objMkt.get("symbol").getAsString().equals(order.symbol)) {
+                            // TODO log success
+                            accountInfo.ordersWithQuantities.put(order.orderId, order.quantity);
+                        } else {
+                            throw new ExchangeException(-10, "returned json doesn't have expected members",
+                                    "returned json doesn't have expected members");
+                        }
+                    } else {
+                        throw new ExchangeException(3, "Only hedge mode orders supported",
+                                "Only hedge mode orders supported: executeBatchedOrders");
+                    }
                 } catch (Exception e) {
                     // TODO log this
-                    // TODO add msg error to return accinfo
                     if (e instanceof ExchangeException) {
                         accountInfo.ordersWithErrors.put(order.orderId, (ExchangeException) e);
                     } else {
                         accountInfo.ordersWithErrors.put(order.orderId,
                                 new ExchangeException(-1, "Execution error", e.toString()));
                     }
-                    e.printStackTrace();
+                    e.printStackTrace(); // TODO remove after logger done
                 }
             }
         }
@@ -376,12 +353,14 @@ public class BPLiveExchange implements BPExchange {
             accountInfo.isBalancesDesynch = true;
         }
         
+        // TODO grab positions and update them on accountInfo, boolean like isbalancedesynch but ispositionsdesynch
+        
         return accountInfo;
     }
     
     private String getAccountBalance() throws IOException {
         
-        return apiGetSignedRequestResponseNoParams(ENDPOINT_ACCOUNT_BALANCE);
+        return apiGetSignedRequestResponse(ENDPOINT_ACCOUNT_BALANCE);
     }
     
     private String getPremiumIndex() throws IOException {
@@ -391,12 +370,12 @@ public class BPLiveExchange implements BPExchange {
     
     private String getPositionInformation() throws IOException {
         
-        return apiGetSignedRequestResponseNoParams(ENDPOINT_POSITION_INFO);
+        return apiGetSignedRequestResponse(ENDPOINT_POSITION_INFO);
     }
     
     private String getAccountInformation() throws IOException {
         
-        return apiGetSignedRequestResponseNoParams(ENDPOINT_ACCOUNT_INFO);
+        return apiGetSignedRequestResponse(ENDPOINT_ACCOUNT_INFO);
     }
     
     private String getExchangeInfo() throws IOException {
@@ -404,15 +383,44 @@ public class BPLiveExchange implements BPExchange {
         return apiGetRequestResponse(EXCHANGE_INFO_REQ);
     }
     
-    private String apiGetSignedRequestResponseNoParams(String endpoint) throws IOException {
+    private String apiGetSignedRequestResponse(String endpoint) throws IOException {
         
         long timestamp = getCurrentTimestampMillis();
         String params = "recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
         String signature = Utils.bytesToHex(signHMAC.doFinal(params.getBytes(StandardCharsets.UTF_8)));
-        String accInfoReq = "GET " + endpoint + "?" + params + "&signature=" + signature
-                + " HTTP/1.1\r\nConnection: close\r\nHost: " + HOST + "\r\n" + AUTH + apiKey + "\r\n\r\n";
+        String req = "GET " + endpoint + "?" + params + "&signature=" + signature + " HTTP/1.1\r\nConnection: close\r\nHost: "
+                + HOST + "\r\n" + AUTH + apiKey + "\r\n\r\n";
         
-        return apiGetRequestResponse(accInfoReq);
+        return apiGetRequestResponse(req);
+    }
+    
+    private String marketOpenHedgeMode(String symbol, boolean isLong, double symbolQty) throws IOException {
+        
+        long timestamp = getCurrentTimestampMillis();
+        String sideCombo = isLong ? "&side=BUY&positionSide=LONG" : "&side=SELL&positionSide=SHORT";
+        String params = "symbol=" + symbol + sideCombo + "&type=MARKET&quantity=" + symbolQty + "&recvWindow=" + RECV_WINDOW
+                + "&timestamp=" + timestamp;
+        
+        return apiPostSignedRequestGetResponse(ENDPOINT_NEW_ORDER, params);
+    }
+    
+    private String marketCloseHedgeMode(String symbol, boolean isLong, double symbolQty) throws IOException {
+        
+        long timestamp = getCurrentTimestampMillis();
+        String sideCombo = isLong ? "&side=SELL&positionSide=LONG" : "&side=BUY&positionSide=SHORT";
+        String params = "symbol=" + symbol + sideCombo + "&type=MARKET&quantity=" + symbolQty + "&recvWindow=" + RECV_WINDOW
+                + "&timestamp=" + timestamp;
+        
+        return apiPostSignedRequestGetResponse(ENDPOINT_NEW_ORDER, params);
+    }
+    
+    private String apiPostSignedRequestGetResponse(String endpoint, String params) throws IOException {
+        
+        String signature = Utils.bytesToHex(signHMAC.doFinal(params.getBytes(StandardCharsets.UTF_8)));
+        String req = "POST " + endpoint + "?" + params + "&signature=" + signature + " HTTP/1.1\r\nConnection: close\r\nHost: "
+                + HOST + "\r\n" + AUTH + apiKey + "\r\n\r\n";
+        
+        return apiGetRequestResponse(req);
     }
     
     private String apiGetRequestResponse(String request) throws IOException {
@@ -428,7 +436,7 @@ public class BPLiveExchange implements BPExchange {
         }
     }
     
-    private JsonElement parseStringAndCheckErrors(String jsonString) throws Exception {
+    private JsonElement parseStringAndCheckErrors(String jsonString) throws ExchangeException {
         
         try {
             if (jsonString == null || jsonString.length() < 2) {
@@ -446,7 +454,11 @@ public class BPLiveExchange implements BPExchange {
             }
             return elem;
         } catch (Exception e) {
-            throw e;
+            if (e instanceof ExchangeException) {
+                throw e;
+            } else {
+                throw new ExchangeException(5, "Problem parsing JSON", e.toString());
+            }
         }
     }
     

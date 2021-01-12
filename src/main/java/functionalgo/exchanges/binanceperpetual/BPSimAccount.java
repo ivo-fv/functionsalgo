@@ -35,7 +35,8 @@ class BPSimAccount implements BPAccount {
     long lastUpdatedTime;
     double takerFee = BPSimExchange.TAKER_OPEN_CLOSE_FEE;
     double worstMarginBalance;
-    public HashMap<String, ExchangeException> ordersWithErrors;
+    HashMap<String, ExchangeException> ordersWithErrors;
+    HashMap<String, Double> ordersWithQuantities;
     
     BPSimAccount(double walletBalance) {
         
@@ -46,6 +47,7 @@ class BPSimAccount implements BPAccount {
         positions = new HashMap<>();
         leverages = new HashMap<>();
         ordersWithErrors = new HashMap<>();
+        ordersWithQuantities = new HashMap<>();
         
         lastUpdatedTime = 0;
     }
@@ -129,5 +131,11 @@ class BPSimAccount implements BPAccount {
     public boolean isBalancesDesynch() {
         
         return false;
+    }
+    
+    @Override
+    public double getOrderQuantity(String orderId) {
+        
+        return ordersWithQuantities.get(orderId);
     }
 }
