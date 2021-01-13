@@ -16,7 +16,7 @@ import java.util.Map;
 
 import com.google.gson.Gson;
 
-import functionalgo.dataproviders.binanceperpetual.BPDataGrabber;
+import functionalgo.dataproviders.binanceperpetual.BPHistoricDataGrabber;
 
 public class BPSlippageModel implements Serializable {
     
@@ -62,7 +62,7 @@ public class BPSlippageModel implements Serializable {
             
             Gson gson = new Gson();
             
-            for (String symbol : BPDataGrabber.SYMBOLS) {
+            for (String symbol : BPHistoricDataGrabber.SYMBOLS) {
                 
                 try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(new File(JSON_ORDER_BOOKS_FOLDER + "/" + symbol + ".json"))))) {
@@ -87,12 +87,12 @@ public class BPSlippageModel implements Serializable {
         } else {
             System.out.println("Generating the order book files...");
             
-            BPDataGrabber orderBookGrabber = new BPDataGrabber();
+            BPHistoricDataGrabber orderBookGrabber = new BPHistoricDataGrabber();
             
             File orderBookDir = new File(JSON_ORDER_BOOKS_FOLDER);
             orderBookDir.mkdir();
             
-            for (String symbol : BPDataGrabber.SYMBOLS) {
+            for (String symbol : BPHistoricDataGrabber.SYMBOLS) {
                 
                 File outFile = new File(JSON_ORDER_BOOKS_FOLDER + "/" + symbol + ".json");
                 

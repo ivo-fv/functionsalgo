@@ -14,7 +14,7 @@ import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class BPDataGrabber {
+public class BPHistoricDataGrabber {
     
     public static final String API_FUTURES_URL = "https://fapi.binance.com";
     public static final short MAX_LIMIT = 2399;
@@ -40,7 +40,7 @@ public class BPDataGrabber {
     private int responseCode = -1;
     private long cronometer = -1;
     
-    public BPDataGrabber() {
+    public BPHistoricDataGrabber() {
         
         currentWeightValue = -1;
         responseCode = -1;
@@ -49,7 +49,7 @@ public class BPDataGrabber {
     
     public static void main(String[] args) throws IOException, InterruptedException {
         
-        BPDataGrabber grabber = new BPDataGrabber();
+        BPHistoricDataGrabber grabber = new BPHistoricDataGrabber();
         
         long startTime = LocalDateTime.of(2019, 4, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli();
         long endTime = LocalDateTime.of(2021, 4, 10, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli();

@@ -117,7 +117,7 @@ public class BPSimExchange implements BPExchange {
                 double worstPrice = bpHistoricKlines.getLow(entry.getValue().symbol, timestamp);
                 double worstPnL = (worstPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
                 accInfo.worstMarginBalance += worstPnL;
-                short leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
+                int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
                         ? accInfo.leverages.get(entry.getValue().symbol)
                         : defaultLeverage;
                 entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
@@ -129,7 +129,7 @@ public class BPSimExchange implements BPExchange {
                 double worstPrice = bpHistoricKlines.getHigh(entry.getValue().symbol, timestamp);
                 double worstPnL = (entry.getValue().avgOpenPrice - worstPrice) * entry.getValue().quantity;
                 accInfo.worstMarginBalance += worstPnL;
-                short leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
+                int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
                         ? accInfo.leverages.get(entry.getValue().symbol)
                         : defaultLeverage;
                 entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
@@ -166,7 +166,7 @@ public class BPSimExchange implements BPExchange {
         }
         // the maintenance margin is *always less* than 50% of the initial margin
         if (accInfo.worstMarginBalance <= highestInitialMargin / 2) {
-            // TODO log to exchange about possible liq
+            // TODO throw some exception
             System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             System.out.println("!!! Probably going to get liquidated at: " + time);
             System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
@@ -325,6 +325,25 @@ public class BPSimExchange implements BPExchange {
         }
         
         return accInfo;
+    }
+    
+    @Override
+    public void setHedgeMode() {
+        
+        // only hedge mode supported so it's already in hedge mode
+    }
+    
+    @Override
+    public void setLeverage(String symbol, int leverage) {
+        
+        accInfo.leverages.put(symbol, leverage);
+        
+    }
+    
+    @Override
+    public void setCrossMargin(String symbol) {
+        
+        // only cross margin supported so all symbols are already in cross margin mode
     }
     
 }

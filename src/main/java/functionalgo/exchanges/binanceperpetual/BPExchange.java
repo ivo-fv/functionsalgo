@@ -8,6 +8,12 @@ public interface BPExchange extends Exchange {
     @Override
     BPAccount getAccountInfo(long timestamp);
     
+    void setHedgeMode() throws ExchangeException;;
+    
+    void setLeverage(String symbol, int leverage) throws ExchangeException;
+    
+    void setCrossMargin(String symbol) throws ExchangeException;
+    
     void batchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty) throws ExchangeException;
     
     void batchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose) throws ExchangeException;
@@ -20,7 +26,8 @@ public interface BPExchange extends Exchange {
      * executed. It will execute in the order the orders were batched.
      * The BPAccount instance returned by executeBatchedOrders is modified from the one returned by getAccountInfo
      * so they are the same instance. It will contain the state of the account's
-     * positions and , if execution errors occur, these errors (BPAccount.getOrderError).
+     * positions and , if execution errors for a specific position occur, these errors (BPAccount.getOrderError).
+     * If there's not enough margin to execute the orders, only close orders will be executed.
      * After executeBatchedOrders returns it's important to check if the positions opened by the executed orders
      * are as expected.
      * If after this method executes the state of the BPAccount instance isn't as expected, it's up to

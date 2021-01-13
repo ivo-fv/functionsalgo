@@ -40,6 +40,7 @@ class BPLiveAccount implements BPAccount {
     long timestamp;
     boolean isHedgeMode;
     boolean isBalancesDesynch;
+    boolean isPositionsDesynch;
     HashMap<String, Integer> leverages;
     HashMap<String, Boolean> isSymbolIsolated;
     HashMap<String, PositionData> longPositions;
@@ -48,7 +49,7 @@ class BPLiveAccount implements BPAccount {
     HashMap<String, SymbolData> symbolData;
     HashMap<String, ExchangeException> ordersWithErrors;
     HashMap<String, Double> ordersWithQuantities;
-    
+   
     public BPLiveAccount() {
         
         leverages = new HashMap<>();
@@ -151,5 +152,11 @@ class BPLiveAccount implements BPAccount {
     public boolean isBalancesDesynch() {
         
         return isBalancesDesynch;
+    }
+    
+    @Override
+    public boolean isPositionsDesynch() {
+        
+        return isPositionsDesynch;
     }
 }

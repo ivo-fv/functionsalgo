@@ -37,4 +37,6 @@ public interface BPAccount extends ExchangeAccountInfo {
     double getOrderQuantity(String orderId);
     
     boolean isBalancesDesynch();
+
+    boolean isPositionsDesynch();
 }

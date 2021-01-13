@@ -9,10 +9,10 @@ public class BPBacktestDataProvider implements BPDataProvider {
     HashMap<Interval, BPHistoricKlines> klines;
     BPHistoricFundingRates fundRates;
     
-    public BPBacktestDataProvider() {
+    public BPBacktestDataProvider(Interval[] intervals) {
         
         klines = new HashMap<>();
-        for (Interval interval : Interval.values()) {
+        for (Interval interval : intervals) {
             klines.put(interval, BPHistoricKlines.loadKlines(interval));
         }
         

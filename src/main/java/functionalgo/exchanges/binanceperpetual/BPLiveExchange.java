@@ -4,6 +4,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -23,10 +24,7 @@ import functionalgo.exceptions.ExchangeException;
 
 public class BPLiveExchange implements BPExchange {
     
-    // TODO test if even if header limit not found still return response (should return)
-    // TODO refactor BPSimAccount to separate class on live and sim
-    // TODO refactor api get calls to one method for similar enough code
-    // TODO when instantiate set leverages to init and hedge mode and cross mode
+    // TODO better error exceptions
     // TODO log every transaction, failures and issue
     // TODO make service methods to manually correct problems such as if the store was wiped
     // TODO when logging include json error message and http code
@@ -44,7 +42,7 @@ public class BPLiveExchange implements BPExchange {
         System.out.println("Sending test order...");
         
         exchange.getAccountInfo(System.currentTimeMillis());
-        exchange.batchMarketOpen("id0", "ETHUSDT", true, 1.34562);
+        // exchange.batchMarketOpen("id0", "ETHUSDT", true, 1.34562);
         // exchange.batchMarketClose("id1", "ETHUSDT", true, 1.34562);
         // exchange.batchMarketOpen("id2", "BTCUSDT", false, 0.02345);
         // exchange.batchMarketClose("id3", "BTCUSDT", false, 0.02345);
@@ -71,7 +69,10 @@ public class BPLiveExchange implements BPExchange {
     private static final String ENDPOINT_POSITION_INFO = "/fapi/v2/positionRisk";
     private static final String ENDPOINT_ACCOUNT_BALANCE = "/fapi/v2/balance";
     private static final String ENDPOINT_NEW_ORDER = "/fapi/v1/order";
-    private static final Object QUOTE_ASSET = "USDT";
+    private static final String ENDPOINT_CHANGE_LEVERAGE = "/fapi/v1/leverage";
+    private static final String ENDPOINT_CHANGE_MARGIN_TYPE = "/fapi/v1/marginType";
+    private static final String ENDPOINT_CHANGE_POSITION_MODE = "/fapi/v1/positionSide/dual";
+    private static final String QUOTE_ASSET = "USDT";
     
     private Mac signHMAC;
     private String apiKey;
@@ -127,58 +128,12 @@ public class BPLiveExchange implements BPExchange {
         accountInfo = new BPLiveAccount();
         
         try {
-            String jsonAccInfo = getAccountInformation();
-            JsonElement elemAccInfo = parseStringAndCheckErrors(jsonAccInfo);
-            JsonObject objAccInfo = elemAccInfo.getAsJsonObject();
-            accountInfo.totalInitialMargin = objAccInfo.get("totalInitialMargin").getAsDouble();
-            accountInfo.marginBalance = objAccInfo.get("totalMarginBalance").getAsDouble();
-            accountInfo.walletBalance = objAccInfo.get("totalWalletBalance").getAsDouble();
-            accountInfo.isBalancesDesynch = false;
-            JsonArray arrPositions = objAccInfo.get("positions").getAsJsonArray();
-            for (JsonElement elem : arrPositions) {
-                JsonObject elemObj = elem.getAsJsonObject();
-                accountInfo.leverages.put(elemObj.get("symbol").getAsString(), elemObj.get("leverage").getAsInt());
-                accountInfo.isSymbolIsolated.put(elemObj.get("symbol").getAsString(), elemObj.get("isolated").getAsBoolean());
-                if (elemObj.get("positionSide").getAsString().equals("BOTH")) {
-                    accountInfo.isHedgeMode = false;
-                } else {
-                    accountInfo.isHedgeMode = true;
-                }
-            }
+            populateAccountBalances();
             
-            String jsonPosInfo = getPositionInformation();
-            JsonElement elemPosInfo = parseStringAndCheckErrors(jsonPosInfo);
-            JsonArray arrPosInfo = elemPosInfo.getAsJsonArray();
-            for (JsonElement elem : arrPosInfo) {
-                JsonObject objElem = elem.getAsJsonObject();
-                double quantity = objElem.get("positionAmt").getAsDouble();
-                if (Math.abs(quantity) > 0) {
-                    if (objElem.get("positionSide").getAsString().equals("LONG")) {
-                        accountInfo.longPositions.put(objElem.get("symbol").getAsString(),
-                                accountInfo.new PositionData(quantity, objElem.get("entryPrice").getAsDouble()));
-                    } else if (objElem.get("positionSide").getAsString().equals("SHORT")) {
-                        accountInfo.shortPositions.put(objElem.get("symbol").getAsString(),
-                                accountInfo.new PositionData(Math.abs(quantity), objElem.get("entryPrice").getAsDouble()));
-                    } else if (objElem.get("positionSide").getAsString().equals("BOTH")) {
-                        accountInfo.bothPositions.put(objElem.get("symbol").getAsString(),
-                                accountInfo.new PositionData(quantity, objElem.get("entryPrice").getAsDouble()));
-                    } else {
-                        throw new ExchangeException(0, "",
-                                "JSON position information symbol was not LONG, SHORT or BOTH: getAccountInfo");
-                    }
-                }
-            }
+            populateAccountPositions();
             
-            String jsonSymbolData = getPremiumIndex();
-            JsonElement objSymbolData = parseStringAndCheckErrors(jsonSymbolData);
-            JsonArray arrSymbolData = objSymbolData.getAsJsonArray();
-            for (JsonElement elem : arrSymbolData) {
-                JsonObject objElem = elem.getAsJsonObject();
-                accountInfo.symbolData.put(objElem.get("symbol").getAsString(),
-                        accountInfo.new SymbolData(objElem.get("lastFundingRate").getAsDouble(),
-                                objElem.get("markPrice").getAsDouble(), objElem.get("nextFundingTime").getAsLong()));
-                accountInfo.timestamp = objElem.get("time").getAsLong();
-            }
+            populateAccountMarkPriceFunding();
+            
         } catch (Exception e) {
             // TODO log this, if it's not IOException, it's a json parsing problem
             e.printStackTrace();
@@ -187,6 +142,70 @@ public class BPLiveExchange implements BPExchange {
         // TODO throttle ???
         
         return accountInfo;
+    }
+    
+    @Override
+    public void setHedgeMode() throws ExchangeException {
+        
+        long timestamp = getCurrentTimestampMillis();
+        String params = "dualSidePosition=true&recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
+        
+        String res;
+        try {
+            res = apiPostSignedRequestGetResponse(ENDPOINT_CHANGE_POSITION_MODE, params);
+        } catch (IOException e) {
+            // TODO log this
+            throw new ExchangeException(6, "Problem sending the request", e.toString());
+        }
+        
+        parseStringAndCheckErrors(res);
+        
+        if (accountInfo != null) {
+            accountInfo.isHedgeMode = true;
+        }
+        
+    }
+    
+    @Override
+    public void setLeverage(String symbol, int leverage) throws ExchangeException {
+        
+        long timestamp = getCurrentTimestampMillis();
+        String params = "symbol=" + symbol + "&leverage=" + leverage + "&recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
+        
+        String res;
+        try {
+            res = apiPostSignedRequestGetResponse(ENDPOINT_CHANGE_LEVERAGE, params);
+        } catch (IOException e) {
+            // TODO log this
+            throw new ExchangeException(6, "Problem sending the request", e.toString());
+        }
+        
+        parseStringAndCheckErrors(res);
+        
+        if (accountInfo != null) {
+            accountInfo.leverages.put(symbol, leverage);
+        }
+    }
+    
+    @Override
+    public void setCrossMargin(String symbol) throws ExchangeException {
+        
+        long timestamp = getCurrentTimestampMillis();
+        String params = "symbol=" + symbol + "&marginType=CROSSED&recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
+        
+        String res;
+        try {
+            res = apiPostSignedRequestGetResponse(ENDPOINT_CHANGE_MARGIN_TYPE, params);
+        } catch (IOException e) {
+            // TODO log this
+            throw new ExchangeException(6, "Problem sending the request", e.toString());
+        }
+        
+        parseStringAndCheckErrors(res);
+        
+        if (accountInfo != null) {
+            accountInfo.isSymbolIsolated.put(symbol, false);
+        }
     }
     
     @Override
@@ -199,7 +218,6 @@ public class BPLiveExchange implements BPExchange {
             // TODO log this
             throw new ExchangeException(-3, "accountInfo was null", "Must call getAccountInfo");
         }
-        
     }
     
     @Override
@@ -241,9 +259,11 @@ public class BPLiveExchange implements BPExchange {
                             if (objFilter.get("filterType").getAsString().equals("LOT_SIZE")) {
                                 double stepSize = objFilter.get("stepSize").getAsDouble();
                                 if (order.quantity < stepSize) {
-                                    throw new ExchangeException(0, "", "Market order quantity too low: executeBatchedOrders");
+                                    throw new ExchangeException(0, order.symbol,
+                                            "Market order quantity too low for symbol: " + order.symbol);
                                 }
-                                order.quantity = Math.floor(order.quantity / stepSize) * stepSize;
+                                order.quantity = BigDecimal.valueOf(Math.floor(order.quantity / stepSize))
+                                        .multiply(BigDecimal.valueOf(stepSize)).doubleValue();
                                 if (order.isOpen) {
                                     sumInitialMargin += ((order.quantity * accountInfo.getMarkPrice(order.symbol))
                                             / accountInfo.getLeverage(order.symbol)) * OPEN_LOSS;
@@ -269,6 +289,7 @@ public class BPLiveExchange implements BPExchange {
             // TODO log the event
             throw new ExchangeException(-2, "Pre execution error", e.toString());
         }
+        
         if (sumInitialMargin >= accountInfo.marginBalance) {
             // TODO log insufficient margin to open
             System.out.println("Not enough margin!");
@@ -335,27 +356,102 @@ public class BPLiveExchange implements BPExchange {
         }
         
         try {
-            String balancesJson = getAccountBalance();
-            JsonElement balancesElem = parseStringAndCheckErrors(balancesJson);
-            JsonArray balancesArr = balancesElem.getAsJsonArray();
-            for (JsonElement elem : balancesArr) {
-                JsonObject objElem = elem.getAsJsonObject();
-                if (objElem.get("asset").getAsString().equals(QUOTE_ASSET)) {
-                    accountInfo.walletBalance = objElem.get("balance").getAsDouble();
-                    accountInfo.marginBalance = accountInfo.walletBalance + objElem.get("crossUnPnl").getAsDouble();
-                    accountInfo.totalInitialMargin = accountInfo.marginBalance - objElem.get("availableBalance").getAsDouble();
-                    accountInfo.isBalancesDesynch = false;
-                    break;
-                }
-            }
+            updateAccountBalances();
         } catch (Exception e) {
             // TODO log this
             accountInfo.isBalancesDesynch = true;
+            e.printStackTrace(); // TODO remove after logger done
         }
         
-        // TODO grab positions and update them on accountInfo, boolean like isbalancedesynch but ispositionsdesynch
+        try {
+            populateAccountPositions();
+        } catch (Exception e) {
+            // TODO log this
+            accountInfo.isPositionsDesynch = true;
+            e.printStackTrace(); // TODO remove after logger done
+        }
         
         return accountInfo;
+    }
+    
+    private void populateAccountBalances() throws IOException, ExchangeException {
+        
+        String jsonAccInfo = getAccountInformation();
+        JsonElement elemAccInfo = parseStringAndCheckErrors(jsonAccInfo);
+        JsonObject objAccInfo = elemAccInfo.getAsJsonObject();
+        accountInfo.totalInitialMargin = objAccInfo.get("totalInitialMargin").getAsDouble();
+        accountInfo.marginBalance = objAccInfo.get("totalMarginBalance").getAsDouble();
+        accountInfo.walletBalance = objAccInfo.get("totalWalletBalance").getAsDouble();
+        accountInfo.isBalancesDesynch = false;
+        JsonArray arrPositions = objAccInfo.get("positions").getAsJsonArray();
+        for (JsonElement elem : arrPositions) {
+            JsonObject elemObj = elem.getAsJsonObject();
+            accountInfo.leverages.put(elemObj.get("symbol").getAsString(), elemObj.get("leverage").getAsInt());
+            accountInfo.isSymbolIsolated.put(elemObj.get("symbol").getAsString(), elemObj.get("isolated").getAsBoolean());
+            if (elemObj.get("positionSide").getAsString().equals("BOTH")) {
+                accountInfo.isHedgeMode = false;
+            } else {
+                accountInfo.isHedgeMode = true;
+            }
+        }
+    }
+    
+    private void populateAccountPositions() throws IOException, ExchangeException {
+        
+        String jsonPosInfo = getPositionInformation();
+        JsonElement elemPosInfo = parseStringAndCheckErrors(jsonPosInfo);
+        JsonArray arrPosInfo = elemPosInfo.getAsJsonArray();
+        for (JsonElement elem : arrPosInfo) {
+            JsonObject objElem = elem.getAsJsonObject();
+            double quantity = objElem.get("positionAmt").getAsDouble();
+            if (Math.abs(quantity) > 0) {
+                if (objElem.get("positionSide").getAsString().equals("LONG")) {
+                    accountInfo.longPositions.put(objElem.get("symbol").getAsString(),
+                            accountInfo.new PositionData(quantity, objElem.get("entryPrice").getAsDouble()));
+                } else if (objElem.get("positionSide").getAsString().equals("SHORT")) {
+                    accountInfo.shortPositions.put(objElem.get("symbol").getAsString(),
+                            accountInfo.new PositionData(Math.abs(quantity), objElem.get("entryPrice").getAsDouble()));
+                } else if (objElem.get("positionSide").getAsString().equals("BOTH")) {
+                    accountInfo.bothPositions.put(objElem.get("symbol").getAsString(),
+                            accountInfo.new PositionData(quantity, objElem.get("entryPrice").getAsDouble()));
+                } else {
+                    throw new ExchangeException(0, "",
+                            "JSON position information symbol was not LONG, SHORT or BOTH: getAccountInfo");
+                }
+            }
+        }
+        accountInfo.isPositionsDesynch = false;
+    }
+    
+    private void populateAccountMarkPriceFunding() throws IOException, ExchangeException {
+        
+        String jsonSymbolData = getPremiumIndex();
+        JsonElement objSymbolData = parseStringAndCheckErrors(jsonSymbolData);
+        JsonArray arrSymbolData = objSymbolData.getAsJsonArray();
+        for (JsonElement elem : arrSymbolData) {
+            JsonObject objElem = elem.getAsJsonObject();
+            accountInfo.symbolData.put(objElem.get("symbol").getAsString(),
+                    accountInfo.new SymbolData(objElem.get("lastFundingRate").getAsDouble(),
+                            objElem.get("markPrice").getAsDouble(), objElem.get("nextFundingTime").getAsLong()));
+            accountInfo.timestamp = objElem.get("time").getAsLong();
+        }
+    }
+    
+    private void updateAccountBalances() throws IOException, ExchangeException {
+        
+        String balancesJson = getAccountBalance();
+        JsonElement balancesElem = parseStringAndCheckErrors(balancesJson);
+        JsonArray balancesArr = balancesElem.getAsJsonArray();
+        for (JsonElement elem : balancesArr) {
+            JsonObject objElem = elem.getAsJsonObject();
+            if (objElem.get("asset").getAsString().equals(QUOTE_ASSET)) {
+                accountInfo.walletBalance = objElem.get("balance").getAsDouble();
+                accountInfo.marginBalance = accountInfo.walletBalance + objElem.get("crossUnPnl").getAsDouble();
+                accountInfo.totalInitialMargin = accountInfo.marginBalance - objElem.get("availableBalance").getAsDouble();
+                accountInfo.isBalancesDesynch = false;
+                break;
+            }
+        }
     }
     
     private String getAccountBalance() throws IOException {
@@ -515,5 +611,4 @@ public class BPLiveExchange implements BPExchange {
         
         return System.currentTimeMillis() - TIMESTAMP_LAG;
     }
-    
 }

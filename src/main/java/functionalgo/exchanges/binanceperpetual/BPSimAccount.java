@@ -30,7 +30,7 @@ class BPSimAccount implements BPAccount {
     
     double marginBalance;
     double walletBalance;
-    HashMap<String, Short> leverages;
+    HashMap<String, Integer> leverages;
     HashMap<String, PositionData> positions;
     long lastUpdatedTime;
     double takerFee = BPSimExchange.TAKER_OPEN_CLOSE_FEE;
@@ -137,5 +137,11 @@ class BPSimAccount implements BPAccount {
     public double getOrderQuantity(String orderId) {
         
         return ordersWithQuantities.get(orderId);
+    }
+    
+    @Override
+    public boolean isPositionsDesynch() {
+        
+        return false;
     }
 }
