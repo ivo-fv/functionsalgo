@@ -89,11 +89,11 @@ public class BPSimExchange implements BPExchange {
                     nextFundingTime += fundingIntervalMillis;
                 }
             }
-            
+            accInfo.nextFundingTime = nextFundingTime;
             accInfo.lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
         } else {
             nextFundingTime = ((timestamp / fundingIntervalMillis) * fundingIntervalMillis) + fundingIntervalMillis;
-            
+            accInfo.nextFundingTime = nextFundingTime;
             calculateMarginBalanceAndUpdatePositionData(timestamp);
             checkMaintenanceMargin(timestamp);
             
@@ -108,7 +108,7 @@ public class BPSimExchange implements BPExchange {
         accInfo.worstMarginBalance = accInfo.walletBalance;
         
         for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
-            // use mark price for more accuracy
+            // should use mark price for more accuracy
             if (entry.getValue().isLong) {
                 double currPrice = bpHistoricKlines.getOpen(entry.getValue().symbol, timestamp);
                 entry.getValue().currPrice = currPrice;
@@ -140,12 +140,14 @@ public class BPSimExchange implements BPExchange {
             for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
                 if (entry.getValue().isLong) {
                     double fundingRate = bpHistoricFundingRates.getRate(entry.getValue().symbol, timestamp);
+                    accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
                     double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                     accInfo.marginBalance -= funding;
                     accInfo.walletBalance -= funding;
                     accInfo.worstMarginBalance -= funding;
                 } else {
                     double fundingRate = bpHistoricFundingRates.getRate(entry.getValue().symbol, timestamp);
+                    accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
                     double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                     accInfo.marginBalance += funding;
                     accInfo.walletBalance += funding;

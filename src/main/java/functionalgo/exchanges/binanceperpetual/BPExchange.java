@@ -6,7 +6,7 @@ import functionalgo.exceptions.ExchangeException;
 public interface BPExchange extends Exchange {
     
     @Override
-    BPAccount getAccountInfo(long timestamp);
+    BPAccount getAccountInfo(long timestamp) throws ExchangeException;
     
     void setHedgeMode() throws ExchangeException;;
     

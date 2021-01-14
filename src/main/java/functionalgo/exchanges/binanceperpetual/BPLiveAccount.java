@@ -49,7 +49,7 @@ class BPLiveAccount implements BPAccount {
     HashMap<String, SymbolData> symbolData;
     HashMap<String, ExchangeException> ordersWithErrors;
     HashMap<String, Double> ordersWithQuantities;
-   
+    
     public BPLiveAccount() {
         
         leverages = new HashMap<>();
@@ -158,5 +158,17 @@ class BPLiveAccount implements BPAccount {
     public boolean isPositionsDesynch() {
         
         return isPositionsDesynch;
+    }
+    
+    @Override
+    public boolean isSymbolIsolated(String symbol) {
+        
+        return isSymbolIsolated.get(symbol);
+    }
+    
+    @Override
+    public boolean isHedgeMode() {
+        
+        return isHedgeMode;
     }
 }

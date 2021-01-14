@@ -2,6 +2,7 @@ package functionalgo;
 
 import java.lang.reflect.InvocationTargetException;
 
+import functionalgo.exceptions.ExchangeException;
 import functionalgo.exceptions.StandardJavaException;
 
 public abstract class Strategy {
@@ -28,7 +29,8 @@ public abstract class Strategy {
      * 
      * @param timestamp
      *            current unix timestamp in miliseconds
+     * @throws ExchangeException 
      */
-    public abstract void execute(long timestamp);
+    public abstract void execute(long timestamp) throws ExchangeException;
     
 }

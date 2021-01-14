@@ -32,7 +32,9 @@ class BPSimAccount implements BPAccount {
     double walletBalance;
     HashMap<String, Integer> leverages;
     HashMap<String, PositionData> positions;
+    HashMap<String, Double> fundingRates;
     long lastUpdatedTime;
+    public long nextFundingTime;
     double takerFee = BPSimExchange.TAKER_OPEN_CLOSE_FEE;
     double worstMarginBalance;
     HashMap<String, ExchangeException> ordersWithErrors;
@@ -46,6 +48,7 @@ class BPSimAccount implements BPAccount {
         
         positions = new HashMap<>();
         leverages = new HashMap<>();
+        fundingRates = new HashMap<>();
         ordersWithErrors = new HashMap<>();
         ordersWithQuantities = new HashMap<>();
         
@@ -103,22 +106,23 @@ class BPSimAccount implements BPAccount {
     @Override
     public long getNextFundingTime(String symbol) {
         
-        // TODO Auto-generated method stub
-        return 0;
+        return nextFundingTime;
     }
     
     @Override
     public double getFundingRate(String symbol) {
         
-        // TODO Auto-generated method stub
-        return 0;
+        return fundingRates.get(symbol);
     }
     
     @Override
     public double getMarkPrice(String symbol) {
         
-        // TODO Auto-generated method stub
-        return 0;
+        if (positions.containsKey(BPSimExchange.getPositionId(symbol, true))) {
+            return positions.get(BPSimExchange.getPositionId(symbol, true)).currPrice;
+        } else {
+            return positions.get(BPSimExchange.getPositionId(symbol, false)).currPrice;
+        }
     }
     
     @Override
@@ -143,5 +147,17 @@ class BPSimAccount implements BPAccount {
     public boolean isPositionsDesynch() {
         
         return false;
+    }
+    
+    @Override
+    public boolean isSymbolIsolated(String symbol) {
+        
+        return false;
+    }
+    
+    @Override
+    public boolean isHedgeMode() {
+        
+        return true;
     }
 }

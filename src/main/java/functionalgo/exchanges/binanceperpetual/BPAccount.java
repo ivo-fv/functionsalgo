@@ -39,4 +39,8 @@ public interface BPAccount extends ExchangeAccountInfo {
     boolean isBalancesDesynch();
 
     boolean isPositionsDesynch();
+
+    boolean isSymbolIsolated(String symbol);
+
+    boolean isHedgeMode();
 }

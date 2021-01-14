@@ -1,5 +1,7 @@
 package functionalgo;
 
+import functionalgo.exceptions.ExchangeException;
+
 /**
  * If implementing a simulated exchange, first update the account's position's PnL, margin balance, wallet
  * balance, calculate funding fees, perform margin checks...
@@ -14,7 +16,8 @@ public interface Exchange {
      * 
      * @param timestamp
      *            current unix timestamp in miliseconds
+     * @throws ExchangeException 
      */
-    ExchangeAccountInfo getAccountInfo(long timestamp);
+    ExchangeAccountInfo getAccountInfo(long timestamp) throws ExchangeException;
     
 }
