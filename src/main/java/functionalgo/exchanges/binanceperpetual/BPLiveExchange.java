@@ -24,6 +24,7 @@ import functionalgo.exceptions.ExchangeException;
 
 public class BPLiveExchange implements BPExchange {
     
+    // TODO test leverages margin hedge
     // TODO better error exceptions
     // TODO log every transaction, failures and issue
     // TODO make service methods to manually correct problems such as if the store was wiped
@@ -43,9 +44,9 @@ public class BPLiveExchange implements BPExchange {
         
         exchange.getAccountInfo(System.currentTimeMillis());
         // exchange.batchMarketOpen("id0", "ETHUSDT", true, 1.34562);
-        // exchange.batchMarketClose("id1", "ETHUSDT", true, 1.34562);
+        // exchange.batchMarketClose("id1", "ETHUSDT", true, 1.14562);
         // exchange.batchMarketOpen("id2", "BTCUSDT", false, 0.02345);
-        // exchange.batchMarketClose("id3", "BTCUSDT", false, 0.02345);
+        // exchange.batchMarketClose("id3", "BTCUSDT", false, 0.01345);
         exchange.executeBatchedOrders();
         
         // TODO Auto-generated method stub
@@ -73,6 +74,8 @@ public class BPLiveExchange implements BPExchange {
     private static final String ENDPOINT_CHANGE_MARGIN_TYPE = "/fapi/v1/marginType";
     private static final String ENDPOINT_CHANGE_POSITION_MODE = "/fapi/v1/positionSide/dual";
     private static final String QUOTE_ASSET = "USDT";
+    private static final int NUM_RETRIES = 4;
+    private static final int RETRY_TIME_MILLIS = 200;
     
     private Mac signHMAC;
     private String apiKey;
@@ -150,15 +153,7 @@ public class BPLiveExchange implements BPExchange {
         long timestamp = getCurrentTimestampMillis();
         String params = "dualSidePosition=true&recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
         
-        String res;
-        try {
-            res = apiPostSignedRequestGetResponse(ENDPOINT_CHANGE_POSITION_MODE, params);
-        } catch (IOException e) {
-            // TODO log this
-            throw new ExchangeException(6, "Problem sending the request", e.toString());
-        }
-        
-        parseStringAndCheckErrors(res);
+        apiPostSignedRequestGetResponse(ENDPOINT_CHANGE_POSITION_MODE, params);
         
         if (accountInfo != null) {
             accountInfo.isHedgeMode = true;
@@ -172,15 +167,7 @@ public class BPLiveExchange implements BPExchange {
         long timestamp = getCurrentTimestampMillis();
         String params = "symbol=" + symbol + "&leverage=" + leverage + "&recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
         
-        String res;
-        try {
-            res = apiPostSignedRequestGetResponse(ENDPOINT_CHANGE_LEVERAGE, params);
-        } catch (IOException e) {
-            // TODO log this
-            throw new ExchangeException(6, "Problem sending the request", e.toString());
-        }
-        
-        parseStringAndCheckErrors(res);
+        apiPostSignedRequestGetResponse(ENDPOINT_CHANGE_LEVERAGE, params);
         
         if (accountInfo != null) {
             accountInfo.leverages.put(symbol, leverage);
@@ -192,16 +179,8 @@ public class BPLiveExchange implements BPExchange {
         
         long timestamp = getCurrentTimestampMillis();
         String params = "symbol=" + symbol + "&marginType=CROSSED&recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
-        
-        String res;
-        try {
-            res = apiPostSignedRequestGetResponse(ENDPOINT_CHANGE_MARGIN_TYPE, params);
-        } catch (IOException e) {
-            // TODO log this
-            throw new ExchangeException(6, "Problem sending the request", e.toString());
-        }
-        
-        parseStringAndCheckErrors(res);
+        // TODO test
+        apiPostSignedRequestGetResponse(ENDPOINT_CHANGE_MARGIN_TYPE, params);
         
         if (accountInfo != null) {
             accountInfo.isSymbolIsolated.put(symbol, false);
@@ -240,11 +219,9 @@ public class BPLiveExchange implements BPExchange {
         batchedMarketOrders.clear();
         
         // adjust the order quantity to the step size and check if there's enough margin to execute the orders
-        JsonElement exchangeInfo;
         double sumInitialMargin = accountInfo.totalInitialMargin;
         try {
-            String exchangeInfoJson = getExchangeInfo();
-            exchangeInfo = parseStringAndCheckErrors(exchangeInfoJson);
+            JsonElement exchangeInfo = getExchangeInfo();
             JsonObject objExchangeInfo = exchangeInfo.getAsJsonObject();
             JsonArray arrExchangeInfoSymbols = objExchangeInfo.get("symbols").getAsJsonArray();
             boolean found = false;
@@ -300,8 +277,7 @@ public class BPLiveExchange implements BPExchange {
                 if (sumInitialMargin < accountInfo.marginBalance) {
                     try {
                         if (accountInfo.isHedgeMode) {
-                            String marketOpenRes = marketOpenHedgeMode(order.symbol, order.isLong, order.quantity);
-                            JsonElement elemMkt = parseStringAndCheckErrors(marketOpenRes);
+                            JsonElement elemMkt = marketOpenHedgeMode(order.symbol, order.isLong, order.quantity);
                             JsonObject objMkt = elemMkt.getAsJsonObject();
                             if (objMkt.has("symbol") && objMkt.get("symbol").getAsString().equals(order.symbol)) {
                                 // TODO log success
@@ -328,8 +304,7 @@ public class BPLiveExchange implements BPExchange {
             } else {
                 try {
                     if (accountInfo.isHedgeMode) {
-                        String marketCloseRes = marketCloseHedgeMode(order.symbol, order.isLong, order.quantity);
-                        JsonElement elemMkt = parseStringAndCheckErrors(marketCloseRes);
+                        JsonElement elemMkt = marketCloseHedgeMode(order.symbol, order.isLong, order.quantity);
                         JsonObject objMkt = elemMkt.getAsJsonObject();
                         if (objMkt.has("symbol") && objMkt.get("symbol").getAsString().equals(order.symbol)) {
                             // TODO log success
@@ -376,8 +351,7 @@ public class BPLiveExchange implements BPExchange {
     
     private void populateAccountBalances() throws IOException, ExchangeException {
         
-        String jsonAccInfo = getAccountInformation();
-        JsonElement elemAccInfo = parseStringAndCheckErrors(jsonAccInfo);
+        JsonElement elemAccInfo = getAccountInformation();
         JsonObject objAccInfo = elemAccInfo.getAsJsonObject();
         accountInfo.totalInitialMargin = objAccInfo.get("totalInitialMargin").getAsDouble();
         accountInfo.marginBalance = objAccInfo.get("totalMarginBalance").getAsDouble();
@@ -398,8 +372,7 @@ public class BPLiveExchange implements BPExchange {
     
     private void populateAccountPositions() throws IOException, ExchangeException {
         
-        String jsonPosInfo = getPositionInformation();
-        JsonElement elemPosInfo = parseStringAndCheckErrors(jsonPosInfo);
+        JsonElement elemPosInfo = getPositionInformation();
         JsonArray arrPosInfo = elemPosInfo.getAsJsonArray();
         for (JsonElement elem : arrPosInfo) {
             JsonObject objElem = elem.getAsJsonObject();
@@ -425,8 +398,7 @@ public class BPLiveExchange implements BPExchange {
     
     private void populateAccountMarkPriceFunding() throws IOException, ExchangeException {
         
-        String jsonSymbolData = getPremiumIndex();
-        JsonElement objSymbolData = parseStringAndCheckErrors(jsonSymbolData);
+        JsonElement objSymbolData = getPremiumIndex();
         JsonArray arrSymbolData = objSymbolData.getAsJsonArray();
         for (JsonElement elem : arrSymbolData) {
             JsonObject objElem = elem.getAsJsonObject();
@@ -439,8 +411,7 @@ public class BPLiveExchange implements BPExchange {
     
     private void updateAccountBalances() throws IOException, ExchangeException {
         
-        String balancesJson = getAccountBalance();
-        JsonElement balancesElem = parseStringAndCheckErrors(balancesJson);
+        JsonElement balancesElem = getAccountBalance();
         JsonArray balancesArr = balancesElem.getAsJsonArray();
         for (JsonElement elem : balancesArr) {
             JsonObject objElem = elem.getAsJsonObject();
@@ -454,43 +425,32 @@ public class BPLiveExchange implements BPExchange {
         }
     }
     
-    private String getAccountBalance() throws IOException {
+    private JsonElement getAccountBalance() throws ExchangeException {
         
         return apiGetSignedRequestResponse(ENDPOINT_ACCOUNT_BALANCE);
     }
     
-    private String getPremiumIndex() throws IOException {
+    private JsonElement getPremiumIndex() throws ExchangeException {
         
-        return apiGetRequestResponse(PREMIUM_INDEX_REQ);
+        return apiRetrySendRequestGetParsedResponse(PREMIUM_INDEX_REQ);
     }
     
-    private String getPositionInformation() throws IOException {
+    private JsonElement getPositionInformation() throws ExchangeException {
         
         return apiGetSignedRequestResponse(ENDPOINT_POSITION_INFO);
     }
     
-    private String getAccountInformation() throws IOException {
+    private JsonElement getAccountInformation() throws ExchangeException {
         
         return apiGetSignedRequestResponse(ENDPOINT_ACCOUNT_INFO);
     }
     
-    private String getExchangeInfo() throws IOException {
+    private JsonElement getExchangeInfo() throws ExchangeException {
         
-        return apiGetRequestResponse(EXCHANGE_INFO_REQ);
+        return apiRetrySendRequestGetParsedResponse(EXCHANGE_INFO_REQ);
     }
     
-    private String apiGetSignedRequestResponse(String endpoint) throws IOException {
-        
-        long timestamp = getCurrentTimestampMillis();
-        String params = "recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
-        String signature = Utils.bytesToHex(signHMAC.doFinal(params.getBytes(StandardCharsets.UTF_8)));
-        String req = "GET " + endpoint + "?" + params + "&signature=" + signature + " HTTP/1.1\r\nConnection: close\r\nHost: "
-                + HOST + "\r\n" + AUTH + apiKey + "\r\n\r\n";
-        
-        return apiGetRequestResponse(req);
-    }
-    
-    private String marketOpenHedgeMode(String symbol, boolean isLong, double symbolQty) throws IOException {
+    private JsonElement marketOpenHedgeMode(String symbol, boolean isLong, double symbolQty) throws ExchangeException {
         
         long timestamp = getCurrentTimestampMillis();
         String sideCombo = isLong ? "&side=BUY&positionSide=LONG" : "&side=SELL&positionSide=SHORT";
@@ -500,7 +460,7 @@ public class BPLiveExchange implements BPExchange {
         return apiPostSignedRequestGetResponse(ENDPOINT_NEW_ORDER, params);
     }
     
-    private String marketCloseHedgeMode(String symbol, boolean isLong, double symbolQty) throws IOException {
+    private JsonElement marketCloseHedgeMode(String symbol, boolean isLong, double symbolQty) throws ExchangeException {
         
         long timestamp = getCurrentTimestampMillis();
         String sideCombo = isLong ? "&side=SELL&positionSide=LONG" : "&side=BUY&positionSide=SHORT";
@@ -510,16 +470,63 @@ public class BPLiveExchange implements BPExchange {
         return apiPostSignedRequestGetResponse(ENDPOINT_NEW_ORDER, params);
     }
     
-    private String apiPostSignedRequestGetResponse(String endpoint, String params) throws IOException {
+    private JsonElement apiGetSignedRequestResponse(String endpoint) throws ExchangeException {
+        
+        long timestamp = getCurrentTimestampMillis();
+        String params = "recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
+        String signature = Utils.bytesToHex(signHMAC.doFinal(params.getBytes(StandardCharsets.UTF_8)));
+        String req = "GET " + endpoint + "?" + params + "&signature=" + signature + " HTTP/1.1\r\nConnection: close\r\nHost: "
+                + HOST + "\r\n" + AUTH + apiKey + "\r\n\r\n";
+        
+        return apiRetrySendRequestGetParsedResponse(req);
+    }
+    
+    private JsonElement apiPostSignedRequestGetResponse(String endpoint, String params) throws ExchangeException {
         
         String signature = Utils.bytesToHex(signHMAC.doFinal(params.getBytes(StandardCharsets.UTF_8)));
         String req = "POST " + endpoint + "?" + params + "&signature=" + signature + " HTTP/1.1\r\nConnection: close\r\nHost: "
                 + HOST + "\r\n" + AUTH + apiKey + "\r\n\r\n";
         
-        return apiGetRequestResponse(req);
+        return apiRetrySendRequestGetParsedResponse(req);
     }
     
-    private String apiGetRequestResponse(String request) throws IOException {
+    private JsonElement apiRetrySendRequestGetParsedResponse(String request) throws ExchangeException {
+        
+        // TODO test
+        JsonElement parsedResponse = null;
+        ExchangeException exception = new ExchangeException(7, "Problem with retry", "Problem with retry");
+        boolean canReturn = false;
+        
+        for (int i = 0; i < NUM_RETRIES; i++) {
+            try {
+                String res = apiSendRequestGetResponse(request);
+                parsedResponse = parseStringAndCheckErrors(res);
+                canReturn = true;
+                break;
+            } catch (Exception e) {
+                e.printStackTrace(); // TODO remove when log
+                // TODO log it
+                if (e instanceof ExchangeException) {
+                    exception = (ExchangeException) e;
+                } else {
+                    exception = new ExchangeException(8, "Problem communicating with exchange", e.toString());
+                }
+                try {
+                    Thread.sleep(RETRY_TIME_MILLIS);
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace(); // TODO remove when log
+                    // TODO log
+                }
+            }
+        }
+        if (canReturn) {
+            return parsedResponse;
+        } else {
+            throw exception;
+        }
+    }
+    
+    private String apiSendRequestGetResponse(String request) throws IOException {
         
         // TODO retry a few times
         try (Socket socket = tlsSocketFactory.createSocket(HOST, 443)) {
