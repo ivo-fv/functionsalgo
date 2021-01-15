@@ -19,21 +19,18 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import functionalgo.Logger;
 import functionalgo.Utils;
 import functionalgo.exceptions.ExchangeException;
 
 public class BPLiveExchange implements BPExchange {
-    
-    // TODO log every transaction, failures and issue
-    // TODO when logging include json error message and http code
-    // TODO log on successes as well
     
     public static void main(String[] args) throws ExchangeException {
         
         String privateKey = "***REMOVED***";
         String apiKey = "***REMOVED***";
         
-        BPLiveLogger logger = new BPAWSLiveLogger();
+        Logger logger = new BPAWSLiveLogger();
         
         BPExchange exchange = new BPLiveExchange(logger, privateKey, apiKey);
         
@@ -55,8 +52,6 @@ public class BPLiveExchange implements BPExchange {
         exchange.batchMarketOpen("id2", "BTCUSDT", false, 0.02345);
         exchange.batchMarketClose("id3", "BTCUSDT", false, 0.02345);
         exchange.executeBatchedOrders();
-        
-        // TODO Auto-generated method stub
     }
     
     private static final byte[] IP_LIMIT_HEADER_WEIGHT_1M = "X-MBX-USED-WEIGHT-1M: ".getBytes(StandardCharsets.UTF_8);
@@ -93,6 +88,7 @@ public class BPLiveExchange implements BPExchange {
     private int maxIpLimitWeight1M = Integer.MAX_VALUE;
     private int ipLimitWeight1M;
     private int httpStatusCode;
+    private Logger logger;
     
     private BPLiveAccount accountInfo;
     
@@ -116,11 +112,11 @@ public class BPLiveExchange implements BPExchange {
         }
     }
     
-    public BPLiveExchange(BPLiveLogger logger, String privateKey, String apiKey) throws ExchangeException {
+    public BPLiveExchange(Logger logger, String privateKey, String apiKey) throws ExchangeException {
         
         try {
             this.apiKey = apiKey;
-            
+            this.logger = logger;
             signHMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec pKey = new SecretKeySpec(privateKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             signHMAC.init(pKey);
@@ -130,9 +126,8 @@ public class BPLiveExchange implements BPExchange {
             batchedMarketOrders = new ArrayList<>();
             
         } catch (Exception e) {
-            e.printStackTrace(); // TODO remove when log done
+            logger.log(5, -1, "BPLiveExchange", e.toString());
             throw new ExchangeException(-1, "BPLiveExchange", e.toString());
-            // TODO and log
         }
     }
     
@@ -142,7 +137,6 @@ public class BPLiveExchange implements BPExchange {
         accountInfo = new BPLiveAccount();
         
         try {
-            
             JsonElement exchangeInfo = getExchangeInfo();
             JsonObject objExchangeInfo = exchangeInfo.getAsJsonObject();
             JsonArray arrExchangeInfoLimits = objExchangeInfo.get("rateLimits").getAsJsonArray();
@@ -161,8 +155,7 @@ public class BPLiveExchange implements BPExchange {
             populateAccountMarkPriceFunding();
             
         } catch (Exception e) {
-            // TODO log this
-            e.printStackTrace(); // TODO rem
+            logger.log(5, -2, "getAccountInfo", e.toString());
             if (e instanceof ExchangeException) {
                 throw (ExchangeException) e;
             } else {
@@ -183,6 +176,7 @@ public class BPLiveExchange implements BPExchange {
         
         if (accountInfo != null) {
             accountInfo.isHedgeMode = true;
+            logger.log(0, 0, "setHedgeMode", "OK");
         }
     }
     
@@ -196,6 +190,7 @@ public class BPLiveExchange implements BPExchange {
         
         if (accountInfo != null) {
             accountInfo.leverages.put(symbol, leverage);
+            logger.log(0, 0, "setLeverage: " + symbol + ";" + leverage, "OK");
         }
     }
     
@@ -204,11 +199,12 @@ public class BPLiveExchange implements BPExchange {
         
         long timestamp = getCurrentTimestampMillis();
         String params = "symbol=" + symbol + "&marginType=CROSSED&recvWindow=" + RECV_WINDOW + "&timestamp=" + timestamp;
-        // TODO test
+        
         apiPostSignedRequestGetResponse(ENDPOINT_CHANGE_MARGIN_TYPE, params);
         
         if (accountInfo != null) {
             accountInfo.isSymbolIsolated.put(symbol, false);
+            logger.log(0, 0, "setCrossMargin: " + symbol, "OK");
         }
     }
     
@@ -219,7 +215,7 @@ public class BPLiveExchange implements BPExchange {
             accountInfo.ordersWithErrors.remove(orderId);
             batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, symbolQty, true));
         } else {
-            // TODO log this
+            logger.log(2, -3, "batchMarketOpen", "Must have called getAccountInfo");
             throw new ExchangeException(-3, "batchMarketOpen", "Must have called getAccountInfo");
         }
     }
@@ -231,7 +227,7 @@ public class BPLiveExchange implements BPExchange {
             accountInfo.ordersWithErrors.remove(orderId);
             batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, qtyToClose, false));
         } else {
-            // TODO log this
+            logger.log(2, -3, "batchMarketClose", "Must have called getAccountInfo");
             throw new ExchangeException(-3, "batchMarketClose", "Must have called getAccountInfo");
         }
     }
@@ -281,7 +277,6 @@ public class BPLiveExchange implements BPExchange {
                     }
                 }
                 if (!found) {
-                    // TODO log
                     throw new ExchangeException(-5, "executeBatchedOrders",
                             "Could not find expected JSON members in exchangeInfo: executeBatchedOrders");
                 } else {
@@ -289,13 +284,18 @@ public class BPLiveExchange implements BPExchange {
                 }
             }
         } catch (Exception e) {
-            // TODO log the event
-            throw new ExchangeException(-6, "executeBatchedOrders", e.toString());
+            if (e instanceof ExchangeException) {
+                logger.log(4, ((ExchangeException) e).getCode(), ((ExchangeException) e).getResponseMsg(),
+                        ((ExchangeException) e).getExceptionMsg());
+                throw e;
+            } else {
+                logger.log(4, -6, "executeBatchedOrders", e.toString());
+                throw new ExchangeException(-6, "executeBatchedOrders", e.toString());
+            }
         }
         
         if (sumInitialMargin >= accountInfo.marginBalance) {
-            // TODO log insufficient margin to open
-            System.out.println("Not enough margin!"); // TODO remove when logged
+            logger.log(2, -15, "executeBatchedOrders", "Not enough margin to open");
         }
         
         for (BatchedOrder order : tempBatch) {
@@ -306,8 +306,9 @@ public class BPLiveExchange implements BPExchange {
                             JsonElement elemMkt = marketOpenHedgeMode(order.symbol, order.isLong, order.quantity);
                             JsonObject objMkt = elemMkt.getAsJsonObject();
                             if (objMkt.has("symbol") && objMkt.get("symbol").getAsString().equals(order.symbol)) {
-                                // TODO log success
                                 accountInfo.ordersWithQuantities.put(order.orderId, order.quantity);
+                                logger.log(0, 0, "executeBatchedOrders", "Executed: OPEN " + order.symbol
+                                        + (order.isLong ? " LONG " : " SHORT ") + order.quantity);
                             } else {
                                 throw new ExchangeException(-7, "executeBatchedOrders",
                                         "returned json doesn't have expected members");
@@ -317,14 +318,16 @@ public class BPLiveExchange implements BPExchange {
                                     "Only hedge mode orders supported: executeBatchedOrders");
                         }
                     } catch (Exception e) {
-                        // TODO log this
                         if (e instanceof ExchangeException) {
                             accountInfo.ordersWithErrors.put(order.orderId, (ExchangeException) e);
+                            logger.log(3, ((ExchangeException) e).getCode(), ((ExchangeException) e).getResponseMsg(),
+                                    ((ExchangeException) e).getExceptionMsg());
                         } else {
                             accountInfo.ordersWithErrors.put(order.orderId,
                                     new ExchangeException(-9, "executeBatchedOrders", e.toString()));
+                            logger.log(3, -9, "executeBatchedOrders", e.toString());
+                            
                         }
-                        e.printStackTrace(); // TODO remove after logger done
                     }
                 }
             } else {
@@ -333,8 +336,9 @@ public class BPLiveExchange implements BPExchange {
                         JsonElement elemMkt = marketCloseHedgeMode(order.symbol, order.isLong, order.quantity);
                         JsonObject objMkt = elemMkt.getAsJsonObject();
                         if (objMkt.has("symbol") && objMkt.get("symbol").getAsString().equals(order.symbol)) {
-                            // TODO log success
                             accountInfo.ordersWithQuantities.put(order.orderId, order.quantity);
+                            logger.log(0, 0, "executeBatchedOrders",
+                                    "Executed: CLOSE" + order.symbol + (order.isLong ? " LONG " : " SHORT ") + order.quantity);
                         } else {
                             throw new ExchangeException(-7, "executeBatchedOrders",
                                     "returned json doesn't have expected members");
@@ -344,32 +348,31 @@ public class BPLiveExchange implements BPExchange {
                                 "Only hedge mode orders supported: executeBatchedOrders");
                     }
                 } catch (Exception e) {
-                    // TODO log this
                     if (e instanceof ExchangeException) {
                         accountInfo.ordersWithErrors.put(order.orderId, (ExchangeException) e);
+                        logger.log(3, ((ExchangeException) e).getCode(), ((ExchangeException) e).getResponseMsg(),
+                                ((ExchangeException) e).getExceptionMsg());
                     } else {
                         accountInfo.ordersWithErrors.put(order.orderId,
                                 new ExchangeException(-9, "executeBatchedOrders", e.toString()));
+                        logger.log(3, -9, "executeBatchedOrders", e.toString());
                     }
-                    e.printStackTrace(); // TODO remove after logger done
                 }
             }
         }
         
         try {
             updateAccountBalances();
-        } catch (Exception e) {
-            // TODO log this
+        } catch (ExchangeException e) {
             accountInfo.isBalancesDesynch = true;
-            e.printStackTrace(); // TODO remove after logger done
+            logger.log(4, e.getCode(), e.getResponseMsg(), e.getExceptionMsg());
         }
         
         try {
             populateAccountPositions();
-        } catch (Exception e) {
-            // TODO log this
+        } catch (ExchangeException e) {
             accountInfo.isPositionsDesynch = true;
-            e.printStackTrace(); // TODO remove after logger done
+            logger.log(4, e.getCode(), e.getResponseMsg(), e.getExceptionMsg());
         }
         
         return accountInfo;
@@ -529,8 +532,6 @@ public class BPLiveExchange implements BPExchange {
                 canReturn = true;
                 break;
             } catch (Exception e) {
-                e.printStackTrace(); // TODO remove when log
-                // TODO log it
                 if (e instanceof ExchangeException) {
                     exception = (ExchangeException) e;
                 } else {
@@ -539,8 +540,7 @@ public class BPLiveExchange implements BPExchange {
                 try {
                     Thread.sleep(RETRY_TIME_MILLIS);
                 } catch (InterruptedException e1) {
-                    e1.printStackTrace(); // TODO remove when log
-                    // TODO log
+                    logger.log(2, -16, "apiRetrySendRequestGetParsedResponse", e1.toString());
                 }
             }
         }
@@ -553,7 +553,6 @@ public class BPLiveExchange implements BPExchange {
     
     private String apiSendRequestGetResponse(String request) throws IOException {
         
-        // TODO retry a few times
         try (Socket socket = tlsSocketFactory.createSocket(HOST, 443)) {
             
             OutputStream output = socket.getOutputStream();
@@ -641,10 +640,11 @@ public class BPLiveExchange implements BPExchange {
         if (ipLimitWeight1M >= maxIpLimitWeight1M - LIMIT_ROOM || httpStatusCode == 403 || httpStatusCode == 429
                 || httpStatusCode == 418) {
             try {
-                // TODO log
+                logger.log(3, -17, "limits reached",
+                        "ipLimitWeight1M: " + ipLimitWeight1M + "; httpStatusCode: " + httpStatusCode);
                 Thread.sleep(LIMIT_HIT_SLEEP_TIME);
             } catch (InterruptedException e) {
-                // TODO log
+                logger.log(2, -16, "getHTTPResponse", e.toString());
             }
         }
         return res.toString();
