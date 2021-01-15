@@ -1,4 +1,4 @@
-package functionalgo.dataproviders.binanceperpetual;
+package functionalgo.binanceperpetual.dataprovider;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -19,6 +19,8 @@ import java.util.List;
 import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
+
+import functionalgo.datapoints.Interval;
 
 public class BPHistoricKlines implements Serializable {
     

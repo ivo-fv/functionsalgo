@@ -1,7 +1,9 @@
-package functionalgo.dataproviders.binanceperpetual;
+package functionalgo.binanceperpetual.dataprovider;
 
 import java.util.List;
 
+import functionalgo.datapoints.FundingRate;
+import functionalgo.datapoints.Interval;
 import functionalgo.datapoints.Kline;
 import functionalgo.exceptions.NoDataAvailableException;
 
@@ -10,7 +12,7 @@ public interface BPDataProvider {
     // TODO single rate not needed
     double getFundingRate(String symbol, long timestamp) throws NoDataAvailableException;
     
-    double getPeriodFundingRates(String symbol, long startTime, long endTime) throws NoDataAvailableException;
+    List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) throws NoDataAvailableException;
     
     long getFundingInterval();
     
@@ -25,5 +27,5 @@ public interface BPDataProvider {
     // TODO single Kline probably not needed
     Kline getKline(String symbol, long timestamp, Interval interval) throws NoDataAvailableException;
     
-    List<Kline> getKlines(String symbol, long startTime, long endTime, Interval interval) throws NoDataAvailableException;
+    List<Kline> getKlines(String symbol, Interval interval, long startTime, long endTime) throws NoDataAvailableException;
 }

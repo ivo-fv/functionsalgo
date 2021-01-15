@@ -1,4 +1,4 @@
-package functionalgo.dataproviders.binanceperpetual;
+package functionalgo.binanceperpetual.dataprovider;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -13,6 +13,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.TreeMap;
+
+import functionalgo.datapoints.Interval;
 
 public class BPHistoricDataGrabber {
     
@@ -235,8 +237,8 @@ public class BPHistoricDataGrabber {
         
         while (newTime < endTime) {
             
-            String getUrl = API_FUTURES_URL + apiDataUrl + "?symbol=" + symbol + "&candleInterval=" + interval + "m&startTime="
-                    + newTime + "&endTime=" + endTime + "&limit=" + maxRequest;
+            String getUrl = API_FUTURES_URL + apiDataUrl + "?symbol=" + symbol + "&interval=" + interval + "&startTime=" + newTime
+                    + "&endTime=" + endTime + "&limit=" + maxRequest;
             
             utilSaveJSONArrayInUrlToFile(getUrl, false, outFile, true);
             
@@ -251,7 +253,7 @@ public class BPHistoricDataGrabber {
         
         try (FileOutputStream output = new FileOutputStream(outFile, append)) {
             
-            String getUrl = API_FUTURES_URL + apiDataUrl + "?symbol=" + symbol + "&candleInterval=" + interval + "m&startTime="
+            String getUrl = API_FUTURES_URL + apiDataUrl + "?symbol=" + symbol + "&interval=" + interval + "m&startTime="
                     + startTime + "&endTime=" + endTime + "&limit=" + maxRequest;
             
             output.getChannel().write(ByteBuffer.wrap(utilGetUrlToString(getUrl).getBytes(StandardCharsets.UTF_8)));
@@ -260,7 +262,7 @@ public class BPHistoricDataGrabber {
     
     /**
      * @param symbol
-     * @param candleInterval
+     * @param interval
      * @param startTime
      * @param endTime
      * @return [0] is first candle, [1] is last candle open time
@@ -270,11 +272,11 @@ public class BPHistoricDataGrabber {
     public long[] getFirstAndLastCandleOpenTime(String symbol, Interval interval, long startTime, long endTime)
             throws IOException, InterruptedException {
         
-        String firstUrl = API_FUTURES_URL + KLINES_URL + "?symbol=" + symbol + "&candleInterval=" + interval.toString() + "&startTime="
-                + startTime + "&limit=" + 1;
+        String firstUrl = API_FUTURES_URL + KLINES_URL + "?symbol=" + symbol + "&interval=" + interval.toString()
+                + "&startTime=" + startTime + "&limit=" + 1;
         
-        String lastUrl = API_FUTURES_URL + KLINES_URL + "?symbol=" + symbol + "&candleInterval=" + interval.toString() + "&endTime="
-                + endTime + "&limit=" + 1;
+        String lastUrl = API_FUTURES_URL + KLINES_URL + "?symbol=" + symbol + "&interval=" + interval.toString()
+                + "&endTime=" + endTime + "&limit=" + 1;
         
         long[] times = new long[2];
         times[0] = utilGetFirstLongInString(utilGetUrlToString(firstUrl));

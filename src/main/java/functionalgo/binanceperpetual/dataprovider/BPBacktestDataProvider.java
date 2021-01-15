@@ -1,8 +1,10 @@
-package functionalgo.dataproviders.binanceperpetual;
+package functionalgo.binanceperpetual.dataprovider;
 
 import java.util.HashMap;
 import java.util.List;
 
+import functionalgo.datapoints.FundingRate;
+import functionalgo.datapoints.Interval;
 import functionalgo.datapoints.Kline;
 import functionalgo.exceptions.NoDataAvailableException;
 
@@ -50,10 +52,10 @@ public class BPBacktestDataProvider implements BPDataProvider {
     }
     
     @Override
-    public double getPeriodFundingRates(String symbol, long startTime, long endTime) throws NoDataAvailableException {
+    public List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) throws NoDataAvailableException {
         
         // TODO to implement after live
-        return 0;
+        return null;
     }
     
     @Override
@@ -64,7 +66,7 @@ public class BPBacktestDataProvider implements BPDataProvider {
     }
     
     @Override
-    public List<Kline> getKlines(String symbol, long startTime, long endTime, Interval interval) throws NoDataAvailableException {
+    public List<Kline> getKlines(String symbol, Interval interval, long startTime, long endTime) throws NoDataAvailableException {
         
         // TODO to implement after live
         return null;

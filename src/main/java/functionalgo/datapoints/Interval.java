@@ -1,4 +1,4 @@
-package functionalgo.dataproviders.binanceperpetual;
+package functionalgo.datapoints;
 
 public enum Interval {
     _1m {

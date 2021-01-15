@@ -1,4 +1,4 @@
-package functionalgo.exchanges.binanceperpetual;
+package functionalgo.binanceperpetual.exchange;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -16,7 +16,7 @@ import java.util.Map;
 
 import com.google.gson.Gson;
 
-import functionalgo.dataproviders.binanceperpetual.BPHistoricDataGrabber;
+import functionalgo.binanceperpetual.dataprovider.BPHistoricDataGrabber;
 
 public class BPSlippageModel implements Serializable {
     

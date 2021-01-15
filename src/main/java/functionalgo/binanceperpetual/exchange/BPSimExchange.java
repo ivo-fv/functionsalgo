@@ -1,13 +1,13 @@
-package functionalgo.exchanges.binanceperpetual;
+package functionalgo.binanceperpetual.exchange;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import functionalgo.dataproviders.binanceperpetual.BPHistoricFundingRates;
-import functionalgo.dataproviders.binanceperpetual.BPHistoricKlines;
-import functionalgo.dataproviders.binanceperpetual.Interval;
+import functionalgo.binanceperpetual.dataprovider.BPHistoricFundingRates;
+import functionalgo.binanceperpetual.dataprovider.BPHistoricKlines;
+import functionalgo.datapoints.Interval;
 import functionalgo.exceptions.ExchangeException;
 
 public class BPSimExchange implements BPExchange {

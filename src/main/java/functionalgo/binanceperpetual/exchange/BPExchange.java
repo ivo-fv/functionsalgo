@@ -1,4 +1,4 @@
-package functionalgo.exchanges.binanceperpetual;
+package functionalgo.binanceperpetual.exchange;
 
 import functionalgo.exceptions.ExchangeException;
 
