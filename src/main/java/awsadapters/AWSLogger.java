@@ -1,8 +1,8 @@
-package functionalgo.exchanges.binanceperpetual;
+package awsadapters;
 
 import functionalgo.Logger;
 
-public class BPAWSLiveLogger implements Logger {
+public class AWSLogger implements Logger {
     
     private static final boolean IS_TEST = false;
     
@@ -13,6 +13,6 @@ public class BPAWSLiveLogger implements Logger {
             System.out.println(level + ";" + code + ";" + codeMsg + ";" + msg);
         }
         
-        // TODO implement according to work with aws lambda
+        // TODO implement to work with aws lambda
     }
 }

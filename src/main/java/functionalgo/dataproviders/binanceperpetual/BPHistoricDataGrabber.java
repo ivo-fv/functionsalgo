@@ -54,7 +54,7 @@ public class BPHistoricDataGrabber {
         long startTime = LocalDateTime.of(2019, 4, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli();
         long endTime = LocalDateTime.of(2021, 4, 10, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli();
         
-        System.out.println("Klines start");
+        System.out.println("Kline start");
         
         Interval interval = Interval._5m;
         
@@ -71,7 +71,7 @@ public class BPHistoricDataGrabber {
         
         grabber.saveMultipleSymbolKlines(symbolFile, interval, startTime, endTime);
         
-        System.out.println("Klines end");
+        System.out.println("Kline end");
         
         System.out.println("Funding rate start");
         

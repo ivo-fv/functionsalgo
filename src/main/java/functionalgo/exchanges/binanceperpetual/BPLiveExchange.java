@@ -19,6 +19,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import awsadapters.AWSLogger;
 import functionalgo.Logger;
 import functionalgo.Utils;
 import functionalgo.exceptions.ExchangeException;
@@ -30,7 +31,7 @@ public class BPLiveExchange implements BPExchange {
         String privateKey = "***REMOVED***";
         String apiKey = "***REMOVED***";
         
-        Logger logger = new BPAWSLiveLogger();
+        Logger logger = new AWSLogger();
         
         BPExchange exchange = new BPLiveExchange(logger, privateKey, apiKey);
         
