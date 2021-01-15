@@ -1,11 +1,9 @@
 package functionalgo.exchanges.binanceperpetual;
 
-import functionalgo.Exchange;
 import functionalgo.exceptions.ExchangeException;
 
-public interface BPExchange extends Exchange {
+public interface BPExchange {
     
-    @Override
     BPAccount getAccountInfo(long timestamp) throws ExchangeException;
     
     void setHedgeMode() throws ExchangeException;;

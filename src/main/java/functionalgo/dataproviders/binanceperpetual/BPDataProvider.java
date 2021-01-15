@@ -1,9 +1,8 @@
 package functionalgo.dataproviders.binanceperpetual;
 
-import functionalgo.DataProvider;
 import functionalgo.exceptions.NoDataAvailableException;
 
-public interface BPDataProvider extends DataProvider {
+public interface BPDataProvider {
     
     double getFundingRate(String symbol, long timestamp) throws NoDataAvailableException;
     

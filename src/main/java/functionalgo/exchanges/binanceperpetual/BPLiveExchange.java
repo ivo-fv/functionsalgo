@@ -26,7 +26,6 @@ public class BPLiveExchange implements BPExchange {
     
     // TODO log every transaction, failures and issue
     // TODO when logging include json error message and http code
-    // TODO include a logger as parameter to livexchange constructor
     // TODO log on successes as well
     
     public static void main(String[] args) throws ExchangeException {
@@ -34,7 +33,9 @@ public class BPLiveExchange implements BPExchange {
         String privateKey = "***REMOVED***";
         String apiKey = "***REMOVED***";
         
-        BPExchange exchange = new BPLiveExchange(privateKey, apiKey);
+        BPLiveLogger logger = new BPAWSLiveLogger();
+        
+        BPExchange exchange = new BPLiveExchange(logger, privateKey, apiKey);
         
         System.out.println("Sending test order...");
         
@@ -115,7 +116,7 @@ public class BPLiveExchange implements BPExchange {
         }
     }
     
-    public BPLiveExchange(String privateKey, String apiKey) throws ExchangeException {
+    public BPLiveExchange(BPLiveLogger logger, String privateKey, String apiKey) throws ExchangeException {
         
         try {
             this.apiKey = apiKey;
