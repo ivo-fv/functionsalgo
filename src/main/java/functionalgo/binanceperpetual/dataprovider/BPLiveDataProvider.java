@@ -1,16 +1,17 @@
 package functionalgo.binanceperpetual.dataprovider;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import awsadapters.AWSDatabase;
-import awsadapters.AWSLogger;
 import functionalgo.Database;
 import functionalgo.Logger;
+import functionalgo.awsadapters.AWSDatabase;
+import functionalgo.awsadapters.AWSLogger;
 import functionalgo.binanceperpetual.BPLimitedTLSClient;
 import functionalgo.datapoints.FundingRate;
 import functionalgo.datapoints.Interval;
@@ -26,17 +27,13 @@ public class BPLiveDataProvider implements BPDataProvider {
         
         BPLiveDataProvider dataProvider = new BPLiveDataProvider(database, logger);
         
-        // List<Kline> klines = dataProvider.getExchangeKlines("ETHUSDT", Interval._5m, 1598346800000L,
-        // 1599562800000L);
-        // TODO test single candle/frates request
-        // TODO log
-        
         try {
             List<Kline> klines = dataProvider.getExchangeKlines("ETHUSDT", Interval._5m, 1598346800000L, 1599562800000L);
             System.out.println(klines.get(0).getOpenTime());
         } catch (ExchangeException e) {
-            e.printStackTrace();
-        }        
+            System.out.println(e.toString() + " ; " +Arrays.toString(e.getStackTrace()));
+            // e.printStackTrace();
+        }
         try {
             List<FundingRate> frates = dataProvider.getExchangeFRates("ETHUSDT", 1599580799900L, 1599580800100L);
             System.out.println(frates.get(0).getFundingTime());
@@ -72,13 +69,6 @@ public class BPLiveDataProvider implements BPDataProvider {
         if (!database.containsTable(FRATES_TABLE)) {
             database.createTable(FRATES_TABLE);
         }
-    }
-    
-    @Override
-    public double getFundingRate(String symbol, long timestamp) throws ExchangeException {
-        
-        // TODO Auto-generated method stub
-        return 0;
     }
     
     @Override
@@ -129,7 +119,7 @@ public class BPLiveDataProvider implements BPDataProvider {
                         + "&limit=" + FRATES_MAX_NUM_PER_REQ + " HTTP/1.1\r\nConnection: close\r\nHost: " + HOST + "\r\n\r\n";
                 
                 JsonElement fratesPage = restClient.apiRetrySendRequestGetParsedResponse(req);
-                JsonArray klines = fratesPage.getAsJsonArray(); // TODO test with different type if throw exception and catch it
+                JsonArray klines = fratesPage.getAsJsonArray();
                 for (JsonElement elem : klines) {
                     JsonObject fr = elem.getAsJsonObject();
                     returnList.add(new FundingRate(fr.get("symbol").getAsString(), fr.get("fundingRate").getAsDouble(),
@@ -139,10 +129,11 @@ public class BPLiveDataProvider implements BPDataProvider {
                 startTime += nextPageTimeAdd;
             }
         } catch (Exception e) {
+            logger.log(-4, -1, e.toString(), Arrays.toString(e.getStackTrace()));
             if (e instanceof ExchangeException) {
-                throw e; // TODO log
+                throw e;
             } else {
-                throw new ExchangeException(-14, "getExchangeKlines", e.toString());
+                throw new ExchangeException(-1, e.toString(), ExchangeException.PARSING_PROBLEM);
             }
         }
         
@@ -153,6 +144,7 @@ public class BPLiveDataProvider implements BPDataProvider {
         
         // TODO test single frate
         // TODO decide to return null or empty in case of nothing found
+        // TODO log if no data or problem
         // TODO Auto-generated method stub
         return null;
     }
@@ -167,20 +159,6 @@ public class BPLiveDataProvider implements BPDataProvider {
     public long getFundingInterval() {
         
         return FUNDING_INTERVAL.toMilliseconds();
-    }
-    
-    @Override
-    public double getOpen(String symbol, long timestamp, Interval interval) throws ExchangeException {
-        
-        // TODO Auto-generated method stub
-        return 0;
-    }
-    
-    @Override
-    public Kline getKline(String symbol, long timestamp, Interval interval) throws ExchangeException {
-        
-        // TODO Auto-generated method stub
-        return null;
     }
     
     @Override
@@ -243,10 +221,11 @@ public class BPLiveDataProvider implements BPDataProvider {
                 startTime += nextPageTimeAdd;
             }
         } catch (Exception e) {
+            logger.log(-4, -1, e.toString(), Arrays.toString(e.getStackTrace()));
             if (e instanceof ExchangeException) {
-                throw e; // TODO log
+                throw e;
             } else {
-                throw new ExchangeException(-14, "getExchangeKlines", e.toString());
+                throw new ExchangeException(-1, e.toString(), ExchangeException.PARSING_PROBLEM);
             }
         }
         
@@ -257,6 +236,7 @@ public class BPLiveDataProvider implements BPDataProvider {
         
         // TODO test single candle
         // TODO decide to return null or empty in case of nothing found
+        // TODO log if no data or problem
         // TODO Auto-generated method stub
         return null;
     }

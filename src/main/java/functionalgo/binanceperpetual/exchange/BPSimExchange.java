@@ -7,7 +7,9 @@ import java.util.Map;
 
 import functionalgo.binanceperpetual.dataprovider.BPHistoricFundingRates;
 import functionalgo.binanceperpetual.dataprovider.BPHistoricKlines;
+import functionalgo.datapoints.FundingRate;
 import functionalgo.datapoints.Interval;
+import functionalgo.datapoints.Kline;
 import functionalgo.exceptions.ExchangeException;
 
 public class BPSimExchange implements BPExchange {
@@ -109,12 +111,13 @@ public class BPSimExchange implements BPExchange {
         
         for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
             // should use mark price for more accuracy
+            Kline kline = bpHistoricKlines.getKlines(entry.getValue().symbol, timestamp, timestamp).get(0);
             if (entry.getValue().isLong) {
-                double currPrice = bpHistoricKlines.getOpen(entry.getValue().symbol, timestamp);
+                double currPrice = kline.getOpen();
                 entry.getValue().currPrice = currPrice;
                 double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
                 accInfo.marginBalance += pnl;
-                double worstPrice = bpHistoricKlines.getLow(entry.getValue().symbol, timestamp);
+                double worstPrice = kline.getLow();
                 double worstPnL = (worstPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
                 accInfo.worstMarginBalance += worstPnL;
                 int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
@@ -122,11 +125,11 @@ public class BPSimExchange implements BPExchange {
                         : defaultLeverage;
                 entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
             } else {
-                double currPrice = bpHistoricKlines.getOpen(entry.getValue().symbol, timestamp);
+                double currPrice = kline.getOpen();
                 entry.getValue().currPrice = currPrice;
                 double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
                 accInfo.marginBalance += pnl;
-                double worstPrice = bpHistoricKlines.getHigh(entry.getValue().symbol, timestamp);
+                double worstPrice = kline.getHigh();
                 double worstPnL = (entry.getValue().avgOpenPrice - worstPrice) * entry.getValue().quantity;
                 accInfo.worstMarginBalance += worstPnL;
                 int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
@@ -138,15 +141,16 @@ public class BPSimExchange implements BPExchange {
         
         if (timestamp >= nextFundingTime) {
             for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
+                FundingRate frate = bpHistoricFundingRates.getFundingRates(entry.getValue().symbol, timestamp, timestamp).get(0);
                 if (entry.getValue().isLong) {
-                    double fundingRate = bpHistoricFundingRates.getRate(entry.getValue().symbol, timestamp);
+                    double fundingRate = frate.getFundingRate();
                     accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
                     double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                     accInfo.marginBalance -= funding;
                     accInfo.walletBalance -= funding;
                     accInfo.worstMarginBalance -= funding;
                 } else {
-                    double fundingRate = bpHistoricFundingRates.getRate(entry.getValue().symbol, timestamp);
+                    double fundingRate = frate.getFundingRate();
                     accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
                     double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                     accInfo.marginBalance += funding;
@@ -181,8 +185,8 @@ public class BPSimExchange implements BPExchange {
     private boolean marketOpen(String symbol, boolean isLong, double symbolQty) {
         
         String positionId = getPositionId(symbol, isLong);
-        
-        double openPrice = bpHistoricKlines.getOpen(symbol, accInfo.lastUpdatedTime);
+        Kline kline = bpHistoricKlines.getKlines(symbol, accInfo.lastUpdatedTime, accInfo.lastUpdatedTime).get(0);
+        double openPrice = kline.getOpen();
         double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
         double initialMargin = (openPrice * symbolQty) / leverage;
         if (isLong) {

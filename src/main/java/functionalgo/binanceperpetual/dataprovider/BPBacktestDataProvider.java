@@ -24,29 +24,6 @@ public class BPBacktestDataProvider implements BPDataProvider {
     }
     
     @Override
-    public double getFundingRate(String symbol, long timestamp) throws ExchangeException {
-        
-        try {
-            return fundRates.getRate(symbol, timestamp);
-        } catch (NullPointerException e) {
-            throw new ExchangeException(-20, "No funding rate data for the " + symbol + timestamp + "param combination.",
-                    "getFundingRate");
-        }
-        
-    }
-    
-    @Override
-    public double getOpen(String symbol, long timestamp, Interval interval) throws ExchangeException {
-        
-        try {
-            return klines.get(interval).getOpen(symbol, timestamp);
-        } catch (NullPointerException e) {
-            throw new ExchangeException(-20, "No open price data for the " + symbol + timestamp + interval + "param combination.",
-                    "getOpen");
-        }
-    }
-    
-    @Override
     public long getFundingInterval() {
         
         return fundRates.getFundingIntervalMillis();
@@ -55,22 +32,13 @@ public class BPBacktestDataProvider implements BPDataProvider {
     @Override
     public List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) throws ExchangeException {
         
-        // TODO to implement after live
-        return null;
-    }
-    
-    @Override
-    public Kline getKline(String symbol, long timestamp, Interval interval) throws ExchangeException {
-        
-        // TODO to implement after live
-        return null;
+        return fundRates.getFundingRates(symbol, startTime, endTime);
     }
     
     @Override
     public List<Kline> getKlines(String symbol, Interval interval, long startTime, long endTime) throws ExchangeException {
         
-        // TODO to implement after live
-        return null;
+        return klines.get(interval).getKlines(symbol, startTime, endTime);
     }
     
 }

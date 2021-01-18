@@ -21,31 +21,18 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
 import functionalgo.datapoints.Interval;
+import functionalgo.datapoints.Kline;
 
 public class BPHistoricKlines implements Serializable {
     
     private static final long serialVersionUID = 1L;
-    
-    @SuppressWarnings("unused")
-    private static class Candle implements Serializable {
-        
-        private static final long serialVersionUID = 1L;
-        
-        private double open;
-        private double high;
-        private double low;
-        private double close;
-        private double vol;
-        private double buyVol;
-        private int trades; // number of trades
-    }
     
     private static final String KLINES_FILE = "data/binance_perp_klines_";
     private static final String JSON_DATA_FOLDER = "data/binance_perp_json_data";
     
     private Interval interval;
     
-    private HashMap<String, HashMap<Long, Candle>> klines;
+    private HashMap<String, HashMap<Long, Kline>> klines;
     
     public static void main(String[] args) throws JsonSyntaxException, JsonIOException, IOException {
         
@@ -97,20 +84,16 @@ public class BPHistoricKlines implements Serializable {
     
     private void addSymbolData(String symbol, BigDecimal[][] parsedSymbolKlines) {
         
-        HashMap<Long, Candle> symbolData = new HashMap<>();
+        HashMap<Long, Kline> symbolData = new HashMap<>();
         
         for (BigDecimal[] parsedCandle : parsedSymbolKlines) {
             
             long openTime = (parsedCandle[0].longValueExact() / 10000) * 10000;
             
-            Candle candle = new Candle();
-            candle.open = parsedCandle[1].doubleValue();
-            candle.high = parsedCandle[2].doubleValue();
-            candle.low = parsedCandle[3].doubleValue();
-            candle.close = parsedCandle[4].doubleValue();
-            candle.vol = parsedCandle[7].doubleValue();
-            candle.buyVol = parsedCandle[10].doubleValue();
-            candle.trades = parsedCandle[8].intValueExact();
+            Kline candle = new Kline(parsedCandle[0].longValue(), parsedCandle[1].doubleValue(), parsedCandle[2].doubleValue(),
+                    parsedCandle[3].doubleValue(), parsedCandle[4].doubleValue(), parsedCandle[5].doubleValue(),
+                    parsedCandle[6].longValue(), parsedCandle[7].doubleValue(), parsedCandle[8].intValue(),
+                    parsedCandle[9].doubleValue(), parsedCandle[10].doubleValue());
             
             symbolData.put(openTime, candle);
         }
@@ -130,14 +113,22 @@ public class BPHistoricKlines implements Serializable {
                 new BufferedInputStream(new FileInputStream(new File(KLINES_FILE + interval.toString()))))) {
             return (BPHistoricKlines) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
-            // e.printStackTrace();
+            e.printStackTrace();
             return null;
         }
     }
     
-    public double getOpen(String symbol, long timestamp) {
+    public List<Kline> getKlines(String symbol, long startTime, long endTime) {
         
-        return klines.get(symbol).get(timestamp).open;
+        long adjustedStartTime = (startTime / interval.toMilliseconds()) * interval.toMilliseconds();
+        long adjustedEndTime = (endTime / interval.toMilliseconds()) * interval.toMilliseconds();
+        List<Kline> returnKlines = new ArrayList<>();
+        
+        for (long time = adjustedStartTime; time <= adjustedEndTime; time += interval.toMilliseconds()) {
+            returnKlines.add(klines.get(symbol).get(time));
+        }
+        
+        return returnKlines;
     }
     
     public Interval getInterval() {
@@ -148,15 +139,5 @@ public class BPHistoricKlines implements Serializable {
     public static String getDirName(Interval interval) {
         
         return JSON_DATA_FOLDER + "/klines_" + interval.toString();
-    }
-    
-    public double getLow(String symbol, long timestamp) {
-        
-        return klines.get(symbol).get(timestamp).low;
-    }
-    
-    public double getHigh(String symbol, long timestamp) {
-        
-        return klines.get(symbol).get(timestamp).high;
     }
 }

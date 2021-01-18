@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 import javax.net.ssl.SSLSocketFactory;
 
@@ -40,8 +41,9 @@ public class BPLimitedTLSClient {
     
     public BPLimitedTLSClient(Logger logger) throws ExchangeException {
         
-        tlsSocketFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
         this.logger = logger;
+        
+        tlsSocketFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
         
         JsonElement exchangeInfo = apiRetrySendRequestGetParsedResponse(EXCHANGE_INFO_REQ);
         JsonObject objExchangeInfo = exchangeInfo.getAsJsonObject();
@@ -58,7 +60,7 @@ public class BPLimitedTLSClient {
     public JsonElement apiRetrySendRequestGetParsedResponse(String request) throws ExchangeException {
         
         JsonElement parsedResponse = null;
-        ExchangeException exception = new ExchangeException(-11, "apiRetrySendRequestGetParsedResponse", "Problem with retry");
+        ExchangeException exception = new ExchangeException(-1, "Retry problem", ExchangeException.NOT_FIXABLE);
         boolean canReturn = false;
         
         for (int i = 0; i < NUM_RETRIES; i++) {
@@ -71,12 +73,13 @@ public class BPLimitedTLSClient {
                 if (e instanceof ExchangeException) {
                     exception = (ExchangeException) e;
                 } else {
-                    exception = new ExchangeException(-12, "apiRetrySendRequestGetParsedResponse", e.toString());
+                    exception = new ExchangeException(-1, e.toString(), ExchangeException.NOT_FIXABLE);
                 }
                 try {
                     Thread.sleep(RETRY_TIME_MILLIS);
                 } catch (InterruptedException e1) {
-                    logger.log(2, -16, "apiRetrySendRequestGetParsedResponse", e1.toString());
+                    logger.log(2, -1, e1.toString() + " ; " + e.toString(),
+                            Arrays.toString(e1.getStackTrace()) + " ; " + Arrays.toString(e.getStackTrace()));
                 }
             }
         }
@@ -91,8 +94,7 @@ public class BPLimitedTLSClient {
         
         try {
             if (jsonString == null || jsonString.length() < 2) {
-                throw new ExchangeException(httpStatusCode, "parseStringAndCheckErrors",
-                        "JSON account information response was null or too short");
+                throw new ExchangeException(-1, null, ExchangeException.NOT_FIXABLE);
             }
             JsonElement elem = JsonParser.parseString(jsonString);
             if (elem.isJsonObject()) {
@@ -100,7 +102,7 @@ public class BPLimitedTLSClient {
                 if (objElem.has("code") && objElem.has("msg")) {
                     int code = objElem.get("code").getAsInt();
                     if (code < NO_ERROR_CODE_LOWER_BOUND || code > NO_ERROR_CODE_UPPER_BOUND) {
-                        throw new ExchangeException(code, objElem.get("msg").getAsString(), "parseStringAndCheckErrors");
+                        throw new ExchangeException(code, objElem.get("msg").getAsString(), ExchangeException.API_ERROR);
                     }
                 }
             }
@@ -109,7 +111,7 @@ public class BPLimitedTLSClient {
             if (e instanceof ExchangeException) {
                 throw e;
             } else {
-                throw new ExchangeException(-14, "parseStringAndCheckErrors", e.toString());
+                throw new ExchangeException(-1, e.toString(), ExchangeException.PARSING_PROBLEM);
             }
         }
     }
@@ -210,11 +212,11 @@ public class BPLimitedTLSClient {
         if (ipLimitWeight1M >= maxIpLimitWeight1M - LIMIT_ROOM || httpStatusCode == 403 || httpStatusCode == 429
                 || httpStatusCode == 418) {
             try {
-                logger.log(3, -17, "limits reached",
+                logger.log(3, -1, "limits reached",
                         "ipLimitWeight1M: " + ipLimitWeight1M + "; httpStatusCode: " + httpStatusCode);
                 Thread.sleep(LIMIT_HIT_SLEEP_TIME);
             } catch (InterruptedException e) {
-                logger.log(2, -16, "getHTTPResponse", e.toString());
+                logger.log(2, -1, e.toString(), Arrays.toString(e.getStackTrace()));
             }
         }
         

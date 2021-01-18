@@ -36,38 +36,38 @@ public class Kline implements Serializable {
         this.quoteBuyVolume = quoteBuyVolume;
     }
     
-    public static List<Kline> mergeKlines(Interval interval, List<Kline> _1minKlinesToMerge) {
+    public static List<Kline> mergeKlines(Interval inInterval, List<Kline> klinesToMerge, Interval outInterval) {
         
         List<Kline> returnKlines = new ArrayList<>();
         
-        int numKlinesToMerge = (int) (interval.toMilliseconds() / Interval._1m.toMilliseconds());
+        int numKlinesToMerge = (int) (outInterval.toMilliseconds() / inInterval.toMilliseconds());
         
-        for (int i = 0; i < _1minKlinesToMerge.size(); i++) {
-            long openTime = _1minKlinesToMerge.get(i).getOpenTime();
-            double open = _1minKlinesToMerge.get(i).getOpen();
-            double high = _1minKlinesToMerge.get(i).getHigh();
-            double low = _1minKlinesToMerge.get(i).getLow();
-            double close = _1minKlinesToMerge.get(i).getClose();
-            double volume = _1minKlinesToMerge.get(i).getVolume();
-            long closeTime = _1minKlinesToMerge.get(i).getCloseTime();
-            double quoteVolume = _1minKlinesToMerge.get(i).getQuoteVolume();
-            int numTrades = _1minKlinesToMerge.get(i).getNumTrades();
-            double buyVolume = _1minKlinesToMerge.get(i).getBuyVolume();
-            double quoteBuyVolume = _1minKlinesToMerge.get(i).getQuoteBuyVolume();
+        for (int i = 0; i < klinesToMerge.size(); i++) {
+            long openTime = klinesToMerge.get(i).getOpenTime();
+            double open = klinesToMerge.get(i).getOpen();
+            double high = klinesToMerge.get(i).getHigh();
+            double low = klinesToMerge.get(i).getLow();
+            double close = klinesToMerge.get(i).getClose();
+            double volume = klinesToMerge.get(i).getVolume();
+            long closeTime = klinesToMerge.get(i).getCloseTime();
+            double quoteVolume = klinesToMerge.get(i).getQuoteVolume();
+            int numTrades = klinesToMerge.get(i).getNumTrades();
+            double buyVolume = klinesToMerge.get(i).getBuyVolume();
+            double quoteBuyVolume = klinesToMerge.get(i).getQuoteBuyVolume();
             for (int j = 1; j < numKlinesToMerge; j++) {
                 i++;
-                if (i > _1minKlinesToMerge.size()) {
+                if (i > klinesToMerge.size()) {
                     break;
                 }
-                high = Math.max(high, _1minKlinesToMerge.get(i).getHigh());
-                low = Math.min(low, _1minKlinesToMerge.get(i).getLow());
-                close = _1minKlinesToMerge.get(i).getClose();
-                volume += _1minKlinesToMerge.get(i).getVolume();
-                closeTime = _1minKlinesToMerge.get(i).getCloseTime();
-                quoteVolume += _1minKlinesToMerge.get(i).getQuoteVolume();
-                numTrades += _1minKlinesToMerge.get(i).getNumTrades();
-                buyVolume += _1minKlinesToMerge.get(i).getBuyVolume();
-                quoteBuyVolume += _1minKlinesToMerge.get(i).getQuoteBuyVolume();
+                high = Math.max(high, klinesToMerge.get(i).getHigh());
+                low = Math.min(low, klinesToMerge.get(i).getLow());
+                close = klinesToMerge.get(i).getClose();
+                volume += klinesToMerge.get(i).getVolume();
+                closeTime = klinesToMerge.get(i).getCloseTime();
+                quoteVolume += klinesToMerge.get(i).getQuoteVolume();
+                numTrades += klinesToMerge.get(i).getNumTrades();
+                buyVolume += klinesToMerge.get(i).getBuyVolume();
+                quoteBuyVolume += klinesToMerge.get(i).getQuoteBuyVolume();
             }
             returnKlines.add(new Kline(openTime, open, high, low, close, volume, closeTime, quoteVolume, numTrades, buyVolume,
                     quoteBuyVolume));

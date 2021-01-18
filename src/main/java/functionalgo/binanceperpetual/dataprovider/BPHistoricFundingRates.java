@@ -19,6 +19,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
+import functionalgo.datapoints.FundingRate;
+import functionalgo.datapoints.Interval;
+
 public class BPHistoricFundingRates implements Serializable {
     
     private static final long serialVersionUID = 1L;
@@ -26,21 +29,8 @@ public class BPHistoricFundingRates implements Serializable {
     private static final String FUND_RATES_FILE = "data/binance_perp_fund_rates";
     private static final String JSON_DATA_FOLDER = "data/binance_perp_json_data/fund_rates";
     
-    private long fundingIntervalMillis = 28800000; // 8 hours
-    private HashMap<String, HashMap<Long, Double>> rates;
-    
-    /**
-     * Helper class to deserialize the funding rate json files to be used in the buildFundingRateTable method.
-     */
-    private static class FundingRateData implements Serializable {
-        
-        private static final long serialVersionUID = 1L;
-        
-        @SuppressWarnings("unused")
-        private String symbol;
-        private long fundingTime;
-        private double fundingRate;
-    }
+    private long fundingIntervalMillis = Interval._8h.toMilliseconds(); // 8 hours
+    private HashMap<String, HashMap<Long, FundingRate>> rates;
     
     public static void main(String[] args) throws JsonSyntaxException, JsonIOException, IOException {
         
@@ -64,8 +54,8 @@ public class BPHistoricFundingRates implements Serializable {
                 String[] fileData = file.getName().split("_", 2);
                 String symbol = fileData[0];
                 
-                FundingRateData[] parsedSymbolFundRates = gson
-                        .fromJson(new BufferedReader(new InputStreamReader(new FileInputStream(file))), FundingRateData[].class);
+                FundingRate[] parsedSymbolFundRates = gson
+                        .fromJson(new BufferedReader(new InputStreamReader(new FileInputStream(file))), FundingRate[].class);
                 
                 fundratesObj.addSymbolFundRates(symbol, parsedSymbolFundRates);
             }
@@ -83,15 +73,15 @@ public class BPHistoricFundingRates implements Serializable {
         System.out.println("Finished creating funding rates file.");
     }
     
-    private void addSymbolFundRates(String symbol, FundingRateData[] parsedSymbolFundRates) {
+    private void addSymbolFundRates(String symbol, FundingRate[] parsedSymbolFundRates) {
         
-        HashMap<Long, Double> rate = new HashMap<>();
+        HashMap<Long, FundingRate> rate = new HashMap<>();
         
-        for (FundingRateData funddata : parsedSymbolFundRates) {
+        for (FundingRate funddata : parsedSymbolFundRates) {
             
-            long time = (funddata.fundingTime / 10000) * 10000;
+            long time = (funddata.getFundingTime() / 10000) * 10000;
             
-            rate.put(time, funddata.fundingRate);
+            rate.put(time, funddata);
         }
         
         rates.put(symbol, rate);
@@ -113,9 +103,17 @@ public class BPHistoricFundingRates implements Serializable {
         }
     }
     
-    public double getRate(String symbol, long timestamp) {
+    public List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) {
         
-        return rates.get(symbol).get(timestamp);
+        long adjustedStartTime = (startTime / fundingIntervalMillis) * fundingIntervalMillis;
+        long adjustedEndTime = (endTime / fundingIntervalMillis) * fundingIntervalMillis;
+        List<FundingRate> returnFRates = new ArrayList<>();
+        
+        for (long time = adjustedStartTime; time <= adjustedEndTime; time += fundingIntervalMillis) {
+            returnFRates.add(rates.get(symbol).get(time));
+        }
+        
+        return returnFRates;
     }
     
     public long getFundingIntervalMillis() {
