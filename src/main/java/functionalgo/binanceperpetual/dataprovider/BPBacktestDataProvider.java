@@ -6,7 +6,7 @@ import java.util.List;
 import functionalgo.datapoints.FundingRate;
 import functionalgo.datapoints.Interval;
 import functionalgo.datapoints.Kline;
-import functionalgo.exceptions.NoDataAvailableException;
+import functionalgo.exceptions.ExchangeException;
 
 public class BPBacktestDataProvider implements BPDataProvider {
     
@@ -24,24 +24,25 @@ public class BPBacktestDataProvider implements BPDataProvider {
     }
     
     @Override
-    public double getFundingRate(String symbol, long timestamp) throws NoDataAvailableException {
+    public double getFundingRate(String symbol, long timestamp) throws ExchangeException {
         
         try {
             return fundRates.getRate(symbol, timestamp);
         } catch (NullPointerException e) {
-            throw new NoDataAvailableException("No funding rate data for the " + symbol + timestamp + "param combination.");
+            throw new ExchangeException(-20, "No funding rate data for the " + symbol + timestamp + "param combination.",
+                    "getFundingRate");
         }
         
     }
     
     @Override
-    public double getOpen(String symbol, long timestamp, Interval interval) throws NoDataAvailableException {
+    public double getOpen(String symbol, long timestamp, Interval interval) throws ExchangeException {
         
         try {
             return klines.get(interval).getOpen(symbol, timestamp);
         } catch (NullPointerException e) {
-            throw new NoDataAvailableException(
-                    "No open price data for the " + symbol + timestamp + interval + "param combination.");
+            throw new ExchangeException(-20, "No open price data for the " + symbol + timestamp + interval + "param combination.",
+                    "getOpen");
         }
     }
     
@@ -52,21 +53,21 @@ public class BPBacktestDataProvider implements BPDataProvider {
     }
     
     @Override
-    public List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) throws NoDataAvailableException {
+    public List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) throws ExchangeException {
         
         // TODO to implement after live
         return null;
     }
     
     @Override
-    public Kline getKline(String symbol, long timestamp, Interval interval) throws NoDataAvailableException {
+    public Kline getKline(String symbol, long timestamp, Interval interval) throws ExchangeException {
         
         // TODO to implement after live
         return null;
     }
     
     @Override
-    public List<Kline> getKlines(String symbol, Interval interval, long startTime, long endTime) throws NoDataAvailableException {
+    public List<Kline> getKlines(String symbol, Interval interval, long startTime, long endTime) throws ExchangeException {
         
         // TODO to implement after live
         return null;

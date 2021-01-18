@@ -19,7 +19,7 @@ import functionalgo.exceptions.ExchangeException;
 
 public class BPLimitedTLSClient {
     
-    public static final String HOST = "testnet.binancefuture.com";    
+    public static final String HOST = "testnet.binancefuture.com";
     public static final String EXCHANGE_INFO_REQ = "GET /fapi/v1/exchangeInfo HTTP/1.1\r\nConnection: close\r\nHost: " + HOST
             + "\r\n\r\n";
     
@@ -128,6 +128,8 @@ public class BPLimitedTLSClient {
     
     /**
      * While parsing the htpp response the ipLimitWeight1M and httpStatusCode fields are set.
+     * Quick and very dirty http parser. HttpURLConnection is closed when an error happens so getErrorStream()
+     * can't be used to get error responses.
      * 
      * @param inputStream
      * @return the http response's message body
@@ -172,6 +174,38 @@ public class BPLimitedTLSClient {
             }
             prevChar = inChar;
         }
+        // check if it's chunked
+        String chunkRes = null;
+        if (res.charAt(res.length() - 1) == '\n' && res.charAt(res.length() - 2) == '\r') {
+            char[] buff = new char[res.length()];
+            int num = -1;
+            int off = 0;
+            int buffoff = 0;
+            for (int i = 0; i < buff.length; i++) {
+                switch (num) {
+                    case 0:
+                        break;
+                    case -1:
+                        if (res.charAt(i) == '\r') {
+                            num = Integer.parseInt(res.substring(off, i), 16);
+                            off = i + 4 + num;
+                            i++;
+                        }
+                        continue;
+                    default:
+                        for (int j = 0; j < num; j++) {
+                            buff[buffoff] = res.charAt(i);
+                            buffoff++;
+                            i++;
+                        }
+                        i++;
+                        num = -1;
+                        continue;
+                }
+                break;
+            }
+            chunkRes = new String(buff, 0, buffoff);
+        }
         
         if (ipLimitWeight1M >= maxIpLimitWeight1M - LIMIT_ROOM || httpStatusCode == 403 || httpStatusCode == 429
                 || httpStatusCode == 418) {
@@ -183,7 +217,11 @@ public class BPLimitedTLSClient {
                 logger.log(2, -16, "getHTTPResponse", e.toString());
             }
         }
-        return res.toString();
+        
+        if (chunkRes == null) {
+            return res.toString();
+        } else {
+            return chunkRes;
+        }
     }
-    
 }
