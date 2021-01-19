@@ -107,7 +107,7 @@ public class BPSimExchange implements BPExchange {
     void calculateMarginBalanceAndUpdatePositionData(long timestamp) {
         
         accInfo.marginBalance = accInfo.walletBalance;
-        accInfo.worstMarginBalance = accInfo.walletBalance;
+        accInfo.worstCurrentMarginBalance = accInfo.walletBalance;
         
         for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
             // should use mark price for more accuracy
@@ -119,7 +119,7 @@ public class BPSimExchange implements BPExchange {
                 accInfo.marginBalance += pnl;
                 double worstPrice = kline.getLow();
                 double worstPnL = (worstPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
-                accInfo.worstMarginBalance += worstPnL;
+                accInfo.worstCurrentMarginBalance += worstPnL;
                 int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
                         ? accInfo.leverages.get(entry.getValue().symbol)
                         : defaultLeverage;
@@ -131,7 +131,7 @@ public class BPSimExchange implements BPExchange {
                 accInfo.marginBalance += pnl;
                 double worstPrice = kline.getHigh();
                 double worstPnL = (entry.getValue().avgOpenPrice - worstPrice) * entry.getValue().quantity;
-                accInfo.worstMarginBalance += worstPnL;
+                accInfo.worstCurrentMarginBalance += worstPnL;
                 int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
                         ? accInfo.leverages.get(entry.getValue().symbol)
                         : defaultLeverage;
@@ -148,14 +148,14 @@ public class BPSimExchange implements BPExchange {
                     double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                     accInfo.marginBalance -= funding;
                     accInfo.walletBalance -= funding;
-                    accInfo.worstMarginBalance -= funding;
+                    accInfo.worstCurrentMarginBalance -= funding;
                 } else {
                     double fundingRate = frate.getFundingRate();
                     accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
                     double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                     accInfo.marginBalance += funding;
                     accInfo.walletBalance += funding;
-                    accInfo.worstMarginBalance += funding;
+                    accInfo.worstCurrentMarginBalance += funding;
                 }
             }
         }
@@ -171,7 +171,7 @@ public class BPSimExchange implements BPExchange {
             highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().margin);
         }
         // the maintenance margin is *always less* than 50% of the initial margin
-        if (accInfo.worstMarginBalance <= highestInitialMargin / 2) {
+        if (accInfo.worstCurrentMarginBalance <= highestInitialMargin / 2) {
             // TODO throw some exception
             System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             System.out.println("!!! Probably going to get liquidated at: " + time);

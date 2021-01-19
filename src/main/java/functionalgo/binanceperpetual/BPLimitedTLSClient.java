@@ -18,6 +18,7 @@ import com.google.gson.JsonParser;
 import functionalgo.Logger;
 import functionalgo.exceptions.ExchangeException;
 
+// TODO use an http library
 public class BPLimitedTLSClient {
     
     public static final String HOST = "testnet.binancefuture.com";

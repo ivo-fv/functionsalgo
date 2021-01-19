@@ -10,14 +10,15 @@ import com.google.gson.JsonObject;
 
 import functionalgo.Database;
 import functionalgo.Logger;
-import functionalgo.awsadapters.AWSDatabase;
-import functionalgo.awsadapters.AWSLogger;
+import functionalgo.aws.AWSDatabase;
+import functionalgo.aws.AWSLogger;
 import functionalgo.binanceperpetual.BPLimitedTLSClient;
 import functionalgo.datapoints.FundingRate;
 import functionalgo.datapoints.Interval;
 import functionalgo.datapoints.Kline;
 import functionalgo.exceptions.ExchangeException;
 
+// TODO use an http client library
 public class BPLiveDataProvider implements BPDataProvider {
     
     public static void main(String[] args) throws ExchangeException {
@@ -31,7 +32,7 @@ public class BPLiveDataProvider implements BPDataProvider {
             List<Kline> klines = dataProvider.getExchangeKlines("ETHUSDT", Interval._5m, 1598346800000L, 1599562800000L);
             System.out.println(klines.get(0).getOpenTime());
         } catch (ExchangeException e) {
-            System.out.println(e.toString() + " ; " +Arrays.toString(e.getStackTrace()));
+            System.out.println(e.toString() + " ; " + Arrays.toString(e.getStackTrace()));
             // e.printStackTrace();
         }
         try {

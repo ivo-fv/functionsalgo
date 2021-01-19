@@ -1,4 +1,4 @@
-package functionalgo.awsadapters;
+package functionalgo.aws;
 
 import functionalgo.Database;
 

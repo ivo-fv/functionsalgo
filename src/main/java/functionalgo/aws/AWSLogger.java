@@ -1,4 +1,6 @@
-package functionalgo.awsadapters;
+package functionalgo.aws;
+
+import java.util.List;
 
 import functionalgo.Logger;
 
@@ -14,5 +16,12 @@ public class AWSLogger implements Logger {
         }
         
         // TODO implement to work with aws lambda
+    }
+    
+    @Override
+    public List<String> getLogs() {
+        
+        // TODO Auto-generated method stub
+        return null;
     }
 }

@@ -22,7 +22,7 @@ public interface BPAccount {
     
     double getFundingRate(String symbol);
     
-    double getWorstMarginBalance();
+    double getWorstCurrenttMarginBalance();
     
     double getMarkPrice(String symbol);
     

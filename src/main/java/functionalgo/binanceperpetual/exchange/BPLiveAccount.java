@@ -113,7 +113,7 @@ class BPLiveAccount implements BPAccount {
     }
     
     @Override
-    public double getWorstMarginBalance() {
+    public double getWorstCurrenttMarginBalance() {
         
         return marginBalance;
     }

@@ -36,7 +36,7 @@ class BPSimAccount implements BPAccount {
     long lastUpdatedTime;
     public long nextFundingTime;
     double takerFee = BPSimExchange.TAKER_OPEN_CLOSE_FEE;
-    double worstMarginBalance;
+    double worstCurrentMarginBalance;
     HashMap<String, ExchangeException> ordersWithErrors;
     HashMap<String, Double> ordersWithQuantities;
     
@@ -44,7 +44,7 @@ class BPSimAccount implements BPAccount {
         
         this.walletBalance = walletBalance;
         marginBalance = walletBalance;
-        worstMarginBalance = walletBalance;
+        worstCurrentMarginBalance = walletBalance;
         
         positions = new HashMap<>();
         leverages = new HashMap<>();
@@ -98,9 +98,9 @@ class BPSimAccount implements BPAccount {
     }
     
     @Override
-    public double getWorstMarginBalance() {
+    public double getWorstCurrenttMarginBalance() {
         
-        return worstMarginBalance;
+        return worstCurrentMarginBalance;
     }
     
     @Override
