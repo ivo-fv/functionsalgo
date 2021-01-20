@@ -15,20 +15,23 @@ import com.google.gson.JsonObject;
 
 import functionalgo.Logger;
 import functionalgo.Utils;
-import functionalgo.aws.AWSLogger;
+import functionalgo.aws.LambdaLogger;
 import functionalgo.binanceperpetual.BPLimitedTLSClient;
 import functionalgo.exceptions.ExchangeException;
 
 // TODO refactor json parsing to more individual methods
-// TODO choose and use an http client library
+// TODO choose and use a proper http client library
 public class BPLiveExchange implements BPExchange {
     
+    /**
+     * Used for quick testing
+     */
     public static void main(String[] args) throws ExchangeException {
         
         String privateKey = "***REMOVED***";
         String apiKey = "***REMOVED***";
         
-        Logger logger = new AWSLogger();
+        Logger logger = new LambdaLogger();
         
         BPExchange exchange = new BPLiveExchange(logger, privateKey, apiKey);
         

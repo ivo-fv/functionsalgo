@@ -49,6 +49,9 @@ public class BPHistoricDataGrabber {
         cronometer = -1;
     }
     
+    /**
+     * Used for pulling data from the exchange for backtesting
+     */
     public static void main(String[] args) throws IOException, InterruptedException {
         
         BPHistoricDataGrabber grabber = new BPHistoricDataGrabber();

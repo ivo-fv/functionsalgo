@@ -1,19 +1,9 @@
 package functionalgo.samplestrat;
 
-import functionalgo.Database;
-
-
-public class SampleStratBacktestDB implements Database {
+public class SampleStratBacktestDB implements SampleStratDB {
     
     @Override
-    public boolean containsTable(String tableName) {
-        
-        // TODO Auto-generated method stub
-        return false;
-    }
-    
-    @Override
-    public void createTable(String tableName) {
+    public void createTableIfNotExist(String stratName) {
         
         // TODO Auto-generated method stub
         

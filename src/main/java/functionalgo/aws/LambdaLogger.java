@@ -4,7 +4,7 @@ import java.util.List;
 
 import functionalgo.Logger;
 
-public class AWSLogger implements Logger {
+public class LambdaLogger implements Logger {
     
     private static final boolean IS_TEST = false;
     

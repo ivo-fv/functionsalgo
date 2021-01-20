@@ -32,6 +32,9 @@ public class BPHistoricFundingRates implements Serializable {
     private long fundingIntervalMillis = Interval._8h.toMilliseconds(); // 8 hours
     private HashMap<String, HashMap<Long, FundingRate>> rates;
     
+    /**
+     * Used for generating funding rates files from .json for use in backtesting
+     */
     public static void main(String[] args) throws JsonSyntaxException, JsonIOException, IOException {
         
         System.out.println("Creating the funding rates file...");

@@ -8,23 +8,25 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import functionalgo.Database;
 import functionalgo.Logger;
-import functionalgo.aws.AWSDatabase;
-import functionalgo.aws.AWSLogger;
+import functionalgo.aws.DynamoDB;
+import functionalgo.aws.LambdaLogger;
 import functionalgo.binanceperpetual.BPLimitedTLSClient;
 import functionalgo.datapoints.FundingRate;
 import functionalgo.datapoints.Interval;
 import functionalgo.datapoints.Kline;
 import functionalgo.exceptions.ExchangeException;
 
-// TODO use an http client library
+// TODO use a proper http client library
 public class BPLiveDataProvider implements BPDataProvider {
     
+    /**
+     * Used for quick testing
+     */
     public static void main(String[] args) throws ExchangeException {
         
-        Logger logger = new AWSLogger();
-        Database database = new AWSDatabase();
+        Logger logger = new LambdaLogger();
+        BPDataProviderDB database = new DynamoDB();
         
         BPLiveDataProvider dataProvider = new BPLiveDataProvider(database, logger);
         
@@ -53,23 +55,18 @@ public class BPLiveDataProvider implements BPDataProvider {
     private static final Interval FUNDING_INTERVAL = Interval._8h;
     private static final long FRATES_LEEWAY = 100;
     
-    private Database database;
+    private BPDataProviderDB database;
     private Logger logger;
     private BPLimitedTLSClient restClient;
     
-    public BPLiveDataProvider(Database database, Logger logger) throws ExchangeException {
+    public BPLiveDataProvider(BPDataProviderDB database, Logger logger) throws ExchangeException {
         
         this.database = database;
         this.logger = logger;
         
         restClient = new BPLimitedTLSClient(logger);
         
-        if (!database.containsTable(KLINES_TABLE)) {
-            database.createTable(KLINES_TABLE);
-        }
-        if (!database.containsTable(FRATES_TABLE)) {
-            database.createTable(FRATES_TABLE);
-        }
+        database.createTableIfNotExist();
     }
     
     @Override
@@ -142,6 +139,9 @@ public class BPLiveDataProvider implements BPDataProvider {
     }
     
     private List<FundingRate> getDBFundingRates(String symbol, long startTime, long endTime) {
+        
+        
+        
         
         // TODO test single frate
         // TODO decide to return null or empty in case of nothing found

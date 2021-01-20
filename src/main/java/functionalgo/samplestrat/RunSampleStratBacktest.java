@@ -15,7 +15,6 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 
 import functionalgo.BacktestLogger;
-import functionalgo.Database;
 import functionalgo.Logger;
 import functionalgo.exceptions.ExchangeException;
 import functionalgo.samplestrat.SampleStrat.Statistics;
@@ -132,7 +131,7 @@ public class RunSampleStratBacktest {
     
     public BacktestResult runBacktest() throws ExchangeException {
         
-        Database db = new SampleStratBacktestDB();
+        SampleStratDB db = new SampleStratBacktestDB();
         Logger logger = new BacktestLogger();
         
         SampleStrat strat = new SampleStrat(db, logger, false);

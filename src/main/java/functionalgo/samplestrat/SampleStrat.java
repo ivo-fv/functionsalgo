@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import functionalgo.Database;
 import functionalgo.Logger;
+import functionalgo.aws.DynamoDB;
 import functionalgo.binanceperpetual.dataprovider.BPBacktestDataProvider;
 import functionalgo.binanceperpetual.dataprovider.BPDataProvider;
 import functionalgo.binanceperpetual.dataprovider.BPLiveDataProvider;
@@ -32,7 +32,7 @@ public class SampleStrat {
     private BPDataProvider dataProvider;
     
     Logger logger;
-    Database database;
+    SampleStratDB database;
     
     class Statistics {
         
@@ -71,25 +71,20 @@ public class SampleStrat {
     
     List<Position> positions;
     
-    public SampleStrat(Database database, Logger logger, boolean isLive) throws ExchangeException {
+    public SampleStrat(SampleStratDB database, Logger logger, boolean isLive) throws ExchangeException {
         
         this.isLive = isLive;
         this.logger = logger;
         
         if (isLive) {
             exchange = new BPLiveExchange(logger, PRIVATE_KEY, API_KEY);
-            dataProvider = new BPLiveDataProvider(database, logger);
-            if (!database.containsTable("SampleStratPositions")) {
-                database.createTable("SampleStratPositions");
-            }
+            dataProvider = new BPLiveDataProvider(new DynamoDB(), logger); // TODO find better way of passing database
+            database.createTableIfNotExist("Strategy"); // TODO find better way of handling table names
         } else {
             exchange = new BPSimExchange(BACKTEST_START_BALANCE, (short) 20, Interval._5m);
             dataProvider = new BPBacktestDataProvider(new Interval[] { Interval._5m });
             
-            // TODO backtest positions...
-            if (!database.containsTable("SampleStratPositions")) {
-                database.createTable("SampleStratPositions");
-            }
+            database.createTableIfNotExist("Strategy");// TODO find better way of handling table names
         }
     }
     

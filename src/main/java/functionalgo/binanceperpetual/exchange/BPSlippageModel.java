@@ -52,6 +52,9 @@ public class BPSlippageModel implements Serializable {
     
     private Map<String, double[]> slippages;
     
+    /**
+     * Used for generating a slippage model intended for backtesting.
+     */
     public static void main(String[] args) throws IOException, InterruptedException {
         
         if (CALCULATE_SLIPPAGE) {

@@ -34,6 +34,9 @@ public class BPHistoricKlines implements Serializable {
     
     private HashMap<String, HashMap<Long, Kline>> klines;
     
+    /**
+     * Used for generating klines files from .json for use in backtesting
+     */
     public static void main(String[] args) throws JsonSyntaxException, JsonIOException, IOException {
         
         for (Interval interval : Interval.values()) {
