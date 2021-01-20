@@ -19,7 +19,7 @@ import functionalgo.Logger;
 import functionalgo.exceptions.ExchangeException;
 
 // TODO use an http library
-public class BPLimitedTLSClient {
+public class BPLimitedAPIHandler {
     
     public static final String HOST = "testnet.binancefuture.com";
     public static final String EXCHANGE_INFO_REQ = "GET /fapi/v1/exchangeInfo HTTP/1.1\r\nConnection: close\r\nHost: " + HOST
@@ -40,7 +40,7 @@ public class BPLimitedTLSClient {
     private int httpStatusCode;
     private Logger logger;
     
-    public BPLimitedTLSClient(Logger logger) throws ExchangeException {
+    public BPLimitedAPIHandler(Logger logger) throws ExchangeException {
         
         this.logger = logger;
         

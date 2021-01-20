@@ -4,8 +4,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import functionalgo.BacktestLogger;
 import functionalgo.Logger;
-import functionalgo.aws.DynamoDB;
+import functionalgo.aws.DynamoDBBPDataProvider;
+import functionalgo.aws.DynamoDBCommon;
+import functionalgo.aws.LambdaLogger;
+import functionalgo.aws.DynamoDBSampleStrat;
+import functionalgo.binanceperpetual.BPLimitedAPIHandler;
 import functionalgo.binanceperpetual.dataprovider.BPBacktestDataProvider;
 import functionalgo.binanceperpetual.dataprovider.BPDataProvider;
 import functionalgo.binanceperpetual.dataprovider.BPLiveDataProvider;
@@ -19,6 +24,7 @@ import functionalgo.exceptions.ExchangeException;
 public class SampleStrat {
     // TODO
     
+    // TODO use credentials/key manager
     private static final String PRIVATE_KEY = "***REMOVED***";
     private static final String API_KEY = "***REMOVED***";
     
@@ -71,20 +77,22 @@ public class SampleStrat {
     
     List<Position> positions;
     
-    public SampleStrat(SampleStratDB database, Logger logger, boolean isLive) throws ExchangeException {
+    public SampleStrat(boolean isLive) throws ExchangeException {
         
         this.isLive = isLive;
-        this.logger = logger;
         
         if (isLive) {
-            exchange = new BPLiveExchange(logger, PRIVATE_KEY, API_KEY);
-            dataProvider = new BPLiveDataProvider(new DynamoDB(), logger); // TODO find better way of passing database
-            database.createTableIfNotExist("Strategy"); // TODO find better way of handling table names
+            logger = new LambdaLogger();
+            DynamoDBCommon dbCommon = new DynamoDBCommon();
+            database = new DynamoDBSampleStrat(dbCommon);
+            BPLimitedAPIHandler apiHandler = new BPLimitedAPIHandler(logger);
+            exchange = new BPLiveExchange(logger, apiHandler, PRIVATE_KEY, API_KEY);
+            dataProvider = new BPLiveDataProvider(new DynamoDBBPDataProvider(dbCommon), logger, apiHandler);            
         } else {
+            logger = new BacktestLogger();
+            database = new SampleStratBacktestDB();
             exchange = new BPSimExchange(BACKTEST_START_BALANCE, (short) 20, Interval._5m);
             dataProvider = new BPBacktestDataProvider(new Interval[] { Interval._5m });
-            
-            database.createTableIfNotExist("Strategy");// TODO find better way of handling table names
         }
     }
     

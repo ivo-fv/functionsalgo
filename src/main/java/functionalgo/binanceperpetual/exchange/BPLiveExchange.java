@@ -16,7 +16,7 @@ import com.google.gson.JsonObject;
 import functionalgo.Logger;
 import functionalgo.Utils;
 import functionalgo.aws.LambdaLogger;
-import functionalgo.binanceperpetual.BPLimitedTLSClient;
+import functionalgo.binanceperpetual.BPLimitedAPIHandler;
 import functionalgo.exceptions.ExchangeException;
 
 // TODO refactor json parsing to more individual methods
@@ -32,8 +32,9 @@ public class BPLiveExchange implements BPExchange {
         String apiKey = "***REMOVED***";
         
         Logger logger = new LambdaLogger();
+        BPLimitedAPIHandler apiHandler = new BPLimitedAPIHandler(logger);
         
-        BPExchange exchange = new BPLiveExchange(logger, privateKey, apiKey);
+        BPExchange exchange = new BPLiveExchange(logger, apiHandler, privateKey, apiKey);
         
         System.out.println("Sending test order...");
         
@@ -55,8 +56,8 @@ public class BPLiveExchange implements BPExchange {
         exchange.executeBatchedOrders();
     }
     
-    private static final String HOST = BPLimitedTLSClient.HOST;
-    private static final String EXCHANGE_INFO_REQ = BPLimitedTLSClient.EXCHANGE_INFO_REQ;
+    private static final String HOST = BPLimitedAPIHandler.HOST;
+    private static final String EXCHANGE_INFO_REQ = BPLimitedAPIHandler.EXCHANGE_INFO_REQ;
     private static final String PREMIUM_INDEX_REQ = "GET /fapi/v1/premiumIndex HTTP/1.1\r\nConnection: close\r\nHost: " + HOST
             + "\r\n\r\n";
     private static final String AUTH = "X-MBX-APIKEY: ";
@@ -76,7 +77,7 @@ public class BPLiveExchange implements BPExchange {
     private Mac signHMAC;
     private String apiKey;
     private Logger logger;
-    private BPLimitedTLSClient restClient;
+    private BPLimitedAPIHandler apiHandler;
     
     private BPLiveAccount accountInfo;
     
@@ -100,16 +101,16 @@ public class BPLiveExchange implements BPExchange {
         }
     }
     
-    public BPLiveExchange(Logger logger, String privateKey, String apiKey) throws ExchangeException {
+    public BPLiveExchange(Logger logger, BPLimitedAPIHandler apiHandler, String privateKey, String apiKey)
+            throws ExchangeException {
         
         try {
             this.apiKey = apiKey;
             this.logger = logger;
+            this.apiHandler = apiHandler;
             signHMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec pKey = new SecretKeySpec(privateKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             signHMAC.init(pKey);
-            
-            restClient = new BPLimitedTLSClient(logger);
             
             batchedMarketOrders = new ArrayList<>();
             
@@ -437,7 +438,7 @@ public class BPLiveExchange implements BPExchange {
     
     private JsonElement getPremiumIndex() throws ExchangeException {
         
-        return restClient.apiRetrySendRequestGetParsedResponse(PREMIUM_INDEX_REQ);
+        return apiHandler.apiRetrySendRequestGetParsedResponse(PREMIUM_INDEX_REQ);
     }
     
     private JsonElement getPositionInformation() throws ExchangeException {
@@ -452,7 +453,7 @@ public class BPLiveExchange implements BPExchange {
     
     private JsonElement getExchangeInfo() throws ExchangeException {
         
-        return restClient.apiRetrySendRequestGetParsedResponse(EXCHANGE_INFO_REQ);
+        return apiHandler.apiRetrySendRequestGetParsedResponse(EXCHANGE_INFO_REQ);
     }
     
     private JsonElement marketOpenHedgeMode(String symbol, boolean isLong, double symbolQty) throws ExchangeException {
@@ -483,7 +484,7 @@ public class BPLiveExchange implements BPExchange {
         String req = "GET " + endpoint + "?" + params + "&signature=" + signature + " HTTP/1.1\r\nConnection: close\r\nHost: "
                 + HOST + "\r\n" + AUTH + apiKey + "\r\n\r\n";
         
-        return restClient.apiRetrySendRequestGetParsedResponse(req);
+        return apiHandler.apiRetrySendRequestGetParsedResponse(req);
     }
     
     private JsonElement apiPostSignedRequestGetResponse(String endpoint, String params) throws ExchangeException {
@@ -492,7 +493,7 @@ public class BPLiveExchange implements BPExchange {
         String req = "POST " + endpoint + "?" + params + "&signature=" + signature + " HTTP/1.1\r\nConnection: close\r\nHost: "
                 + HOST + "\r\n" + AUTH + apiKey + "\r\n\r\n";
         
-        return restClient.apiRetrySendRequestGetParsedResponse(req);
+        return apiHandler.apiRetrySendRequestGetParsedResponse(req);
     }
     
     private long getCurrentTimestampMillis() {

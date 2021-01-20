@@ -9,9 +9,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import functionalgo.Logger;
-import functionalgo.aws.DynamoDB;
+import functionalgo.aws.DynamoDBBPDataProvider;
+import functionalgo.aws.DynamoDBCommon;
 import functionalgo.aws.LambdaLogger;
-import functionalgo.binanceperpetual.BPLimitedTLSClient;
+import functionalgo.binanceperpetual.BPLimitedAPIHandler;
 import functionalgo.datapoints.FundingRate;
 import functionalgo.datapoints.Interval;
 import functionalgo.datapoints.Kline;
@@ -26,9 +27,10 @@ public class BPLiveDataProvider implements BPDataProvider {
     public static void main(String[] args) throws ExchangeException {
         
         Logger logger = new LambdaLogger();
-        BPDataProviderDB database = new DynamoDB();
+        BPDataProviderDB database = new DynamoDBBPDataProvider(new DynamoDBCommon());
+        BPLimitedAPIHandler apiHandler = new BPLimitedAPIHandler(logger);
         
-        BPLiveDataProvider dataProvider = new BPLiveDataProvider(database, logger);
+        BPLiveDataProvider dataProvider = new BPLiveDataProvider(database, logger, apiHandler);
         
         try {
             List<Kline> klines = dataProvider.getExchangeKlines("ETHUSDT", Interval._5m, 1598346800000L, 1599562800000L);
@@ -45,66 +47,49 @@ public class BPLiveDataProvider implements BPDataProvider {
         }
     }
     
-    private static final String HOST = BPLimitedTLSClient.HOST;
+    private static final String HOST = BPLimitedAPIHandler.HOST;
     private static final String ENDPOINT_KLINES = "/fapi/v1/klines";
     private static final int KLINES_MAX_NUM_PER_REQ = 1000;
     private static final String ENDPOINT_FRATES = "/fapi/v1/fundingRate";
     private static final int FRATES_MAX_NUM_PER_REQ = 500;
-    private static final String KLINES_TABLE = "BPLiveDataProviderKlines";
-    private static final String FRATES_TABLE = "BPLiveDataProviderFundingRates";
     private static final Interval FUNDING_INTERVAL = Interval._8h;
     private static final long FRATES_LEEWAY = 100;
     
     private BPDataProviderDB database;
     private Logger logger;
-    private BPLimitedTLSClient restClient;
+    private BPLimitedAPIHandler apiHandler;
     
-    public BPLiveDataProvider(BPDataProviderDB database, Logger logger) throws ExchangeException {
+    public BPLiveDataProvider(BPDataProviderDB database, Logger logger, BPLimitedAPIHandler apiHandler) throws ExchangeException {
         
         this.database = database;
         this.logger = logger;
-        
-        restClient = new BPLimitedTLSClient(logger);
-        
-        database.createTableIfNotExist();
+        this.apiHandler = apiHandler;
     }
     
     @Override
     public List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) throws ExchangeException {
         
-        // TODO no data throw
-        if (startTime == endTime) {
-            endTime++;
-        }
-        
         List<FundingRate> dbFRates = getDBFundingRates(symbol, startTime, endTime);
         
-        if (dbFRates.isEmpty()) {
-            
-            List<FundingRate> newFRates = getExchangeFRates(symbol, startTime - FRATES_LEEWAY, endTime + FRATES_LEEWAY);
+        long expectedNumFRates = (((endTime / FUNDING_INTERVAL.toMilliseconds()) * FUNDING_INTERVAL.toMilliseconds())
+                - ((startTime / FUNDING_INTERVAL.toMilliseconds()) * FUNDING_INTERVAL.toMilliseconds()))
+                / FUNDING_INTERVAL.toMilliseconds() + 1;
+        
+        if (expectedNumFRates == dbFRates.size()) {
+            return dbFRates;
+        } else {
             long adjustedStartTime = (startTime / FUNDING_INTERVAL.toMilliseconds()) * FUNDING_INTERVAL.toMilliseconds();
+            List<FundingRate> newFRates = getExchangeFRates(symbol, adjustedStartTime - FRATES_LEEWAY, endTime + FRATES_LEEWAY);
             setDBFRates(symbol, adjustedStartTime, newFRates);
             return newFRates;
-            
-        } else {
-            long lastTime = (Math.min(endTime, System.currentTimeMillis()) / FUNDING_INTERVAL.toMilliseconds())
-                    * FUNDING_INTERVAL.toMilliseconds();
-            
-            long lastFundingTime = (dbFRates.get(dbFRates.size() - 1).getFundingTime() / FUNDING_INTERVAL.toMilliseconds())
-                    * FUNDING_INTERVAL.toMilliseconds();
-            
-            if (lastFundingTime < lastTime) {
-                List<FundingRate> newFRates = getExchangeFRates(symbol, lastFundingTime - FRATES_LEEWAY, endTime + FRATES_LEEWAY);
-                setDBFRates(symbol, lastFundingTime, newFRates);
-                dbFRates.remove(dbFRates.size() - 1);
-                dbFRates.addAll(newFRates);
-            }
-            
-            return dbFRates;
         }
     }
     
     private List<FundingRate> getExchangeFRates(String symbol, long startTime, long endTime) throws ExchangeException {
+        
+        if (startTime == endTime) {
+            endTime++;
+        }
         
         List<FundingRate> returnList = new ArrayList<>();
         
@@ -116,7 +101,7 @@ public class BPLiveDataProvider implements BPDataProvider {
                 String req = "GET " + ENDPOINT_FRATES + "?symbol=" + symbol + "&startTime=" + startTime + "&endTime=" + endTime
                         + "&limit=" + FRATES_MAX_NUM_PER_REQ + " HTTP/1.1\r\nConnection: close\r\nHost: " + HOST + "\r\n\r\n";
                 
-                JsonElement fratesPage = restClient.apiRetrySendRequestGetParsedResponse(req);
+                JsonElement fratesPage = apiHandler.apiRetrySendRequestGetParsedResponse(req);
                 JsonArray klines = fratesPage.getAsJsonArray();
                 for (JsonElement elem : klines) {
                     JsonObject fr = elem.getAsJsonObject();
@@ -140,20 +125,18 @@ public class BPLiveDataProvider implements BPDataProvider {
     
     private List<FundingRate> getDBFundingRates(String symbol, long startTime, long endTime) {
         
+        List<FundingRate> rates = database.getFundingRates(symbol, startTime, endTime);
         
+        if (rates.isEmpty()) {
+            logger.log(-1, 0, "BPLiveDataProvider::getDBFundingRates", "Rates list empty");
+        }
         
-        
-        // TODO test single frate
-        // TODO decide to return null or empty in case of nothing found
-        // TODO log if no data or problem
-        // TODO Auto-generated method stub
-        return null;
+        return rates;
     }
     
     private void setDBFRates(String symbol, long startTime, List<FundingRate> newFRates) {
         
-        // TODO Auto-generated method stub
-        
+        database.setFundingRates(symbol, startTime, newFRates);
     }
     
     @Override
@@ -165,39 +148,29 @@ public class BPLiveDataProvider implements BPDataProvider {
     @Override
     public List<Kline> getKlines(String symbol, Interval interval, long startTime, long endTime) throws ExchangeException {
         
-        // TODO no data throw
-        if (startTime == endTime) {
-            endTime++;
-        }
-        
         List<Kline> dbKlines = getDBKlines(symbol, interval, startTime, endTime);
         
-        if (dbKlines.isEmpty()) {
-            
-            long adjustedStartTime = (startTime / interval.toMilliseconds()) * interval.toMilliseconds();
+        long expectedNumKlines = (((endTime / interval.toMilliseconds()) * interval.toMilliseconds())
+                - ((startTime / interval.toMilliseconds()) * interval.toMilliseconds())) / interval.toMilliseconds() + 1;
+        
+        if (expectedNumKlines == dbKlines.size()) {
+            return dbKlines;
+        } else {
+            long adjustedStartTime = ((startTime / interval.toMilliseconds()) * interval.toMilliseconds())
+                    - interval.toMilliseconds();
             List<Kline> newKlines = getExchangeKlines(symbol, interval, adjustedStartTime, endTime);
             setDBKlines(symbol, interval, adjustedStartTime, newKlines);
+            newKlines.remove(0);
             return newKlines;
-            
-        } else {
-            long lastTime = (Math.min(endTime, System.currentTimeMillis()) / interval.toMilliseconds())
-                    * interval.toMilliseconds();
-            
-            long lastKlineOpenTime = dbKlines.get(dbKlines.size() - 1).getOpenTime();
-            
-            if (lastKlineOpenTime < lastTime) {
-                List<Kline> newKlines = getExchangeKlines(symbol, interval, lastKlineOpenTime, endTime);
-                setDBKlines(symbol, interval, lastKlineOpenTime, newKlines);
-                dbKlines.remove(dbKlines.size() - 1);
-                dbKlines.addAll(newKlines);
-            }
-            
-            return dbKlines;
         }
     }
     
     private List<Kline> getExchangeKlines(String symbol, Interval interval, long startTime, long endTime)
             throws ExchangeException {
+        
+        if (startTime == endTime) {
+            endTime++;
+        }
         
         List<Kline> returnList = new ArrayList<>();
         
@@ -210,7 +183,7 @@ public class BPLiveDataProvider implements BPDataProvider {
                         + "&endTime=" + endTime + "&limit=" + KLINES_MAX_NUM_PER_REQ + " HTTP/1.1\r\nConnection: close\r\nHost: "
                         + HOST + "\r\n\r\n";
                 
-                JsonElement klinesPage = restClient.apiRetrySendRequestGetParsedResponse(req);
+                JsonElement klinesPage = apiHandler.apiRetrySendRequestGetParsedResponse(req);
                 JsonArray klines = klinesPage.getAsJsonArray(); // TODO test with different type if throw exception and catch it
                 for (JsonElement elem : klines) {
                     JsonArray kl = elem.getAsJsonArray();
@@ -235,16 +208,18 @@ public class BPLiveDataProvider implements BPDataProvider {
     
     private List<Kline> getDBKlines(String symbol, Interval interval, long startTime, long endTime) {
         
-        // TODO test single candle
-        // TODO decide to return null or empty in case of nothing found
-        // TODO log if no data or problem
-        // TODO Auto-generated method stub
-        return null;
+        List<Kline> klines = database.getKlines(symbol, interval, startTime, endTime);
+        
+        if (klines.isEmpty()) {
+            logger.log(-1, 0, "BPLiveDataProvider::getDBKlines", "Klines list empty");
+        }
+        
+        return klines;
     }
     
     private void setDBKlines(String symbol, Interval interval, long startTimeIndex, List<Kline> klinesToAdd) {
         
-        // TODO Auto-generated method stub
+        database.setKlines(symbol, interval, startTimeIndex, klinesToAdd);
     }
     
 }
