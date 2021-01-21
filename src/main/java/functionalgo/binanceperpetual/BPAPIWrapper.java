@@ -30,6 +30,9 @@ import functionalgo.Logger;
 import functionalgo.Utils;
 import functionalgo.exceptions.ExchangeException;
 
+// TODO write tests for already implemented methods
+// TODO rest of needed API methods
+
 public class BPAPIWrapper {
 
     private static final String HOST_TEST = "https://testnet.binancefuture.com";
@@ -57,7 +60,7 @@ public class BPAPIWrapper {
     private JsonElement accountInformation;
     private long accountInformationCacheTime = 0;
 
-    // TODO use char[] privateKey and overwrite it
+    // TODO security -> use char[] privateKey and overwrite it
     public BPAPIWrapper(Logger logger, String privateKey, String apiKey, boolean isTest)
             throws NoSuchAlgorithmException, InvalidKeyException {
 
@@ -135,11 +138,6 @@ public class BPAPIWrapper {
 
         return false;
     }
-
-    // TODO methods for getting the whole response (full json of acc info for
-    // example)
-    // TODO write tests for already implemented methods
-    // TODO rest of needed API methods
 
     private JsonElement getCachedAccountInformation(boolean bypassCache) throws ExchangeException {
 
