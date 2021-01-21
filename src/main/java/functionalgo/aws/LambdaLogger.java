@@ -5,22 +5,26 @@ import java.util.List;
 import functionalgo.Logger;
 
 public class LambdaLogger implements Logger {
-    
-    private static final boolean IS_TEST = false;
-    
+
+    private boolean isTest;
+
+    public LambdaLogger(boolean isTest) {
+        this.isTest = isTest;
+    }
+
     @Override
     public void log(int level, int code, String codeMsgOrCause, String msgOrTrace) {
-        
-        if (IS_TEST) {
+
+        if (isTest) {
             System.out.println(level + "  ;  " + code + "  ;  " + codeMsgOrCause + "  ;  " + msgOrTrace);
         }
-        
+
         // TODO implement to work with aws lambda
     }
-    
+
     @Override
     public List<String> getLogs() {
-        
+
         // TODO Auto-generated method stub
         return null;
     }

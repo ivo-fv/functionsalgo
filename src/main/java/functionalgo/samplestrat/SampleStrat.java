@@ -77,12 +77,12 @@ public class SampleStrat {
     
     List<Position> positions;
     
-    public SampleStrat(boolean isLive) throws ExchangeException {
+    public SampleStrat(boolean isLive, boolean isTest) throws ExchangeException {
         
         this.isLive = isLive;
         
         if (isLive) {
-            logger = new LambdaLogger();
+            logger = new LambdaLogger(isTest);
             DynamoDBCommon dbCommon = new DynamoDBCommon();
             database = new DynamoDBSampleStrat(dbCommon);
             BPLimitedAPIHandler apiHandler = new BPLimitedAPIHandler(logger);

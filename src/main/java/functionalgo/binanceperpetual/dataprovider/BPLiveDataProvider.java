@@ -26,7 +26,7 @@ public class BPLiveDataProvider implements BPDataProvider {
      */
     public static void main(String[] args) throws ExchangeException {
         
-        Logger logger = new LambdaLogger();
+        Logger logger = new LambdaLogger(true);
         BPDataProviderDB database = new DynamoDBBPDataProvider(new DynamoDBCommon());
         BPLimitedAPIHandler apiHandler = new BPLimitedAPIHandler(logger);
         
