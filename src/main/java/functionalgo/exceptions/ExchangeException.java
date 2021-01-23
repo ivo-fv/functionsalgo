@@ -17,7 +17,7 @@ public class ExchangeException extends Exception {
     
     public ExchangeException(int code, String responseMsg, String exceptionInfo) {
         
-        super(code + ";" + responseMsg + ";" + exceptionInfo);
+        super(code + " ; " + responseMsg + " ; " + exceptionInfo);
         this.code = code;
         this.responseMsg = responseMsg;
         this.exceptionInfo = exceptionInfo;

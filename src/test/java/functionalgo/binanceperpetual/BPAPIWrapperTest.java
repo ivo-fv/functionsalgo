@@ -2,136 +2,119 @@ package functionalgo.binanceperpetual;
 
 import static org.junit.Assert.*;
 
+import java.util.Arrays;
 import java.util.Map;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.FixMethodOrder;
 import org.junit.Test;
+import org.junit.runners.MethodSorters;
 
-import functionalgo.exceptions.ExchangeException;
 import mocks.MockLogger;
 
+//TODO externalize strings to resource bundle and gitignore , make dummy bundle warn to rename before testing
+
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class BPAPIWrapperTest {
 
     private static final String TEST_PRIVATE_KEY = "***REMOVED***";
     private static final String TEST_API_KEY = "***REMOVED***";
 
     public static MockLogger logger;
-    public static BPAPIWrapper bpapi;
+    public static BPWrapperREST bpapi;
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
         logger = new MockLogger();
-        bpapi = new BPAPIWrapper(logger, TEST_PRIVATE_KEY, TEST_API_KEY, true);
-    }
-
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
-
-    @Before
-    public void setUp() throws Exception {
-    }
-
-    @After
-    public void tearDown() throws Exception {
+        bpapi = new BPWrapperREST(logger, TEST_PRIVATE_KEY, TEST_API_KEY, true);
     }
 
     @Test
-    public final void testGetAccInfTotalInitialMargin() {
-        double totalInitialMargin = -999;
+    public final void testGetAccountInfo() {
         try {
-            totalInitialMargin = bpapi.getAccInfTotalInitialMargin(false);
-            assertTrue(">=0", totalInitialMargin >= 0);
+            BPAccountInfoWrapper accInfo = bpapi.getAccountInfo();
 
-        } catch (ExchangeException e) {
+            assertTrue("totalInitialMargin", accInfo.getTotalInitialMargin() >= 0);
+            assertTrue("marginBalance", accInfo.getMarginBalance() >= 0);
+            assertTrue("walletBalance", accInfo.getWalletBalance() >= 0);
+
+            assertTrue("leverages", accInfo.getLeverages().get("BTCUSDT") >= 1);
+            Map.Entry<String, Boolean> entry = accInfo.getIsolatedSymbols().entrySet().iterator().next();
+            String isoSymKey = entry.getKey();
+            assertTrue("isolatedSymbols", isoSymKey.length() >= 2);
+
+            Map<String, Double> longPositions = accInfo.getLongPositions();
+
+            if (longPositions.size() > 0) {
+                assertTrue("longPositions", longPositions.get("BTCUSDT") >= 0);
+                assertTrue("shortPositions", accInfo.getShortPositions().get("BTCUSDT") >= 0);
+            } else {
+                assertTrue("bothPositions", accInfo.getBothPositions().get("BTCUSDT") >= 0);
+            }
+
+        } catch (Exception e) {
             e.printStackTrace();
-            fail("structure incorrect");
+            fail(Arrays.toString(e.getStackTrace()));
         }
     }
 
     @Test
-    public final void testGetAccInfMarginBalance() {
-
-        double marginBalance = -999;
+    public final void testGetExchangeInfo() {
         try {
-            marginBalance = bpapi.getAccInfMarginBalance(false);
-            assertTrue(">=0", marginBalance >= 0);
+            BPExchangeInfoWrapper exchInfo = bpapi.getExchangeInfo();
 
-        } catch (ExchangeException e) {
+            assertTrue("symbolQtyStepSize", exchInfo.getSymbolQtyStepSize("BTCUSDT") >= 0);
+            assertTrue("exchangeTime", exchInfo.getExchangeTime() >= 1609459200000L);
+
+        } catch (Exception e) {
             e.printStackTrace();
-            fail("structure incorrect");
+            fail(Arrays.toString(e.getStackTrace()));
         }
     }
 
     @Test
-    public final void testGetAccInfWalletBalance() {
-        double walletBalance = -999;
+    public final void testSetToHedgeMode() {
         try {
-            walletBalance = bpapi.getAccInfWalletBalance(false);
-            assertTrue(">=0", walletBalance >= 0);
-
-        } catch (ExchangeException e) {
+            bpapi.setToHedgeMode();
+            bpapi.setToHedgeMode();
+        } catch (Exception e) {
             e.printStackTrace();
-            fail("structure incorrect");
+            fail(e.toString() + " || " + Arrays.toString(e.getStackTrace()));
         }
     }
 
     @Test
-    public final void testGetAccInfLeverages() {
-
-        Map<String, Integer> leverages = null;
-
+    public final void testSetLeverage() {
         try {
-            leverages = bpapi.getAccInfLeverages(false);
-
-            Map.Entry<String, Integer> entry = leverages.entrySet().iterator().next();
-            String key = entry.getKey();
-            int value = entry.getValue();
-
-            assertTrue("firt symbol must have leverage >= 1", value >= 1);
-
-        } catch (ExchangeException e) {
+            bpapi.setLeverage("BTCUSDT", 20);
+            bpapi.setLeverage("BTCUSDT", 1);
+            bpapi.setLeverage("BTCUSDT", 20);
+            bpapi.setLeverage("BTCUSDT", 20);
+        } catch (Exception e) {
             e.printStackTrace();
-            fail("structure incorrect");
+            fail(e.toString() + " || " + Arrays.toString(e.getStackTrace()));
         }
     }
 
     @Test
-    public final void testGetAccInfIsolatedSymbols() {
-
-        Map<String, Boolean> isolatedSymbols = null;
-
+    public final void testSetCrossMargin() {
         try {
-            isolatedSymbols = bpapi.getAccInfIsolatedSymbols(false);
-
-            Map.Entry<String, Boolean> entry = isolatedSymbols.entrySet().iterator().next();
-            String key = entry.getKey();
-
-            assertNotNull("map must exist", isolatedSymbols);
-            assertTrue("key must exist", key.length() >= 2);
-
-        } catch (ExchangeException e) {
+            bpapi.setCrossMargin("BTCUSDT");
+            bpapi.setCrossMargin("BTCUSDT");
+        } catch (Exception e) {
             e.printStackTrace();
-            fail("structure incorrect");
+            fail(e.toString() + " || " + Arrays.toString(e.getStackTrace()));
         }
     }
 
     @Test
-    public final void testIsAccInfHedgeMode() {
-
-        Object isHedgeMode = null;
-
+    public final void testZCloseAllOpenSomeCloseAllAgain() {
         try {
-            isHedgeMode = bpapi.isAccInfHedgeMode(false);
+            assertTrue(false);
 
-            assertTrue("must be a boolean value", isHedgeMode instanceof Boolean);
-
-        } catch (ExchangeException e) {
+        } catch (Exception e) {
             e.printStackTrace();
-            fail("structure incorrect");
+            fail(Arrays.toString(e.getStackTrace()));
         }
     }
 

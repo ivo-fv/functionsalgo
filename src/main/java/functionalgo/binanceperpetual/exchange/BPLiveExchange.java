@@ -235,6 +235,7 @@ public class BPLiveExchange implements BPExchange {
             for (BatchedOrder order : tempBatch) {
                 for (JsonElement elem : arrExchangeInfoSymbols) {
                     JsonObject objElem = elem.getAsJsonObject();
+                    // from here
                     if (objElem.get("symbol").getAsString().equals(order.symbol)
                             && objElem.get("status").getAsString().equals(TRADING_STATUS)) {
                         JsonArray filter = objElem.get("filters").getAsJsonArray();
@@ -247,6 +248,7 @@ public class BPLiveExchange implements BPExchange {
                                 }
                                 order.quantity = BigDecimal.valueOf(Math.floor(order.quantity / stepSize))
                                         .multiply(BigDecimal.valueOf(stepSize)).doubleValue();
+                                // to here -> checkIfOrderIsValid on batchMarketOpen
                                 if (order.isOpen) {
                                     sumInitialMargin += ((order.quantity * accountInfo.getMarkPrice(order.symbol))
                                             / accountInfo.getLeverage(order.symbol)) * OPEN_LOSS;
@@ -349,18 +351,21 @@ public class BPLiveExchange implements BPExchange {
         }
 
         try {
-            updateAccountBalances();
+            updateAccountBalances(); // TODO use /fapi/v2/account for this and accpositions...->
         } catch (ExchangeException e) {
             accountInfo.isBalancesDesynch = true;
             logger.log(4, e.getCode(), e.toString(), Arrays.toString(e.getStackTrace()));
         }
 
         try {
-            populateAccountPositions();
+            populateAccountPositions(); // TODO use /fapi/v2/account for this and accbalances...->
         } catch (ExchangeException e) {
             accountInfo.isPositionsDesynch = true;
             logger.log(4, e.getCode(), e.toString(), Arrays.toString(e.getStackTrace()));
         }
+
+        // ...-> so calling one of the AccInfo methods in the wrapper with
+        // mostUpTodate=true and the rest =false
 
         return accountInfo;
     }
@@ -393,7 +398,7 @@ public class BPLiveExchange implements BPExchange {
         JsonArray arrPosInfo = elemPosInfo.getAsJsonArray();
         for (JsonElement elem : arrPosInfo) {
             JsonObject objElem = elem.getAsJsonObject();
-            double quantity = objElem.get("positionAmt").getAsDouble();
+            double quantity = objElem.get("positionAmt").getAsDouble(); // not needed /fapi/v2/account gives positionAmt
             if (Math.abs(quantity) > 0) {
                 if (objElem.get("positionSide").getAsString().equals("LONG")) {
                     accountInfo.longPositions.put(objElem.get("symbol").getAsString(),
