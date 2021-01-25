@@ -29,39 +29,39 @@ public class BPAccountInfoWrapper {
         this.bothPositions = bothPositions;
     }
 
-    double getTotalInitialMargin() {
+    public double getTotalInitialMargin() {
         return totalInitialMargin;
     }
 
-    double getMarginBalance() {
+    public double getMarginBalance() {
         return marginBalance;
     }
 
-    double getWalletBalance() {
+    public double getWalletBalance() {
         return walletBalance;
     }
 
-    Map<String, Integer> getLeverages() {
+    public Map<String, Integer> getLeverages() {
         return leverages;
     }
 
-    Map<String, Boolean> getIsolatedSymbols() {
+    public Map<String, Boolean> getIsolatedSymbols() {
         return isolatedSymbols;
     }
 
-    boolean isHedgeMode() {
+    public boolean isHedgeMode() {
         return isHedgeMode;
     }
 
-    Map<String, Double> getLongPositions() {
+    public Map<String, Double> getLongPositions() {
         return longPositions;
     }
 
-    Map<String, Double> getShortPositions() {
+    public Map<String, Double> getShortPositions() {
         return shortPositions;
     }
 
-    Map<String, Double> getBothPositions() {
+    public Map<String, Double> getBothPositions() {
         return bothPositions;
     }
 }

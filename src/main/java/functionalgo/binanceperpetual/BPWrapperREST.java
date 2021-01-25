@@ -33,7 +33,8 @@ import functionalgo.exceptions.ExchangeException;
 
 // TODO write tests for already implemented methods
 // TODO rest of needed API methods
-
+// TODO remove logger requirement once singleton logger implemented
+// TODO  no  magic numbers, make them constants
 public class BPWrapperREST {
 
     private static final String HOST_TEST = "https://testnet.binancefuture.com";
@@ -59,6 +60,7 @@ public class BPWrapperREST {
     private CloseableHttpClient httpClient;
 
     // TODO security -> use char[] privateKey and overwrite it
+
     public BPWrapperREST(Logger logger, String privateKey, String apiKey, boolean isTest)
             throws NoSuchAlgorithmException, InvalidKeyException {
 
@@ -180,7 +182,7 @@ public class BPWrapperREST {
         }
     }
 
-    public void setCrossMargin(String symbol) throws ExchangeException {
+    public void setToCrossMargin(String symbol) throws ExchangeException {
 
         String params = "symbol=" + symbol + "&marginType=CROSSED&recvWindow=" + RECV_WINDOW + "&timestamp="
                 + getCurrentTimestampMillis();
@@ -195,12 +197,46 @@ public class BPWrapperREST {
         }
     }
 
-    public String marketOpenHedgeMode(String symbol, boolean isLong, double symbolQty) throws ExchangeException {
-        return null; // TODO returns symbol that got opened
+    public BPOrderResultWrapper marketOpenHedgeMode(String symbol, boolean isLong, double symbolQty)
+            throws ExchangeException {
+
+        long timestamp = getCurrentTimestampMillis();
+        String sideCombo = isLong ? "&side=BUY&positionSide=LONG" : "&side=SELL&positionSide=SHORT";
+        String params = "symbol=" + symbol + sideCombo + "&type=MARKET&quantity=" + symbolQty + "&recvWindow="
+                + RECV_WINDOW + "&timestamp=" + timestamp;
+
+        JsonElement res = apiPostSignedRequestGetResponse("/fapi/v1/order?", params);
+
+        JsonObject resObj = res.getAsJsonObject();
+        if (resObj.has("symbol")) {
+            return new BPOrderResultWrapper(resObj.get("symbol").getAsString());
+        } else if (resObj.has("code")) {
+            throw new ExchangeException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
+                    "BPWrapperREST::marketOpenHedgeMode");
+        } else {
+            throw new ExchangeException(-1, resObj.toString(), "BPWrapperREST::marketOpenHedgeMode");
+        }
     }
 
-    public String marketCloseHedgeMode(String symbol, boolean isLong, double symbolQty) throws ExchangeException {
-        return null; // TODO returns symbol that got closed
+    public BPOrderResultWrapper marketCloseHedgeMode(String symbol, boolean isLong, double symbolQty)
+            throws ExchangeException {
+
+        long timestamp = getCurrentTimestampMillis();
+        String sideCombo = isLong ? "&side=SELL&positionSide=LONG" : "&side=BUY&positionSide=SHORT";
+        String params = "symbol=" + symbol + sideCombo + "&type=MARKET&quantity=" + symbolQty + "&recvWindow="
+                + RECV_WINDOW + "&timestamp=" + timestamp;
+
+        JsonElement res = apiPostSignedRequestGetResponse("/fapi/v1/order?", params);
+
+        JsonObject resObj = res.getAsJsonObject();
+        if (resObj.has("symbol")) {
+            return new BPOrderResultWrapper(resObj.get("symbol").getAsString());
+        } else if (resObj.has("code")) {
+            throw new ExchangeException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
+                    "BPWrapperREST::marketOpenHedgeMode");
+        } else {
+            throw new ExchangeException(-1, resObj.toString(), "BPWrapperREST::marketOpenHedgeMode");
+        }
     }
 
     private JsonElement apiPostSignedRequestGetResponse(String endpoint, String params) throws ExchangeException {

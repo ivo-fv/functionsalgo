@@ -10,6 +10,7 @@ import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
+import functionalgo.exceptions.ExchangeException;
 import mocks.MockLogger;
 
 //TODO externalize strings to resource bundle and gitignore , make dummy bundle warn to rename before testing
@@ -87,8 +88,6 @@ public class BPAPIWrapperTest {
     public final void testSetLeverage() {
         try {
             bpapi.setLeverage("BTCUSDT", 20);
-            bpapi.setLeverage("BTCUSDT", 1);
-            bpapi.setLeverage("BTCUSDT", 20);
             bpapi.setLeverage("BTCUSDT", 20);
         } catch (Exception e) {
             e.printStackTrace();
@@ -97,10 +96,10 @@ public class BPAPIWrapperTest {
     }
 
     @Test
-    public final void testSetCrossMargin() {
+    public final void testSetToCrossMargin() {
         try {
-            bpapi.setCrossMargin("BTCUSDT");
-            bpapi.setCrossMargin("BTCUSDT");
+            bpapi.setToCrossMargin("BTCUSDT");
+            bpapi.setToCrossMargin("BTCUSDT");
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.toString() + " || " + Arrays.toString(e.getStackTrace()));
@@ -108,9 +107,96 @@ public class BPAPIWrapperTest {
     }
 
     @Test
-    public final void testZCloseAllOpenSomeCloseAllAgain() {
+    public final void testSetLeverageSetToHedgeModeSetToCrossMarginAndCheck() {
+        // test set leverage,cross,hedge and check
         try {
-            assertTrue(false);
+            bpapi.setToCrossMargin("BTCUSDT");
+            bpapi.setLeverage("BTCUSDT", 5);
+            bpapi.setToHedgeMode();
+
+            BPAccountInfoWrapper accInfo = bpapi.getAccountInfo();
+            assertFalse("crossMargin isolated", accInfo.getIsolatedSymbols().get("BTCUSDT"));
+            assertTrue("leverage 1", accInfo.getLeverages().get("BTCUSDT") == 5);
+            assertTrue("hedgeMode", accInfo.isHedgeMode());
+
+            bpapi.setLeverage("BTCUSDT", 20);
+
+            accInfo = bpapi.getAccountInfo();
+            assertTrue("leverage 2", accInfo.getLeverages().get("BTCUSDT") == 20);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.toString() + " || " + Arrays.toString(e.getStackTrace()));
+        }
+    }
+
+    @Test
+    public final void testMarketOpenHedgeModeAndMarketCloseHedgeMode() {
+        try {
+            String res = bpapi.marketOpenHedgeMode("BTCUSDT", true, 0.02).getSymbol();
+            assertTrue("open symbol", res.equals("BTCUSDT"));
+
+            res = bpapi.marketCloseHedgeMode("BTCUSDT", true, 0.02).getSymbol();
+            assertTrue("close symbol", res.equals("BTCUSDT"));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.toString() + " || " + Arrays.toString(e.getStackTrace()));
+        }
+    }
+
+    @Test
+    public final void testZ1CloseAllOpenSomeCloseAllAgain() {
+        try {
+            // open a little close all of it with large qty
+            bpapi.marketOpenHedgeMode("BTCUSDT", true, 0.002);
+            bpapi.marketCloseHedgeMode("BTCUSDT", true, 999);
+            bpapi.marketOpenHedgeMode("BTCUSDT", false, 0.002);
+            bpapi.marketCloseHedgeMode("BTCUSDT", false, 999);
+
+            // close non existent
+            try {
+                bpapi.marketCloseHedgeMode("BTCUSDT", false, 999);
+                fail("must throw");
+            } catch (ExchangeException e) {
+                assertTrue("close code", e.getCode() == -2022);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(Arrays.toString(e.getStackTrace()));
+        }
+    }
+
+    @Test
+    public final void testZ2OpenSomeCheckValuesCloseCheckAgain() {
+        try {
+            // check, open, check, close some, check, close rest, check
+            // check
+            BPExchangeInfoWrapper exchInfo = bpapi.getExchangeInfo();
+            double qty = 3 * exchInfo.getSymbolQtyStepSize("ETHUSDT");
+            BPAccountInfoWrapper accInfo = bpapi.getAccountInfo();
+            double prevAmt = accInfo.getLongPositions().get("ETHUSDT");
+            // open
+            double expectedNewAtm = prevAmt + qty;
+            bpapi.marketOpenHedgeMode("ETHUSDT", true, qty);
+            // check
+            accInfo = bpapi.getAccountInfo();
+            double newAmt = accInfo.getLongPositions().get("ETHUSDT");
+            assertTrue("expected amount 1", expectedNewAtm == newAmt);
+            prevAmt = newAmt;
+            // close some
+            expectedNewAtm = prevAmt - (qty / 3);
+            bpapi.marketCloseHedgeMode("ETHUSDT", true, qty / 3);
+            // check
+            accInfo = bpapi.getAccountInfo();
+            newAmt = accInfo.getLongPositions().get("ETHUSDT");
+            assertTrue("expected amount 2", expectedNewAtm == newAmt);
+            // close rest
+            bpapi.marketCloseHedgeMode("ETHUSDT", true, 999);
+            // check
+            accInfo = bpapi.getAccountInfo();
+            newAmt = accInfo.getLongPositions().get("ETHUSDT");
+            assertTrue("expected amount 3", newAmt == 0);
 
         } catch (Exception e) {
             e.printStackTrace();

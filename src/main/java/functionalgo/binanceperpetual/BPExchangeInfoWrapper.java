@@ -24,7 +24,7 @@ public class BPExchangeInfoWrapper {
         return symbolQtyStepSize.get(symbol);
     }
 
-    long getExchangeTime() {
+    public long getExchangeTime() {
         return exchangeTime;
     }
 
