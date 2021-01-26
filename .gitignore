@@ -3,3 +3,7 @@
 misccode.txt
 /data/
 /plots/
+/.genresources/
+.classpath
+.project
+/.settings/
