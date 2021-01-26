@@ -17,8 +17,8 @@ import mocks.MockLogger;
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class BPAPIWrapperTest {
 
-    private static final String TEST_PRIVATE_KEY = "***REMOVED***";
-    private static final String TEST_API_KEY = "***REMOVED***";
+    private static final String TEST_PRIVATE_KEY = "b1de68c44b95077fa829d9a904b84c8edc89405ca0ae0f1768cbbdb9cabf841b";
+    private static final String TEST_API_KEY = "a02d4409583be65a2721e2de10104e1e6232f402d1fd909cd9390e4aa17aefad";
 
     public static MockLogger logger;
     public static BPWrapperREST bpapi;

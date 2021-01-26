@@ -27,8 +27,8 @@ public class SampleStrat {
 
     // TODO use credentials/key manager
     // currently just test keys of dummy test account
-    private static final String PRIVATE_KEY = "***REMOVED***";
-    private static final String API_KEY = "***REMOVED***";
+    private static final String PRIVATE_KEY = "b1de68c44b95077fa829d9a904b84c8edc89405ca0ae0f1768cbbdb9cabf841b";
+    private static final String API_KEY = "a02d4409583be65a2721e2de10104e1e6232f402d1fd909cd9390e4aa17aefad";
 
     public static final double BACKTEST_START_BALANCE = 100;
 
