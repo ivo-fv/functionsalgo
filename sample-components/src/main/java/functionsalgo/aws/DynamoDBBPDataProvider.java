@@ -2,12 +2,12 @@ package functionsalgo.aws;
 
 import java.util.List;
 
-import functionsalgo.binanceperpetual.dataprovider.BPDataProviderDB;
+import functionsalgo.binanceperpetual.dataprovider.DataProviderDB;
 import functionsalgo.datapoints.FundingRate;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 
-public class DynamoDBBPDataProvider implements BPDataProviderDB {
+public class DynamoDBBPDataProvider implements DataProviderDB {
     
     DynamoDBCommon db;
     

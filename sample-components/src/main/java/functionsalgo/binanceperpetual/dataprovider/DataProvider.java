@@ -7,7 +7,7 @@ import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;
 
-public interface BPDataProvider {
+public interface DataProvider {
     
     List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) throws ExchangeException;
     

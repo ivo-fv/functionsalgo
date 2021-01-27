@@ -22,7 +22,7 @@ import com.google.gson.JsonSyntaxException;
 import functionsalgo.datapoints.FundingRate;
 import functionsalgo.datapoints.Interval;
 
-public class BPHistoricFundingRates implements Serializable {
+public class HistoricFundingRates implements Serializable {
     
     private static final long serialVersionUID = 1L;
     
@@ -48,7 +48,7 @@ public class BPHistoricFundingRates implements Serializable {
         
         if (!fundratesFiles.isEmpty()) {
             
-            BPHistoricFundingRates fundratesObj = new BPHistoricFundingRates();
+            HistoricFundingRates fundratesObj = new HistoricFundingRates();
             
             Gson gson = new Gson();
             
@@ -90,16 +90,16 @@ public class BPHistoricFundingRates implements Serializable {
         rates.put(symbol, rate);
     }
     
-    private BPHistoricFundingRates() {
+    private HistoricFundingRates() {
         
         rates = new HashMap<>();
     }
     
-    public static BPHistoricFundingRates loadFundingRates() {
+    public static HistoricFundingRates loadFundingRates() {
         
         try (ObjectInputStream in = new ObjectInputStream(
                 new BufferedInputStream(new FileInputStream(new File(FUND_RATES_FILE))))) {
-            return (BPHistoricFundingRates) in.readObject();
+            return (HistoricFundingRates) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
             e.printStackTrace();
             return null;

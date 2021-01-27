@@ -15,13 +15,13 @@ import com.google.gson.JsonObject;
 
 import functionsalgo.aws.DynamoDBBPDataProvider;
 import functionsalgo.aws.DynamoDBCommon;
-import functionsalgo.binanceperpetual.BPWrapperREST;
+import functionsalgo.binanceperpetual.WrapperREST;
 import functionsalgo.datapoints.FundingRate;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;
 
-public class BPLiveDataProvider implements BPDataProvider {
+public class LiveDataProvider implements DataProvider {
 
     /**
      * Used for quick testing
@@ -31,10 +31,9 @@ public class BPLiveDataProvider implements BPDataProvider {
      */
     public static void main(String[] args) throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException {
 
-        BPDataProviderDB database = new DynamoDBBPDataProvider(new DynamoDBCommon());
-        BPWrapperREST apiHandler = new BPWrapperREST(null, null, false);
+        DataProviderDB database = new DynamoDBBPDataProvider(new DynamoDBCommon());
 
-        BPLiveDataProvider dataProvider = new BPLiveDataProvider(database, apiHandler);
+        LiveDataProvider dataProvider = new LiveDataProvider(database);
 
         try {
             List<Kline> klines = dataProvider.getExchangeKlines("ETHUSDT", Interval._5m, 1598346800000L,
@@ -52,7 +51,7 @@ public class BPLiveDataProvider implements BPDataProvider {
         }
     }
 
-    private static final String HOST = BPWrapperREST.HOST_LIVE;
+    private static final String HOST = WrapperREST.HOST_LIVE;
     private static final String ENDPOINT_KLINES = "/fapi/v1/klines";
     private static final int KLINES_MAX_NUM_PER_REQ = 1000;
     private static final String ENDPOINT_FRATES = "/fapi/v1/fundingRate";
@@ -62,10 +61,10 @@ public class BPLiveDataProvider implements BPDataProvider {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private BPDataProviderDB database;
-    private BPWrapperREST apiHandler;
+    private DataProviderDB database;
+    private WrapperREST apiHandler;
 
-    public BPLiveDataProvider(BPDataProviderDB database, BPWrapperREST apiHandler) throws ExchangeException {
+    public LiveDataProvider(DataProviderDB database) throws ExchangeException {
 
         this.database = database;
         this.apiHandler = apiHandler;

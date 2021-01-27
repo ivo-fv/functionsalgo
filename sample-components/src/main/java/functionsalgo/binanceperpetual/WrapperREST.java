@@ -32,9 +32,8 @@ import com.google.gson.JsonParser;
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.shared.Utils;
 
-//TODO get data (eg. klines) methods
 // TODO  no  magic numbers, make them constants
-public class BPWrapperREST {
+public class WrapperREST {
 
     public static final String HOST_TEST = "https://testnet.binancefuture.com";
     public static final String HOST_LIVE = "https://fapi.binance.com";
@@ -61,15 +60,9 @@ public class BPWrapperREST {
 
     // TODO security -> use char[] privateKey and overwrite it
     // TODO use keys from a resource file (remove them from this constructor params)
-    public BPWrapperREST(String privateKey, String apiKey, boolean isTest)
-            throws NoSuchAlgorithmException, InvalidKeyException {
+    public WrapperREST(String privateKey, String apiKey) throws NoSuchAlgorithmException, InvalidKeyException {
 
-        if (isTest) {
-            host = HOST_TEST;
-        } else {
-            host = HOST_LIVE;
-        }
-
+        host = HOST_LIVE;
         this.apiKey = apiKey;
         signHMAC = Mac.getInstance("HmacSHA256");
         SecretKeySpec pKey = new SecretKeySpec(privateKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -80,7 +73,15 @@ public class BPWrapperREST {
         httpClient = HttpClientBuilder.create().setDefaultRequestConfig(config).build();
     }
 
-    public BPAccountInfoWrapper getAccountInfo() throws ExchangeException {
+    public void setToTestHost() {
+        host = HOST_TEST;
+    }
+
+    public void setToLiveHost() {
+        host = HOST_LIVE;
+    }
+
+    public AccountInfoWrapper getAccountInfo() throws ExchangeException {
 
         JsonElement accInfoJsonElem = getAccountInformation();
         JsonObject accInfoJsonObj = accInfoJsonElem.getAsJsonObject();
@@ -90,10 +91,11 @@ public class BPWrapperREST {
         double totalWalletBalance = accInfoJsonObj.get("totalWalletBalance").getAsDouble();
 
         Map<String, Integer> leverages = new HashMap<>();
-        Map<String, Boolean> isSymbolIsolated = new HashMap<>();
-        Map<String, Double> longPositions = new HashMap<>();
-        Map<String, Double> shortPositions = new HashMap<>();
-        Map<String, Double> bothPositions = new HashMap<>();
+        Map<String, PositionWrapper> longPositions = new HashMap<>();
+        Map<String, PositionWrapper> shortPositions = new HashMap<>();
+        Map<String, PositionWrapper> bothPositions = new HashMap<>();
+
+        boolean isHedgeMode = true;
 
         JsonArray arrPositions = accInfoJsonObj.get("positions").getAsJsonArray();
         for (JsonElement elem : arrPositions) {
@@ -101,24 +103,34 @@ public class BPWrapperREST {
 
             String symbol = elemObj.get("symbol").getAsString();
             leverages.put(symbol, elemObj.get("leverage").getAsInt());
-            isSymbolIsolated.put(symbol, elemObj.get("isolated").getAsBoolean());
 
-            if (elemObj.get("positionSide").getAsString().equals("LONG")) {
-                longPositions.put(symbol, elemObj.get("positionAmt").getAsDouble());
-            } else if (elemObj.get("positionSide").getAsString().equals("SHORT")) {
-                shortPositions.put(symbol, elemObj.get("positionAmt").getAsDouble());
+            boolean isSymbolIsolated = elemObj.get("isolated").getAsBoolean();
+            boolean isLong = elemObj.get("positionSide").getAsString().equals("LONG");
+            boolean isBoth = elemObj.get("positionSide").getAsString().equals("BOTH");
+            double quantity = elemObj.get("positionAmt").getAsDouble();
+            double averagePrice = elemObj.get("entryPrice").getAsDouble();
+
+            if (isBoth) {
+                bothPositions.put(symbol,
+                        new PositionWrapper(symbol, quantity, averagePrice, isSymbolIsolated, isBoth, isLong));
+            } else if (isLong) {
+                longPositions.put(symbol,
+                        new PositionWrapper(symbol, quantity, averagePrice, isSymbolIsolated, isBoth, isLong));
             } else {
-                bothPositions.put(symbol, elemObj.get("positionAmt").getAsDouble());
+                shortPositions.put(symbol,
+                        new PositionWrapper(symbol, quantity, averagePrice, isSymbolIsolated, isBoth, isLong));
+            }
+
+            if (isBoth) {
+                isHedgeMode = false;
             }
         }
 
-        boolean isHedgeMode = bothPositions.isEmpty();
-
-        return new BPAccountInfoWrapper(totalInitialMargin, totalMarginBalance, totalWalletBalance, leverages,
-                isSymbolIsolated, isHedgeMode, longPositions, shortPositions, bothPositions);
+        return new AccountInfoWrapper(totalInitialMargin, totalMarginBalance, totalWalletBalance, leverages,
+                longPositions, shortPositions, bothPositions, isHedgeMode);
     }
 
-    public BPExchangeInfoWrapper getExchangeInfo() throws ExchangeException {
+    public ExchangeInfoWrapper getExchangeInfo() throws ExchangeException {
 
         JsonElement exchangeInfoJsonElem = getExchangeInformation();
         JsonObject exchangeInfoJsonObj = exchangeInfoJsonElem.getAsJsonObject();
@@ -144,7 +156,7 @@ public class BPWrapperREST {
             }
         }
 
-        return new BPExchangeInfoWrapper(symbolTrading, symbolQtyStepSize, exchangeTime);
+        return new ExchangeInfoWrapper(symbolTrading, symbolQtyStepSize, exchangeTime);
     }
 
     public void setToHedgeMode() throws ExchangeException {
@@ -157,7 +169,7 @@ public class BPWrapperREST {
         int code = resObj.get("code").getAsInt();
         String msg = resObj.get("msg").getAsString();
         if (code != 200 && code != -4059) {
-            throw new ExchangeException(code, msg, "BPWrapperREST::setToHedgeMode");
+            throw new ExchangeException(code, msg, "WrapperREST::setToHedgeMode");
         }
     }
 
@@ -171,13 +183,13 @@ public class BPWrapperREST {
         JsonObject resObj = res.getAsJsonObject();
         if (resObj.has("leverage")) {
             if (resObj.get("leverage").getAsInt() != leverage) {
-                throw new ExchangeException(-1, "incorrect leverage", "BPWrapperREST::setLeverage");
+                throw new ExchangeException(-1, "incorrect leverage", "WrapperREST::setLeverage");
             }
         } else if (resObj.has("code")) {
             throw new ExchangeException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
-                    "BPWrapperREST::setLeverage");
+                    "WrapperREST::setLeverage");
         } else {
-            throw new ExchangeException(-1, resObj.toString(), "BPWrapperREST::setLeverage");
+            throw new ExchangeException(-1, resObj.toString(), "WrapperREST::setLeverage");
         }
     }
 
@@ -192,11 +204,11 @@ public class BPWrapperREST {
         int code = resObj.get("code").getAsInt();
         String msg = resObj.get("msg").getAsString();
         if (code != 200 && code != -4046) {
-            throw new ExchangeException(code, msg, "BPWrapperREST::setToHedgeMode");
+            throw new ExchangeException(code, msg, "WrapperREST::setToHedgeMode");
         }
     }
 
-    public BPOrderResultWrapper marketOpenHedgeMode(String symbol, boolean isLong, double symbolQty)
+    public OrderResultWrapper marketOpenHedgeMode(String symbol, boolean isLong, double symbolQty)
             throws ExchangeException {
 
         long timestamp = getCurrentTimestampMillis();
@@ -208,16 +220,16 @@ public class BPWrapperREST {
 
         JsonObject resObj = res.getAsJsonObject();
         if (resObj.has("symbol")) {
-            return new BPOrderResultWrapper(resObj.get("symbol").getAsString());
+            return new OrderResultWrapper(resObj.get("symbol").getAsString());
         } else if (resObj.has("code")) {
             throw new ExchangeException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
-                    "BPWrapperREST::marketOpenHedgeMode");
+                    "WrapperREST::marketOpenHedgeMode");
         } else {
-            throw new ExchangeException(-1, resObj.toString(), "BPWrapperREST::marketOpenHedgeMode");
+            throw new ExchangeException(-1, resObj.toString(), "WrapperREST::marketOpenHedgeMode");
         }
     }
 
-    public BPOrderResultWrapper marketCloseHedgeMode(String symbol, boolean isLong, double symbolQty)
+    public OrderResultWrapper marketCloseHedgeMode(String symbol, boolean isLong, double symbolQty)
             throws ExchangeException {
 
         long timestamp = getCurrentTimestampMillis();
@@ -229,12 +241,12 @@ public class BPWrapperREST {
 
         JsonObject resObj = res.getAsJsonObject();
         if (resObj.has("symbol")) {
-            return new BPOrderResultWrapper(resObj.get("symbol").getAsString());
+            return new OrderResultWrapper(resObj.get("symbol").getAsString());
         } else if (resObj.has("code")) {
             throw new ExchangeException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
-                    "BPWrapperREST::marketOpenHedgeMode");
+                    "WrapperREST::marketOpenHedgeMode");
         } else {
-            throw new ExchangeException(-1, resObj.toString(), "BPWrapperREST::marketOpenHedgeMode");
+            throw new ExchangeException(-1, resObj.toString(), "WrapperREST::marketOpenHedgeMode");
         }
     }
 

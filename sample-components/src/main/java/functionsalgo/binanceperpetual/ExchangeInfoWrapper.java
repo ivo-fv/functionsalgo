@@ -2,13 +2,13 @@ package functionsalgo.binanceperpetual;
 
 import java.util.Map;
 
-public class BPExchangeInfoWrapper {
+public class ExchangeInfoWrapper {
 
     private Map<String, Boolean> symbolTrading;
     private Map<String, Double> symbolQtyStepSize;
     private long exchangeTime;
 
-    BPExchangeInfoWrapper(Map<String, Boolean> symbolTrading, Map<String, Double> symbolQtyStepSize,
+    ExchangeInfoWrapper(Map<String, Boolean> symbolTrading, Map<String, Double> symbolQtyStepSize,
             long exchangeTime) {
 
         this.symbolTrading = symbolTrading;

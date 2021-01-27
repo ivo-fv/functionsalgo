@@ -16,7 +16,7 @@ import java.util.TreeMap;
 
 import functionsalgo.datapoints.Interval;
 
-public class BPHistoricDataGrabber {
+public class HistoricDataGrabber {
     
     public static final String API_FUTURES_URL = "https://fapi.binance.com";
     public static final short MAX_LIMIT = 2399;
@@ -42,7 +42,7 @@ public class BPHistoricDataGrabber {
     private int responseCode = -1;
     private long cronometer = -1;
     
-    public BPHistoricDataGrabber() {
+    public HistoricDataGrabber() {
         
         currentWeightValue = -1;
         responseCode = -1;
@@ -54,7 +54,7 @@ public class BPHistoricDataGrabber {
      */
     public static void main(String[] args) throws IOException, InterruptedException {
         
-        BPHistoricDataGrabber grabber = new BPHistoricDataGrabber();
+        HistoricDataGrabber grabber = new HistoricDataGrabber();
         
         long startTime = LocalDateTime.of(2019, 4, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli();
         long endTime = LocalDateTime.of(2021, 4, 10, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli();
@@ -63,7 +63,7 @@ public class BPHistoricDataGrabber {
         
         Interval interval = Interval._5m;
         
-        String klinesDirName = BPHistoricKlines.getDirName(interval);
+        String klinesDirName = HistoricKlines.getDirName(interval);
         new File(klinesDirName).mkdirs();
         
         TreeMap<String, File> symbolFile = new TreeMap<>();
@@ -80,7 +80,7 @@ public class BPHistoricDataGrabber {
         
         System.out.println("Funding rate start");
         
-        String fundRatesFileName = BPHistoricFundingRates.getDirName();
+        String fundRatesFileName = HistoricFundingRates.getDirName();
         new File(fundRatesFileName).mkdirs();
         
         TreeMap<String, File> symbolFratesFile = new TreeMap<>();

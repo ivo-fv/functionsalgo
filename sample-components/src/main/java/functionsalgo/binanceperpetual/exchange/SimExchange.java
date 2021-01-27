@@ -5,14 +5,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import functionsalgo.binanceperpetual.dataprovider.BPHistoricFundingRates;
-import functionsalgo.binanceperpetual.dataprovider.BPHistoricKlines;
+import functionsalgo.binanceperpetual.dataprovider.HistoricFundingRates;
+import functionsalgo.binanceperpetual.dataprovider.HistoricKlines;
 import functionsalgo.datapoints.FundingRate;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;
 
-public class BPSimExchange implements BPExchange {
+public class SimExchange implements Exchange {
     
     @SuppressWarnings("unused")
     private static final boolean IS_HEDGE_MODE = true;
@@ -22,16 +22,16 @@ public class BPSimExchange implements BPExchange {
     public static final double TAKER_OPEN_CLOSE_FEE = 0.0004;
     public static final double MAKER_OPEN_CLOSE_FEE = 0.0002;
     
-    private BPSimAccount accInfo;
+    private SimAccountInfo accInfo;
     
     private long fundingIntervalMillis;
     private long nextFundingTime;
     private short defaultLeverage;
     private long updateIntervalMillis;
     
-    private BPHistoricKlines bpHistoricKlines;
-    private BPHistoricFundingRates bpHistoricFundingRates;
-    private BPSlippageModel slippageModel;
+    private HistoricKlines bpHistoricKlines;
+    private HistoricFundingRates bpHistoricFundingRates;
+    private SlippageModel slippageModel;
     
     private List<BatchedOrder> batchedMarketOrders;
     
@@ -53,20 +53,20 @@ public class BPSimExchange implements BPExchange {
         }
     }
     
-    public BPSimExchange(double walletBalance, short defaultLeverage, Interval updateInterval) {
+    public SimExchange(double walletBalance, short defaultLeverage, Interval updateInterval) {
         
-        accInfo = new BPSimAccount(walletBalance);
+        accInfo = new SimAccountInfo(walletBalance);
         this.defaultLeverage = defaultLeverage;
         updateIntervalMillis = updateInterval.toMilliseconds();
-        bpHistoricKlines = BPHistoricKlines.loadKlines(updateInterval);
-        bpHistoricFundingRates = BPHistoricFundingRates.loadFundingRates();
+        bpHistoricKlines = HistoricKlines.loadKlines(updateInterval);
+        bpHistoricFundingRates = HistoricFundingRates.loadFundingRates();
         fundingIntervalMillis = bpHistoricFundingRates.getFundingIntervalMillis();
-        slippageModel = BPSlippageModel.LoadSlippageModel(BPSlippageModel.MODEL_FILE);
+        slippageModel = SlippageModel.LoadSlippageModel(SlippageModel.MODEL_FILE);
         batchedMarketOrders = new ArrayList<>();
     }
     
     @Override
-    public BPAccount getAccountInfo(long timestamp) {
+    public AccountInfo getAccountInfo(long timestamp) {
         
         updateAccountInfo(timestamp);
         
@@ -109,7 +109,7 @@ public class BPSimExchange implements BPExchange {
         accInfo.marginBalance = accInfo.walletBalance;
         accInfo.worstCurrentMarginBalance = accInfo.walletBalance;
         
-        for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
+        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.positions.entrySet()) {
             // should use mark price for more accuracy
             Kline kline = bpHistoricKlines.getKlines(entry.getValue().symbol, timestamp, timestamp).get(0);
             if (entry.getValue().isLong) {
@@ -140,7 +140,7 @@ public class BPSimExchange implements BPExchange {
         }
         
         if (timestamp >= nextFundingTime) {
-            for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
+            for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.positions.entrySet()) {
                 FundingRate frate = bpHistoricFundingRates.getFundingRates(entry.getValue().symbol, timestamp, timestamp).get(0);
                 if (entry.getValue().isLong) {
                     double fundingRate = frate.getFundingRate();
@@ -166,7 +166,7 @@ public class BPSimExchange implements BPExchange {
         // assuming crossed margin type
         double highestInitialMargin = 0;
         
-        for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
+        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.positions.entrySet()) {
             
             highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().margin);
         }
@@ -197,7 +197,7 @@ public class BPSimExchange implements BPExchange {
         double notionalValue = openPrice * symbolQty;
         
         double marginUsed = 0;
-        for (Map.Entry<String, BPSimAccount.PositionData> entry : accInfo.positions.entrySet()) {
+        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.positions.entrySet()) {
             marginUsed += entry.getValue().margin;
         }
         if (marginUsed + (initialMargin * OPEN_LOSS_SIM_MULT) >= accInfo.marginBalance) {
@@ -297,21 +297,20 @@ public class BPSimExchange implements BPExchange {
     }
     
     @Override
-    public void batchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty) {
+    public void addBatchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty) {
         
         accInfo.ordersWithErrors.remove(orderId);
         batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, symbolQty, true));
     }
     
     @Override
-    public void batchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose) {
+    public void addBatchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose) {
         
         accInfo.ordersWithErrors.remove(orderId);
         batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, qtyToClose, false));
     }
     
-    @Override
-    public BPAccount executeBatchedOrders() {
+    public AccountInfo executeBatchedOrders() {
         
         ArrayList<BatchedOrder> tempBatch = new ArrayList<>(batchedMarketOrders);
         batchedMarketOrders.clear();
@@ -350,6 +349,18 @@ public class BPSimExchange implements BPExchange {
     public void setCrossMargin(String symbol) {
         
         // only cross margin supported so all symbols are already in cross margin mode
+    }
+
+    @Override
+    public AccountInfo executeBatchedMarketOpenOrders() throws ExchangeException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public AccountInfo executeBatchedMarketCloseOrders() throws ExchangeException {
+        // TODO Auto-generated method stub
+        return null;
     }
     
 }

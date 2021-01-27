@@ -2,31 +2,30 @@ package functionsalgo.binanceperpetual;
 
 import java.util.Map;
 
-public class BPAccountInfoWrapper {
+public class AccountInfoWrapper {
 
     private double totalInitialMargin;
     private double marginBalance;
     private double walletBalance;
     private Map<String, Integer> leverages;
-    private Map<String, Boolean> isolatedSymbols;
+    private Map<String, PositionWrapper> longPositions;
+    private Map<String, PositionWrapper> shortPositions;
+    private Map<String, PositionWrapper> bothPositions;
     private boolean isHedgeMode;
-    private Map<String, Double> longPositions;
-    private Map<String, Double> shortPositions;
-    private Map<String, Double> bothPositions;
 
-    BPAccountInfoWrapper(double totalInitialMargin, double marginBalance, double walletBalance,
-            Map<String, Integer> leverages, Map<String, Boolean> isolatedSymbols, boolean isHedgeMode,
-            Map<String, Double> longPositions, Map<String, Double> shortPositions, Map<String, Double> bothPositions) {
+    AccountInfoWrapper(double totalInitialMargin, double marginBalance, double walletBalance,
+            Map<String, Integer> leverages, Map<String, PositionWrapper> longPositions,
+            Map<String, PositionWrapper> shortPositions, Map<String, PositionWrapper> bothPositions,
+            boolean isHedgeMode) {
 
         this.totalInitialMargin = totalInitialMargin;
         this.marginBalance = marginBalance;
         this.walletBalance = walletBalance;
         this.leverages = leverages;
-        this.isolatedSymbols = isolatedSymbols;
-        this.isHedgeMode = isHedgeMode;
         this.longPositions = longPositions;
         this.shortPositions = shortPositions;
         this.bothPositions = bothPositions;
+        this.isHedgeMode = isHedgeMode;
     }
 
     public double getTotalInitialMargin() {
@@ -45,23 +44,19 @@ public class BPAccountInfoWrapper {
         return leverages;
     }
 
-    public Map<String, Boolean> getIsolatedSymbols() {
-        return isolatedSymbols;
+    public Map<String, PositionWrapper> getLongPositions() {
+        return longPositions;
+    }
+
+    public Map<String, PositionWrapper> getShortPositions() {
+        return shortPositions;
+    }
+
+    public Map<String, PositionWrapper> getBothPositions() {
+        return bothPositions;
     }
 
     public boolean isHedgeMode() {
         return isHedgeMode;
-    }
-
-    public Map<String, Double> getLongPositions() {
-        return longPositions;
-    }
-
-    public Map<String, Double> getShortPositions() {
-        return shortPositions;
-    }
-
-    public Map<String, Double> getBothPositions() {
-        return bothPositions;
     }
 }

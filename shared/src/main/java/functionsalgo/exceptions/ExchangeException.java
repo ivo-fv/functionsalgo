@@ -37,4 +37,10 @@ public class ExchangeException extends Exception {
         
         return exceptionInfo;
     }
+
+    @Override
+    public String toString() {
+        return "ExchangeException [code=" + code + ", responseMsg=" + responseMsg + ", exceptionInfo=" + exceptionInfo
+                + "]";
+    }
 }

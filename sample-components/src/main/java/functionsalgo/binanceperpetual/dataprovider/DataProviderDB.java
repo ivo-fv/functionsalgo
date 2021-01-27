@@ -6,7 +6,7 @@ import functionsalgo.datapoints.FundingRate;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 
-public interface BPDataProviderDB {
+public interface DataProviderDB {
 
     List<FundingRate> getFundingRates(String symbol, long startTime, long endTime);
 

@@ -2,6 +2,6 @@ package functionsalgo.samplestrat;
 
 import functionsalgo.aws.SampleStratDB;
 
-public class SampleStratBacktestDB implements SampleStratDB {
+public class OLDSampleStratBacktestDB implements SampleStratDB {
         
 }

@@ -8,19 +8,19 @@ import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;
 
-public class BPBacktestDataProvider implements BPDataProvider {
+public class BacktestDataProvider implements DataProvider {
     
-    HashMap<Interval, BPHistoricKlines> klines;
-    BPHistoricFundingRates fundRates;
+    HashMap<Interval, HistoricKlines> klines;
+    HistoricFundingRates fundRates;
     
-    public BPBacktestDataProvider(Interval[] intervals) {
+    public BacktestDataProvider(Interval[] intervals) {
         
         klines = new HashMap<>();
         for (Interval interval : intervals) {
-            klines.put(interval, BPHistoricKlines.loadKlines(interval));
+            klines.put(interval, HistoricKlines.loadKlines(interval));
         }
         
-        fundRates = BPHistoricFundingRates.loadFundingRates();
+        fundRates = HistoricFundingRates.loadFundingRates();
     }
     
     @Override

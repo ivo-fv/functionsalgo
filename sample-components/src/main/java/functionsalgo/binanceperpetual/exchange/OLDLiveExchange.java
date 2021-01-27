@@ -5,12 +5,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -18,7 +15,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import functionsalgo.binanceperpetual.BPWrapperREST;
+import functionsalgo.binanceperpetual.WrapperREST;
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.shared.Utils;
 
@@ -27,7 +24,7 @@ import functionsalgo.shared.Utils;
 // TODO should only do stuff like margin checks, order size and price validation, and populate accinfo and
 // batch execute orders
 // TODO position consistency
-public class BPLiveExchange implements BPExchange {
+public class OLDLiveExchange implements Exchange {
 
     /**
      * Used for quick testing
@@ -40,31 +37,29 @@ public class BPLiveExchange implements BPExchange {
         String privateKey = "b1de68c44b95077fa829d9a904b84c8edc89405ca0ae0f1768cbbdb9cabf841b";
         String apiKey = "a02d4409583be65a2721e2de10104e1e6232f402d1fd909cd9390e4aa17aefad";
 
-        BPWrapperREST apiHandler = new BPWrapperREST(privateKey, apiKey, true);
-
-        BPExchange exchange = new BPLiveExchange(apiHandler, privateKey, apiKey);
+        Exchange exchange = new OLDLiveExchange(privateKey, apiKey);
 
         System.out.println("Sending test order...");
 
-        BPAccount accInfo = exchange.getAccountInfo(System.currentTimeMillis());
+        AccountInfo accInfo = exchange.getAccountInfo(System.currentTimeMillis());
 
         if (!accInfo.isHedgeMode()) {
             exchange.setHedgeMode();
         }
-        if (accInfo.isSymbolIsolated("ETHUSDT")) {
+        if (accInfo.isSymbolIsolated("ETHUSDT", false)) {
             exchange.setCrossMargin("ETHUSDT");
         }
         if (accInfo.getLeverage("ETHUSDT") != 20) {
             exchange.setLeverage("ETHUSDT", 20);
         }
-        exchange.batchMarketOpen("id0", "ETHUSDT", true, 1.34562);
-        exchange.batchMarketClose("id1", "ETHUSDT", true, 1.34562);
-        exchange.batchMarketOpen("id2", "BTCUSDT", false, 0.02345);
-        exchange.batchMarketClose("id3", "BTCUSDT", false, 0.02345);
-        exchange.executeBatchedOrders();
+        exchange.addBatchMarketOpen("id0", "ETHUSDT", true, 1.34562);
+        exchange.addBatchMarketClose("id1", "ETHUSDT", true, 1.34562);
+        exchange.addBatchMarketOpen("id2", "BTCUSDT", false, 0.02345);
+        exchange.addBatchMarketClose("id3", "BTCUSDT", false, 0.02345);
+        // exchange.executeBatchedOrders();
     }
 
-    private static final String HOST = BPWrapperREST.HOST_LIVE;
+    private static final String HOST = WrapperREST.HOST_LIVE;
     private static final String EXCHANGE_INFO_REQ = "toremove";
     private static final String PREMIUM_INDEX_REQ = "GET /fapi/v1/premiumIndex HTTP/1.1\r\nConnection: close\r\nHost: "
             + HOST + "\r\n\r\n";
@@ -86,9 +81,9 @@ public class BPLiveExchange implements BPExchange {
 
     private Mac signHMAC;
     private String apiKey;
-    private BPWrapperREST apiHandler;
+    private WrapperREST apiHandler;
 
-    private BPLiveAccount accountInfo;
+    private OLDLiveAccountInfo accountInfo;
 
     private List<BatchedOrder> batchedMarketOrders;
 
@@ -117,14 +112,10 @@ public class BPLiveExchange implements BPExchange {
         }
     }
 
-    public BPLiveExchange(BPWrapperREST apiHandler, String privateKey, String apiKey) throws ExchangeException {
+    public OLDLiveExchange(String privateKey, String apiKey) throws ExchangeException {
 
         try {
-            this.apiKey = apiKey;
-            this.apiHandler = apiHandler;
-            signHMAC = Mac.getInstance("HmacSHA256");
-            SecretKeySpec pKey = new SecretKeySpec(privateKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            signHMAC.init(pKey);
+            apiHandler = new WrapperREST(privateKey, apiKey);
 
             batchedMarketOrders = new ArrayList<>();
 
@@ -134,9 +125,9 @@ public class BPLiveExchange implements BPExchange {
     }
 
     @Override
-    public BPAccount getAccountInfo(long timestamp) throws ExchangeException {
+    public AccountInfo getAccountInfo(long timestamp) throws ExchangeException {
 
-        accountInfo = new BPLiveAccount();
+        accountInfo = new OLDLiveAccountInfo();
 
         try {
             populateAccountBalances();
@@ -202,7 +193,7 @@ public class BPLiveExchange implements BPExchange {
     }
 
     @Override
-    public void batchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty)
+    public void addBatchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty)
             throws ExchangeException {
 
         if (accountInfo != null) {
@@ -214,7 +205,7 @@ public class BPLiveExchange implements BPExchange {
     }
 
     @Override
-    public void batchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose)
+    public void addBatchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose)
             throws ExchangeException {
 
         if (accountInfo != null) {
@@ -225,8 +216,7 @@ public class BPLiveExchange implements BPExchange {
         }
     }
 
-    @Override
-    public BPAccount executeBatchedOrders() throws ExchangeException {
+    public AccountInfo executeBatchedOrders() throws ExchangeException {
 
         // remove batch from list to execute whether or not it was successful
         ArrayList<BatchedOrder> tempBatch = new ArrayList<>(batchedMarketOrders);
@@ -273,7 +263,7 @@ public class BPLiveExchange implements BPExchange {
                 }
                 if (!found) {
                     throw new ExchangeException(-1,
-                            "Could not find expected JSON members in exchangeInfo: BPLiveExchange:executeBatchedOrders",
+                            "Could not find expected JSON members in exchangeInfo: OLDLiveExchange:executeBatchedOrders",
                             ExchangeException.PARSING_PROBLEM);
                 } else {
                     found = false;
@@ -308,7 +298,7 @@ public class BPLiveExchange implements BPExchange {
                             }
                         } else {
                             throw new ExchangeException(-1,
-                                    "Only hedge mode orders supported: BPLiveExchange:executeBatchedOrders",
+                                    "Only hedge mode orders supported: OLDLiveExchange:executeBatchedOrders",
                                     ExchangeException.INVALID_STATE);
                         }
                     } catch (Exception e) {
@@ -338,7 +328,7 @@ public class BPLiveExchange implements BPExchange {
                         }
                     } else {
                         throw new ExchangeException(-1,
-                                "Only hedge mode orders supported: BPLiveExchange:executeBatchedOrders",
+                                "Only hedge mode orders supported: OLDLiveExchange:executeBatchedOrders",
                                 ExchangeException.INVALID_STATE);
                     }
                 } catch (Exception e) {
@@ -412,7 +402,7 @@ public class BPLiveExchange implements BPExchange {
                             accountInfo.new PositionData(quantity, objElem.get("entryPrice").getAsDouble()));
                 } else {
                     throw new ExchangeException(-1,
-                            "JSON position information symbol was not LONG, SHORT or BOTH: BPLiveExchange:populateAccountPositions",
+                            "JSON position information symbol was not LONG, SHORT or BOTH: OLDLiveExchange:populateAccountPositions",
                             ExchangeException.PARSING_PROBLEM);
                 }
             }
@@ -518,5 +508,24 @@ public class BPLiveExchange implements BPExchange {
     private long getCurrentTimestampMillis() {
 
         return System.currentTimeMillis() - TIMESTAMP_LAG;
+    }
+
+    @Override
+    public AccountInfo executeBatchedMarketOpenOrders() throws ExchangeException {
+        // TODO OrderError class explicitfail, timeoutfail, timeoutok
+        // TODO gradually build AccountInfo as orders get executed and include them in
+        // ExchangeException should it throw or other exception
+
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public AccountInfo executeBatchedMarketCloseOrders() throws ExchangeException {
+        // TODO OrderError class explicitfail, timeoutfail, timeoutok
+        // TODO gradually build AccountInfo as orders get executed and include them in
+        // ExchangeException should it throw or other exception
+        // TODO Auto-generated method stub
+        return null;
     }
 }

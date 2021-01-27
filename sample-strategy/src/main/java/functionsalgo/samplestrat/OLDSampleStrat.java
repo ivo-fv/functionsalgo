@@ -3,7 +3,6 @@ package functionsalgo.samplestrat;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -13,18 +12,20 @@ import functionsalgo.aws.DynamoDBBPDataProvider;
 import functionsalgo.aws.DynamoDBCommon;
 import functionsalgo.aws.DynamoDBSampleStrat;
 import functionsalgo.aws.SampleStratDB;
-import functionsalgo.binanceperpetual.BPWrapperREST;
-import functionsalgo.binanceperpetual.dataprovider.BPBacktestDataProvider;
-import functionsalgo.binanceperpetual.dataprovider.BPDataProvider;
-import functionsalgo.binanceperpetual.dataprovider.BPLiveDataProvider;
-import functionsalgo.binanceperpetual.exchange.BPAccount;
-import functionsalgo.binanceperpetual.exchange.BPExchange;
-import functionsalgo.binanceperpetual.exchange.BPLiveExchange;
-import functionsalgo.binanceperpetual.exchange.BPSimExchange;
+import functionsalgo.binanceperpetual.WrapperREST;
+import functionsalgo.binanceperpetual.dataprovider.BacktestDataProvider;
+import functionsalgo.binanceperpetual.dataprovider.DataProvider;
+import functionsalgo.binanceperpetual.dataprovider.LiveDataProvider;
+import functionsalgo.binanceperpetual.exchange.AccountInfo;
+import functionsalgo.binanceperpetual.exchange.Exchange;
+import functionsalgo.binanceperpetual.exchange.OLDLiveExchange;
+import functionsalgo.binanceperpetual.exchange.SimExchange;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.ExchangeException;
+import functionsalgo.shared.Strategy;
+import functionsalgo.shared.TradeStatistics;
 
-public class SampleStrat {
+public class OLDSampleStrat implements Strategy {
     // TODO
 
     // TODO use credentials/key manager
@@ -40,8 +41,8 @@ public class SampleStrat {
 
     boolean isLive;
 
-    private BPExchange exchange;
-    private BPDataProvider dataProvider;
+    private Exchange exchange;
+    private DataProvider dataProvider;
 
     SampleStratDB database;
 
@@ -81,14 +82,14 @@ public class SampleStrat {
 
         @Override
         public String toString() {
-            return "Position [symbol=" + symbol + ", quantity=" + qty + ", isLong=" + isLong + "]";
+            return "PositionWrapper [symbol=" + symbol + ", quantity=" + qty + ", isLong=" + isLong + "]";
         }
 
     }
 
     List<Position> positions;
 
-    public SampleStrat(boolean isLive, boolean isTest)
+    public OLDSampleStrat(boolean isLive, boolean isTest)
             throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException {
 
         this.isLive = isLive;
@@ -96,23 +97,29 @@ public class SampleStrat {
         if (isLive) {
             DynamoDBCommon dbCommon = new DynamoDBCommon();
             database = new DynamoDBSampleStrat(dbCommon);
-            BPWrapperREST apiHandler = new BPWrapperREST(PRIVATE_KEY, API_KEY, false);
-            exchange = new BPLiveExchange(apiHandler, PRIVATE_KEY, API_KEY);
-            dataProvider = new BPLiveDataProvider(new DynamoDBBPDataProvider(dbCommon), apiHandler);
+            exchange = new OLDLiveExchange(PRIVATE_KEY, API_KEY);
+            dataProvider = new LiveDataProvider(new DynamoDBBPDataProvider(dbCommon));
         } else {
-            database = new SampleStratBacktestDB();
-            exchange = new BPSimExchange(BACKTEST_START_BALANCE, (short) 20, Interval._5m);
-            dataProvider = new BPBacktestDataProvider(new Interval[] { Interval._5m });
+            database = new OLDSampleStratBacktestDB();
+            exchange = new SimExchange(BACKTEST_START_BALANCE, (short) 20, Interval._5m);
+            dataProvider = new BacktestDataProvider(new Interval[] { Interval._5m });
         }
     }
 
-    public void execute(long timestamp) throws ExchangeException {
+    @Override
+    public TradeStatistics execute(long timestamp) {
 
         // TODO test some printlns
 
         positions = getPositions();
 
-        BPAccount acc = exchange.getAccountInfo(timestamp);
+        AccountInfo acc = null;
+        try {
+            acc = exchange.getAccountInfo(timestamp);
+        } catch (ExchangeException e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+        }
 
         long adjustedTimestamp = (timestamp / Interval._5m.toMilliseconds()) * Interval._5m.toMilliseconds();
         ArrayList<Position> posToClose = new ArrayList<>();
@@ -131,7 +138,7 @@ public class SampleStrat {
                 boolean shouldClose = openTime % 2 == 0 ? true : false;
 
                 if (shouldClose) {
-                    exchange.batchMarketClose(pos.symbol + System.currentTimeMillis(), pos.symbol, pos.isLong, pos.qty);
+                    exchange.addBatchMarketClose(pos.symbol + System.currentTimeMillis(), pos.symbol, pos.isLong, pos.qty);
                     posToClose.add(pos);
                     if (adjustedTimestamp % 2 == 0) {
                         wins++;
@@ -141,7 +148,7 @@ public class SampleStrat {
                 }
 
             } catch (ExchangeException e) {
-                logger.error("when batchMarketClose - Position: " + pos.toString() + " | posToClose: "
+                logger.error("when batchMarketClose - PositionWrapper: " + pos.toString() + " | posToClose: "
                         + posToClose.toString(), e);
             }
         }
@@ -155,17 +162,17 @@ public class SampleStrat {
         try {
             if ((int) Math.floor(acc.getMarginBalance()) % 2 == 0 && acc.getTimestamp() % 2 == 0) {
                 Position newPos = new Position("ETHUSDT", 0.5, true);
-                exchange.batchMarketOpen(newPos.symbol + System.currentTimeMillis(), newPos.symbol, newPos.isLong,
+                exchange.addBatchMarketOpen(newPos.symbol + System.currentTimeMillis(), newPos.symbol, newPos.isLong,
                         newPos.qty);
                 positions.add(newPos);
             }
 
-            acc = exchange.executeBatchedOrders();
+            // acc = exchange.executeBatchedOrders();
             logger.warn("execute - executeBatchedOrders - log a string with all batched orders");
 
             for (int i = 0; i < 3; i++) {
                 String id = i + "blahblah";
-                ExchangeException error = acc.getOrderError(id);
+                ExchangeException error = null;// acc.getOrderError(id);
                 if (error != null) {
                     // there was an error with that order, handle it. Shouldn't have altered
                     // positions before checking for errors
@@ -181,6 +188,7 @@ public class SampleStrat {
 
         appendStatistics(new Statistics(acc.getWorstCurrenttMarginBalance(), acc.getMarginBalance(),
                 acc.getWalletBalance(), wins, losses, acc.getTimestamp()));
+        return null; // TODO TradeStatistics
     }
 
     private void appendStatistics(Statistics statistics) {
@@ -208,6 +216,12 @@ public class SampleStrat {
         // database...
         // TODO Auto-generated method stub
         return null;
+    }
+
+    @Override
+    public boolean isLive() {
+        // TODO Auto-generated method stub
+        return false;
     }
 
 }

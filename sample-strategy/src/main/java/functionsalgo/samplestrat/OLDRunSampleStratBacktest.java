@@ -17,22 +17,22 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 
 import functionsalgo.exceptions.ExchangeException;
-import functionsalgo.samplestrat.SampleStrat.Statistics;
+import functionsalgo.samplestrat.OLDSampleStrat.Statistics;
 
-public class RunSampleStratBacktest {
+public class OLDRunSampleStratBacktest {
 
     private class BacktestResult {
 
         int totalTrades = 0;
         int numLosses = 0;
-        double currentStratMarginBalance = SampleStrat.BACKTEST_START_BALANCE;
+        double currentStratMarginBalance = OLDSampleStrat.BACKTEST_START_BALANCE;
         double highestStratMarginBalance = 0;
         double walletBalance = 0;
         double maxDrawdown = 0;
 
     }
 
-    private static final String PLOTS_DIR = "plots/SampleStrat";
+    private static final String PLOTS_DIR = "plots/OLDSampleStrat";
 
     private static final double LIQ_ALERT_PERC = 0.7;
 
@@ -86,12 +86,12 @@ public class RunSampleStratBacktest {
                 if (end > start) {
                     numBacktests++;
 
-                    BacktestResult result = new RunSampleStratBacktest(start, end).runBacktest();
+                    BacktestResult result = new OLDRunSampleStratBacktest(start, end).runBacktest();
 
                     System.out.println("#" + numBacktests);
                     System.out.println("From: " + LocalDateTime.ofInstant(Instant.ofEpochMilli(start), ZoneId.of("UTC"))
                             + "  To: " + LocalDateTime.ofInstant(Instant.ofEpochMilli(end), ZoneId.of("UTC")));
-                    System.out.println("Initial wallet balance: " + SampleStrat.BACKTEST_START_BALANCE);
+                    System.out.println("Initial wallet balance: " + OLDSampleStrat.BACKTEST_START_BALANCE);
                     System.out.println("Total trades: " + result.totalTrades);
                     System.out.println("Losses: " + result.numLosses);
                     System.out.println("Final strat margin balance: " + result.currentStratMarginBalance);
@@ -130,7 +130,7 @@ public class RunSampleStratBacktest {
         System.out.println("Liquidations: " + liqNum);
     }
 
-    public RunSampleStratBacktest(long startTime, long endTime) {
+    public OLDRunSampleStratBacktest(long startTime, long endTime) {
 
         this.startTime = startTime;
         this.endTime = endTime;
@@ -144,9 +144,9 @@ public class RunSampleStratBacktest {
 
     public BacktestResult runBacktest() throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException {
 
-        SampleStrat strat = new SampleStrat(false, false);
+        OLDSampleStrat strat = new OLDSampleStrat(false, false);
 
-        long interval = SampleStrat.INTERVAL.toMilliseconds();
+        long interval = OLDSampleStrat.INTERVAL.toMilliseconds();
 
         for (long t = startTime; t < endTime; t += interval) {
 

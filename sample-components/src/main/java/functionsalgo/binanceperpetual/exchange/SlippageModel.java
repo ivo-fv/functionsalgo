@@ -16,9 +16,9 @@ import java.util.Map;
 
 import com.google.gson.Gson;
 
-import functionsalgo.binanceperpetual.dataprovider.BPHistoricDataGrabber;
+import functionsalgo.binanceperpetual.dataprovider.HistoricDataGrabber;
 
-public class BPSlippageModel implements Serializable {
+public class SlippageModel implements Serializable {
     
     private static final long serialVersionUID = 1L;
     
@@ -61,11 +61,11 @@ public class BPSlippageModel implements Serializable {
             
             System.out.println("Creating Model...");
             
-            BPSlippageModel slippageModel = new BPSlippageModel();
+            SlippageModel slippageModel = new SlippageModel();
             
             Gson gson = new Gson();
             
-            for (String symbol : BPHistoricDataGrabber.SYMBOLS) {
+            for (String symbol : HistoricDataGrabber.SYMBOLS) {
                 
                 try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(new File(JSON_ORDER_BOOKS_FOLDER + "/" + symbol + ".json"))))) {
@@ -90,12 +90,12 @@ public class BPSlippageModel implements Serializable {
         } else {
             System.out.println("Generating the order book files...");
             
-            BPHistoricDataGrabber orderBookGrabber = new BPHistoricDataGrabber();
+            HistoricDataGrabber orderBookGrabber = new HistoricDataGrabber();
             
             File orderBookDir = new File(JSON_ORDER_BOOKS_FOLDER);
             orderBookDir.mkdir();
             
-            for (String symbol : BPHistoricDataGrabber.SYMBOLS) {
+            for (String symbol : HistoricDataGrabber.SYMBOLS) {
                 
                 File outFile = new File(JSON_ORDER_BOOKS_FOLDER + "/" + symbol + ".json");
                 
@@ -106,16 +106,16 @@ public class BPSlippageModel implements Serializable {
         }
     }
     
-    private BPSlippageModel() {
+    private SlippageModel() {
         
         slippages = new HashMap<>();
     }
     
-    public static BPSlippageModel LoadSlippageModel(String slippageModelFile) {
+    public static SlippageModel LoadSlippageModel(String slippageModelFile) {
         
         try (ObjectInputStream in = new ObjectInputStream(
                 new BufferedInputStream(new FileInputStream(new File(slippageModelFile))))) {
-            return (BPSlippageModel) in.readObject();
+            return (SlippageModel) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
             e.printStackTrace();
             return null;

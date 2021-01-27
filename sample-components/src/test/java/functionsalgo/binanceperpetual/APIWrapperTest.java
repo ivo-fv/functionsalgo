@@ -2,9 +2,6 @@ package functionsalgo.binanceperpetual;
 
 import static org.junit.Assert.*;
 
-import java.util.ArrayList;
-import java.util.Map;
-
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
@@ -15,44 +12,42 @@ import functionsalgo.exceptions.ExchangeException;
 //TODO externalize strings to resource bundle and gitignore , make dummy bundle warn to rename before testing
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-public class BPAPIWrapperTest {
+public class APIWrapperTest {
 
     private static final String TEST_PRIVATE_KEY = "b1de68c44b95077fa829d9a904b84c8edc89405ca0ae0f1768cbbdb9cabf841b";
     private static final String TEST_API_KEY = "a02d4409583be65a2721e2de10104e1e6232f402d1fd909cd9390e4aa17aefad";
 
-    public static BPWrapperREST bpapi;
+    public static WrapperREST bpapi;
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
-        bpapi = new BPWrapperREST(TEST_PRIVATE_KEY, TEST_API_KEY, true);
+        bpapi = new WrapperREST(TEST_PRIVATE_KEY, TEST_API_KEY);
+        bpapi.setToTestHost();
     }
 
     @Test
     public final void testGetAccountInfo() throws ExchangeException {
-        BPAccountInfoWrapper accInfo = bpapi.getAccountInfo();
+        AccountInfoWrapper accInfo = bpapi.getAccountInfo();
 
         assertTrue("totalInitialMargin", accInfo.getTotalInitialMargin() >= 0);
         assertTrue("marginBalance", accInfo.getMarginBalance() >= 0);
         assertTrue("walletBalance", accInfo.getWalletBalance() >= 0);
 
         assertTrue("leverages", accInfo.getLeverages().get("BTCUSDT") >= 1);
-        Map.Entry<String, Boolean> entry = accInfo.getIsolatedSymbols().entrySet().iterator().next();
-        String isoSymKey = entry.getKey();
-        assertTrue("isolatedSymbols", isoSymKey.length() >= 2);
 
-        Map<String, Double> longPositions = accInfo.getLongPositions();
-
-        if (longPositions.size() > 0) {
-            assertTrue("longPositions", longPositions.get("BTCUSDT") >= 0);
-            assertTrue("shortPositions", accInfo.getShortPositions().get("BTCUSDT") >= 0);
-        } else {
-            assertTrue("bothPositions", accInfo.getBothPositions().get("BTCUSDT") >= 0);
+        if (accInfo.getLongPositions().size() > 0) {
+            assertTrue("averagePrice", accInfo.getLongPositions().get("BTCUSDT").averagePrice >= 0);
+            assertFalse("isBoth", accInfo.getLongPositions().get("BTCUSDT").isBoth);
+            assertTrue("isLong", accInfo.getLongPositions().get("BTCUSDT").isLong);
+            assertTrue("quantity", accInfo.getLongPositions().get("BTCUSDT").quantity >= 0);
+            assertTrue("symbol", accInfo.getLongPositions().get("BTCUSDT").symbol.equals("BTCUSDT"));
         }
+
     }
 
     @Test
     public final void testGetExchangeInfo() throws ExchangeException {
-        BPExchangeInfoWrapper exchInfo = bpapi.getExchangeInfo();
+        ExchangeInfoWrapper exchInfo = bpapi.getExchangeInfo();
 
         assertTrue("symbolQtyStepSize", exchInfo.getSymbolQtyStepSize("BTCUSDT") >= 0);
         assertTrue("exchangeTime", exchInfo.getExchangeTime() >= 1609459200000L);
@@ -83,8 +78,8 @@ public class BPAPIWrapperTest {
         bpapi.setLeverage("BTCUSDT", 5);
         bpapi.setToHedgeMode();
 
-        BPAccountInfoWrapper accInfo = bpapi.getAccountInfo();
-        assertFalse("crossMargin isolated", accInfo.getIsolatedSymbols().get("BTCUSDT"));
+        AccountInfoWrapper accInfo = bpapi.getAccountInfo();
+        assertFalse("crossMargin isolated", accInfo.getShortPositions().get("BTCUSDT").isIsolated);
         assertTrue("leverage 1", accInfo.getLeverages().get("BTCUSDT") == 5);
         assertTrue("hedgeMode", accInfo.isHedgeMode());
 
@@ -124,16 +119,16 @@ public class BPAPIWrapperTest {
     public final void testZ2OpenSomeCheckValuesCloseCheckAgain() throws ExchangeException {
         // check, open, check, close some, check, close rest, check
         // check
-        BPExchangeInfoWrapper exchInfo = bpapi.getExchangeInfo();
+        ExchangeInfoWrapper exchInfo = bpapi.getExchangeInfo();
         double qty = 3 * exchInfo.getSymbolQtyStepSize("ETHUSDT");
-        BPAccountInfoWrapper accInfo = bpapi.getAccountInfo();
-        double prevAmt = accInfo.getLongPositions().get("ETHUSDT");
+        AccountInfoWrapper accInfo = bpapi.getAccountInfo();
+        double prevAmt = accInfo.getLongPositions().get("ETHUSDT").quantity;
         // open
         double expectedNewAtm = prevAmt + qty;
         bpapi.marketOpenHedgeMode("ETHUSDT", true, qty);
         // check
         accInfo = bpapi.getAccountInfo();
-        double newAmt = accInfo.getLongPositions().get("ETHUSDT");
+        double newAmt = accInfo.getLongPositions().get("ETHUSDT").quantity;
         assertTrue("expected amount 1", expectedNewAtm == newAmt);
         prevAmt = newAmt;
         // close some
@@ -141,13 +136,13 @@ public class BPAPIWrapperTest {
         bpapi.marketCloseHedgeMode("ETHUSDT", true, qty / 3);
         // check
         accInfo = bpapi.getAccountInfo();
-        newAmt = accInfo.getLongPositions().get("ETHUSDT");
+        newAmt = accInfo.getLongPositions().get("ETHUSDT").quantity;
         assertTrue("expected amount 2", expectedNewAtm == newAmt);
         // close rest
         bpapi.marketCloseHedgeMode("ETHUSDT", true, 999);
         // check
         accInfo = bpapi.getAccountInfo();
-        newAmt = accInfo.getLongPositions().get("ETHUSDT");
+        newAmt = accInfo.getLongPositions().get("ETHUSDT").quantity;
         assertTrue("expected amount 3", newAmt == 0);
     }
 }

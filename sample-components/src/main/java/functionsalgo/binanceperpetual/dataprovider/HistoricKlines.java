@@ -23,7 +23,7 @@ import com.google.gson.JsonSyntaxException;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 
-public class BPHistoricKlines implements Serializable {
+public class HistoricKlines implements Serializable {
     
     private static final long serialVersionUID = 1L;
     
@@ -55,7 +55,7 @@ public class BPHistoricKlines implements Serializable {
                 
                 if (!klineFiles.isEmpty()) {
                     
-                    BPHistoricKlines klinesObj = new BPHistoricKlines(interval);
+                    HistoricKlines klinesObj = new HistoricKlines(interval);
                     
                     Gson gson = new Gson();
                     
@@ -104,17 +104,17 @@ public class BPHistoricKlines implements Serializable {
         klines.put(symbol, symbolData);
     }
     
-    private BPHistoricKlines(Interval interval) {
+    private HistoricKlines(Interval interval) {
         
         this.interval = interval;
         klines = new HashMap<>();
     }
     
-    public static BPHistoricKlines loadKlines(Interval interval) {
+    public static HistoricKlines loadKlines(Interval interval) {
         
         try (ObjectInputStream in = new ObjectInputStream(
                 new BufferedInputStream(new FileInputStream(new File(KLINES_FILE + interval.toString()))))) {
-            return (BPHistoricKlines) in.readObject();
+            return (HistoricKlines) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
             e.printStackTrace();
             return null;

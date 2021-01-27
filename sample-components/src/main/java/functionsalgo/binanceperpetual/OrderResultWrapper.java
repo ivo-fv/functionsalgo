@@ -1,10 +1,10 @@
 package functionsalgo.binanceperpetual;
 
-public class BPOrderResultWrapper {
+public class OrderResultWrapper {
 
     private String symbol;
 
-    BPOrderResultWrapper(String symbol) {
+    OrderResultWrapper(String symbol) {
         this.symbol = symbol;
     }
 
