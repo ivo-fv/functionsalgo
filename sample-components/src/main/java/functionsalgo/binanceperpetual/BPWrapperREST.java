@@ -20,6 +20,8 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -28,17 +30,14 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
 import functionsalgo.exceptions.ExchangeException;
-import functionsalgo.shared.Logger;
 import functionsalgo.shared.Utils;
 
-// TODO write tests for already implemented methods
-// TODO rest of needed API methods
-// TODO remove logger requirement once singleton logger implemented
+//TODO get data (eg. klines) methods
 // TODO  no  magic numbers, make them constants
 public class BPWrapperREST {
 
-    private static final String HOST_TEST = "https://testnet.binancefuture.com";
-    private static final String HOST_LIVE = "https://fapi.binance.com";
+    public static final String HOST_TEST = "https://testnet.binancefuture.com";
+    public static final String HOST_LIVE = "https://fapi.binance.com";
 
     private static final long RECV_WINDOW = 15000;
     private static final long TIMESTAMP_LAG = 5000;
@@ -53,15 +52,16 @@ public class BPWrapperREST {
     private static final int IP_BAN_CODE = 418;
     private static final String TRADING_STATUS = "TRADING";
 
+    private static final Logger logger = LogManager.getLogger();
+
     private Mac signHMAC;
     private String apiKey;
-    private Logger logger;
     private String host;
     private CloseableHttpClient httpClient;
 
     // TODO security -> use char[] privateKey and overwrite it
-
-    public BPWrapperREST(Logger logger, String privateKey, String apiKey, boolean isTest)
+    // TODO use keys from a resource file (remove them from this constructor params)
+    public BPWrapperREST(String privateKey, String apiKey, boolean isTest)
             throws NoSuchAlgorithmException, InvalidKeyException {
 
         if (isTest) {
@@ -71,7 +71,6 @@ public class BPWrapperREST {
         }
 
         this.apiKey = apiKey;
-        this.logger = logger;
         signHMAC = Mac.getInstance("HmacSHA256");
         SecretKeySpec pKey = new SecretKeySpec(privateKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
         signHMAC.init(pKey);
@@ -305,7 +304,7 @@ public class BPWrapperREST {
                 exception = new ExchangeException(-1, e.toString(), ExchangeException.NOT_FIXABLE);
             }
 
-            Utils.sleep(RETRY_TIME_MILLIS, logger);
+            Utils.sleep(RETRY_TIME_MILLIS);
         }
 
         throw exception;
@@ -316,12 +315,11 @@ public class BPWrapperREST {
         int httpStatusCode = res.getStatusLine().getStatusCode();
 
         if (httpStatusCode == BACK_OFF_NO_SPAM_CODE || httpStatusCode == IP_BAN_CODE) {
+            // TODO test if res.getAllHeaders() gets converted .toString() auto
+            logger.error("updateLimits: limits reached  |  headers: {}  |  httpStatusCode: {}", res.getAllHeaders(),
+                    httpStatusCode);
 
-            String headersString = res.getAllHeaders().toString();
-
-            logger.log(3, -1, "limits reached", "headers: " + headersString + "; httpStatusCode: " + httpStatusCode);
-
-            Utils.sleep(LIMIT_HIT_SLEEP_TIME_MILLIS, logger);
+            Utils.sleep(LIMIT_HIT_SLEEP_TIME_MILLIS);
         }
     }
 
@@ -341,5 +339,4 @@ public class BPWrapperREST {
 
         return System.currentTimeMillis() - TIMESTAMP_LAG;
     }
-
 }

@@ -1,16 +1,19 @@
 package functionsalgo.samplestrat;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import functionsalgo.aws.DynamoDBBPDataProvider;
 import functionsalgo.aws.DynamoDBCommon;
 import functionsalgo.aws.DynamoDBSampleStrat;
-import functionsalgo.aws.LambdaLogger;
 import functionsalgo.aws.SampleStratDB;
-import functionsalgo.backtester.BacktestLogger;
-import functionsalgo.binanceperpetual.BPLimitedAPIHandler;
+import functionsalgo.binanceperpetual.BPWrapperREST;
 import functionsalgo.binanceperpetual.dataprovider.BPBacktestDataProvider;
 import functionsalgo.binanceperpetual.dataprovider.BPDataProvider;
 import functionsalgo.binanceperpetual.dataprovider.BPLiveDataProvider;
@@ -20,7 +23,6 @@ import functionsalgo.binanceperpetual.exchange.BPLiveExchange;
 import functionsalgo.binanceperpetual.exchange.BPSimExchange;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.ExchangeException;
-import functionsalgo.shared.Logger;
 
 public class SampleStrat {
     // TODO
@@ -34,12 +36,13 @@ public class SampleStrat {
 
     public static final Interval INTERVAL = Interval._5m;
 
+    private static final Logger logger = LogManager.getLogger();
+
     boolean isLive;
 
     private BPExchange exchange;
     private BPDataProvider dataProvider;
 
-    Logger logger;
     SampleStratDB database;
 
     class Statistics {
@@ -75,23 +78,28 @@ public class SampleStrat {
             this.qty = qty;
             this.isLong = isLong;
         }
+
+        @Override
+        public String toString() {
+            return "Position [symbol=" + symbol + ", quantity=" + qty + ", isLong=" + isLong + "]";
+        }
+
     }
 
     List<Position> positions;
 
-    public SampleStrat(boolean isLive, boolean isTest) throws ExchangeException {
+    public SampleStrat(boolean isLive, boolean isTest)
+            throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException {
 
         this.isLive = isLive;
 
         if (isLive) {
-            logger = new LambdaLogger(isTest);
             DynamoDBCommon dbCommon = new DynamoDBCommon();
             database = new DynamoDBSampleStrat(dbCommon);
-            BPLimitedAPIHandler apiHandler = new BPLimitedAPIHandler(logger);
-            exchange = new BPLiveExchange(logger, apiHandler, PRIVATE_KEY, API_KEY);
-            dataProvider = new BPLiveDataProvider(new DynamoDBBPDataProvider(dbCommon), logger, apiHandler);
+            BPWrapperREST apiHandler = new BPWrapperREST(PRIVATE_KEY, API_KEY, false);
+            exchange = new BPLiveExchange(apiHandler, PRIVATE_KEY, API_KEY);
+            dataProvider = new BPLiveDataProvider(new DynamoDBBPDataProvider(dbCommon), apiHandler);
         } else {
-            logger = new BacktestLogger();
             database = new SampleStratBacktestDB();
             exchange = new BPSimExchange(BACKTEST_START_BALANCE, (short) 20, Interval._5m);
             dataProvider = new BPBacktestDataProvider(new Interval[] { Interval._5m });
@@ -117,10 +125,8 @@ public class SampleStrat {
         for (Position pos : positions) {
 
             try {
-                long openTime;
-
-                openTime = dataProvider.getKlines(pos.symbol, Interval._5m, adjustedTimestamp, adjustedTimestamp).get(0)
-                        .getOpenTime();
+                long openTime = dataProvider.getKlines(pos.symbol, Interval._5m, adjustedTimestamp, adjustedTimestamp)
+                        .get(0).getOpenTime();
 
                 boolean shouldClose = openTime % 2 == 0 ? true : false;
 
@@ -135,7 +141,8 @@ public class SampleStrat {
                 }
 
             } catch (ExchangeException e) {
-                logger.log(2, -1, e.toString(), Arrays.toString(e.getStackTrace()));
+                logger.error("when batchMarketClose - Position: " + pos.toString() + " | posToClose: "
+                        + posToClose.toString(), e);
             }
         }
 
@@ -154,7 +161,7 @@ public class SampleStrat {
             }
 
             acc = exchange.executeBatchedOrders();
-            logger.log(1, 0, "SampleStrat:execute:executeBatchedOrders", "string with all batched orders");
+            logger.warn("execute - executeBatchedOrders - log a string with all batched orders");
 
             for (int i = 0; i < 3; i++) {
                 String id = i + "blahblah";
@@ -162,12 +169,12 @@ public class SampleStrat {
                 if (error != null) {
                     // there was an error with that order, handle it. Shouldn't have altered
                     // positions before checking for errors
-                    logger.log(3, -1, error.toString(), Arrays.toString(error.getStackTrace()));
+                    logger.warn("there was an order with an error - ", error);
                 }
             }
 
         } catch (ExchangeException e) {
-            logger.log(2, -1, e.toString(), Arrays.toString(e.getStackTrace()));
+            logger.error("batchMarketOpen or executeBatchedOrders", e);
         }
 
         savePositions();

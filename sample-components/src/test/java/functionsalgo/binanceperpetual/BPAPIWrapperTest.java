@@ -2,6 +2,7 @@ package functionsalgo.binanceperpetual;
 
 import static org.junit.Assert.*;
 
+import java.util.ArrayList;
 import java.util.Map;
 
 import org.junit.BeforeClass;
@@ -10,7 +11,6 @@ import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
 import functionsalgo.exceptions.ExchangeException;
-import mocks.MockLogger;
 
 //TODO externalize strings to resource bundle and gitignore , make dummy bundle warn to rename before testing
 
@@ -20,15 +20,13 @@ public class BPAPIWrapperTest {
     private static final String TEST_PRIVATE_KEY = "b1de68c44b95077fa829d9a904b84c8edc89405ca0ae0f1768cbbdb9cabf841b";
     private static final String TEST_API_KEY = "a02d4409583be65a2721e2de10104e1e6232f402d1fd909cd9390e4aa17aefad";
 
-    public static MockLogger logger;
     public static BPWrapperREST bpapi;
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
-        logger = new MockLogger();
-        bpapi = new BPWrapperREST(logger, TEST_PRIVATE_KEY, TEST_API_KEY, true);
+        bpapi = new BPWrapperREST(TEST_PRIVATE_KEY, TEST_API_KEY, true);
     }
-    
+
     @Test
     public final void testGetAccountInfo() throws ExchangeException {
         BPAccountInfoWrapper accInfo = bpapi.getAccountInfo();
@@ -107,7 +105,7 @@ public class BPAPIWrapperTest {
 
     @Test
     public final void testZ1CloseAllOpenSomeCloseAllAgain() throws ExchangeException {
-     // open a little close all of it with large qty
+        // open a little close all of it with large qty
         bpapi.marketOpenHedgeMode("BTCUSDT", true, 0.002);
         bpapi.marketCloseHedgeMode("BTCUSDT", true, 999);
         bpapi.marketOpenHedgeMode("BTCUSDT", false, 0.002);
@@ -124,7 +122,7 @@ public class BPAPIWrapperTest {
 
     @Test
     public final void testZ2OpenSomeCheckValuesCloseCheckAgain() throws ExchangeException {
-     // check, open, check, close some, check, close rest, check
+        // check, open, check, close some, check, close rest, check
         // check
         BPExchangeInfoWrapper exchInfo = bpapi.getExchangeInfo();
         double qty = 3 * exchInfo.getSymbolQtyStepSize("ETHUSDT");
@@ -152,5 +150,4 @@ public class BPAPIWrapperTest {
         newAmt = accInfo.getLongPositions().get("ETHUSDT");
         assertTrue("expected amount 3", newAmt == 0);
     }
-
 }

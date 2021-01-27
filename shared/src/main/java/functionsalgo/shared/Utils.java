@@ -1,10 +1,13 @@
 package functionsalgo.shared;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class Utils {
 
+    private static final Logger logger = LogManager.getLogger();
     private static final byte[] HEX_ARRAY = { 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70 };
 
     public static String bytesToHex(byte[] bytes) {
@@ -17,20 +20,11 @@ public class Utils {
         return new String(hexChars, StandardCharsets.UTF_8);
     }
 
-    public static void sleep(long timeMillis, Logger logger) {
-
+    public static void sleep(long timeMillis) {
         try {
             Thread.sleep(timeMillis);
-
         } catch (InterruptedException e) {
-
-            if (logger != null) {
-
-                logger.log(2, -1, e.toString(),
-                        Arrays.toString(e.getStackTrace()) + " ; " + Arrays.toString(e.getStackTrace()));
-            }
-            
+            logger.error("couldn't sleep", e);
         }
-        
     }
 }

@@ -7,18 +7,12 @@
 	<packaging>pom</packaging>
 	<version>0.0.1</version>
 	<name>Functions Algo</name>
-	<dependencies>		
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>[4.13,5.0)</version>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
+
 	<properties>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
 	</properties>
+	
 	<modules>
 		<module>shared</module>
 		<module>sample-components</module>
@@ -26,4 +20,24 @@
 		<module>sample-strategy</module>
 		<module>sample-lambda</module>
 	</modules>
+	
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>[4.13,5.0)</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<version>[2.14.0,]</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<version>[2.14.0,]</version>
+		</dependency>
+	</dependencies>
+	
 </project>

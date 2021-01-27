@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.Instant;
@@ -39,7 +41,7 @@ public class RunSampleStratBacktest {
     private static char decimalSeparator = ',';
     private File logFile;
 
-    public static void main(String[] args) throws ExchangeException {
+    public static void main(String[] args) throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException {
 
         ArrayList<Long> timeRangeStart = new ArrayList<Long>();
         // timeRangeStart.add(LocalDateTime.of(2019, 12, 1, 0,
@@ -140,7 +142,7 @@ public class RunSampleStratBacktest {
         logFile.delete();
     }
 
-    public BacktestResult runBacktest() throws ExchangeException {
+    public BacktestResult runBacktest() throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException {
 
         SampleStrat strat = new SampleStrat(false, false);
 
