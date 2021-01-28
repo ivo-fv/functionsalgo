@@ -1,5 +1,8 @@
 package functionsalgo.binanceperpetual.exchange;
 
+import functionsalgo.binanceperpetual.exchange.exceptions.OrderExecutionException;
+import functionsalgo.binanceperpetual.exchange.exceptions.SymbolNotTradingException;
+import functionsalgo.binanceperpetual.exchange.exceptions.SymbolQuantityTooLow;
 import functionsalgo.exceptions.ExchangeException;
 
 public interface Exchange {
@@ -12,11 +15,13 @@ public interface Exchange {
 
     void setCrossMargin(String symbol) throws ExchangeException;
 
-    void addBatchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty) throws ExchangeException;
+    void addBatchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty)
+            throws SymbolQuantityTooLow, SymbolNotTradingException;
 
-    void addBatchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose) throws ExchangeException;
+    void addBatchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose)
+            throws SymbolQuantityTooLow, SymbolNotTradingException;
 
-    AccountInfo executeBatchedMarketOpenOrders() throws ExchangeException;
+    AccountInfo executeBatchedMarketOpenOrders() throws OrderExecutionException;
 
-    AccountInfo executeBatchedMarketCloseOrders() throws ExchangeException;
+    AccountInfo executeBatchedMarketCloseOrders() throws OrderExecutionException;
 }

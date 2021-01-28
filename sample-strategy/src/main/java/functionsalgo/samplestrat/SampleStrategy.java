@@ -8,6 +8,9 @@ import org.apache.logging.log4j.Logger;
 import functionsalgo.binanceperpetual.exchange.AccountInfo;
 import functionsalgo.binanceperpetual.exchange.Exchange;
 import functionsalgo.binanceperpetual.exchange.LiveExchange;
+import functionsalgo.binanceperpetual.exchange.exceptions.OrderExecutionException;
+import functionsalgo.binanceperpetual.exchange.exceptions.SymbolNotTradingException;
+import functionsalgo.binanceperpetual.exchange.exceptions.SymbolQuantityTooLow;
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.shared.Strategy;
 
@@ -52,7 +55,7 @@ public class SampleStrategy implements Strategy {
         try {
             acc = closePositions(posToclose);
             // TODO if present, handle errors present in acc
-        } catch (ExchangeException e) {
+        } catch (OrderExecutionException e) {
             logger.error("closePositions failed", e);
             // the algorithm should handle these kinds of problems
         }
@@ -61,7 +64,7 @@ public class SampleStrategy implements Strategy {
         try {
             acc = openPositions(posToOpen);
             // TODO if present, handle errors present in acc
-        } catch (ExchangeException e) {
+        } catch (OrderExecutionException e) {
             logger.error("openPositions failed", e);
             // the algorithm should handle these kinds of problems
         }
@@ -74,12 +77,12 @@ public class SampleStrategy implements Strategy {
         return null;
     }
 
-    AccountInfo openPositions(List<Position> posToOpen) throws ExchangeException {
+    AccountInfo openPositions(List<Position> posToOpen) throws OrderExecutionException {
 
         for (Position pos : posToOpen) {
             try {
-                bpExch.addBatchMarketOpen(String.valueOf(lastOrderId++), pos.symbol, pos.isLong, pos.quantity);
-            } catch (ExchangeException e) {
+                bpExch.addBatchMarketOpen(pos.id, pos.symbol, pos.isLong, pos.quantity);
+            } catch (SymbolQuantityTooLow | SymbolNotTradingException e) {
                 logger.error("openPositions - batchMarketOpen failed", e);
                 // the algorithm should handle these kinds of problems
             }
@@ -87,12 +90,12 @@ public class SampleStrategy implements Strategy {
         return bpExch.executeBatchedMarketOpenOrders();
     }
 
-    AccountInfo closePositions(List<Position> posToclose) throws ExchangeException {
+    AccountInfo closePositions(List<Position> posToclose) throws OrderExecutionException {
 
         for (Position pos : posToclose) {
             try {
-                bpExch.addBatchMarketClose(String.valueOf(lastOrderId++), pos.symbol, pos.isLong, pos.quantity);
-            } catch (ExchangeException e) {
+                bpExch.addBatchMarketClose(pos.id, pos.symbol, pos.isLong, pos.quantity);
+            } catch (SymbolQuantityTooLow | SymbolNotTradingException e) {
                 logger.error("closePositions - batchMarketClose failed", e);
                 // the algorithm should handle these kinds of problems
             }

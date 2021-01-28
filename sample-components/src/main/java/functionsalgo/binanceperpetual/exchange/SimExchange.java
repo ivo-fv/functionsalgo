@@ -352,13 +352,13 @@ public class SimExchange implements Exchange {
     }
 
     @Override
-    public AccountInfo executeBatchedMarketOpenOrders() throws ExchangeException {
+    public AccountInfo executeBatchedMarketOpenOrders() {
         // TODO Auto-generated method stub
         return null;
     }
 
     @Override
-    public AccountInfo executeBatchedMarketCloseOrders() throws ExchangeException {
+    public AccountInfo executeBatchedMarketCloseOrders() {
         // TODO Auto-generated method stub
         return null;
     }

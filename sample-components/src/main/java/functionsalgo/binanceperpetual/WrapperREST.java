@@ -29,7 +29,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
-import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.shared.Utils;
 
 // TODO  no  magic numbers, make them constants
@@ -81,7 +80,7 @@ public class WrapperREST {
         host = HOST_LIVE;
     }
 
-    public AccountInfoWrapper getAccountInfo() throws ExchangeException {
+    public AccountInfoWrapper getAccountInfo() throws WrapperRESTException {
 
         JsonElement accInfoJsonElem = getAccountInformation();
         JsonObject accInfoJsonObj = accInfoJsonElem.getAsJsonObject();
@@ -130,7 +129,7 @@ public class WrapperREST {
                 longPositions, shortPositions, bothPositions, isHedgeMode);
     }
 
-    public ExchangeInfoWrapper getExchangeInfo() throws ExchangeException {
+    public ExchangeInfoWrapper getExchangeInfo() throws WrapperRESTException {
 
         JsonElement exchangeInfoJsonElem = getExchangeInformation();
         JsonObject exchangeInfoJsonObj = exchangeInfoJsonElem.getAsJsonObject();
@@ -159,7 +158,7 @@ public class WrapperREST {
         return new ExchangeInfoWrapper(symbolTrading, symbolQtyStepSize, exchangeTime);
     }
 
-    public void setToHedgeMode() throws ExchangeException {
+    public void setToHedgeMode() throws WrapperRESTException {
 
         String params = "dualSidePosition=true&recvWindow=" + RECV_WINDOW + "&timestamp=" + getCurrentTimestampMillis();
 
@@ -169,11 +168,11 @@ public class WrapperREST {
         int code = resObj.get("code").getAsInt();
         String msg = resObj.get("msg").getAsString();
         if (code != 200 && code != -4059) {
-            throw new ExchangeException(code, msg, "WrapperREST::setToHedgeMode");
+            throw new WrapperRESTException(code, msg, "WrapperREST::setToHedgeMode");
         }
     }
 
-    public void setLeverage(String symbol, int leverage) throws ExchangeException {
+    public void setLeverage(String symbol, int leverage) throws WrapperRESTException {
 
         String params = "symbol=" + symbol + "&leverage=" + leverage + "&recvWindow=" + RECV_WINDOW + "&timestamp="
                 + getCurrentTimestampMillis();
@@ -183,17 +182,19 @@ public class WrapperREST {
         JsonObject resObj = res.getAsJsonObject();
         if (resObj.has("leverage")) {
             if (resObj.get("leverage").getAsInt() != leverage) {
-                throw new ExchangeException(-1, "incorrect leverage", "WrapperREST::setLeverage");
+                throw new WrapperRESTException(WrapperRESTException.BAD_LEVERAGE, "incorrect leverage",
+                        "WrapperREST::setLeverage");
             }
         } else if (resObj.has("code")) {
-            throw new ExchangeException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
+            throw new WrapperRESTException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
                     "WrapperREST::setLeverage");
         } else {
-            throw new ExchangeException(-1, resObj.toString(), "WrapperREST::setLeverage");
+            throw new WrapperRESTException(WrapperRESTException.UNKNOWN_RESPONSE, resObj.toString(),
+                    "WrapperREST::setLeverage");
         }
     }
 
-    public void setToCrossMargin(String symbol) throws ExchangeException {
+    public void setToCrossMargin(String symbol) throws WrapperRESTException {
 
         String params = "symbol=" + symbol + "&marginType=CROSSED&recvWindow=" + RECV_WINDOW + "&timestamp="
                 + getCurrentTimestampMillis();
@@ -204,12 +205,12 @@ public class WrapperREST {
         int code = resObj.get("code").getAsInt();
         String msg = resObj.get("msg").getAsString();
         if (code != 200 && code != -4046) {
-            throw new ExchangeException(code, msg, "WrapperREST::setToHedgeMode");
+            throw new WrapperRESTException(code, msg, "WrapperREST::setToCrossMargin");
         }
     }
 
     public OrderResultWrapper marketOpenHedgeMode(String symbol, boolean isLong, double symbolQty)
-            throws ExchangeException {
+            throws WrapperRESTException {
 
         long timestamp = getCurrentTimestampMillis();
         String sideCombo = isLong ? "&side=BUY&positionSide=LONG" : "&side=SELL&positionSide=SHORT";
@@ -222,15 +223,16 @@ public class WrapperREST {
         if (resObj.has("symbol")) {
             return new OrderResultWrapper(resObj.get("symbol").getAsString());
         } else if (resObj.has("code")) {
-            throw new ExchangeException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
+            throw new WrapperRESTException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
                     "WrapperREST::marketOpenHedgeMode");
         } else {
-            throw new ExchangeException(-1, resObj.toString(), "WrapperREST::marketOpenHedgeMode");
+            throw new WrapperRESTException(WrapperRESTException.UNKNOWN_RESPONSE, resObj.toString(),
+                    "WrapperREST::marketOpenHedgeMode");
         }
     }
 
     public OrderResultWrapper marketCloseHedgeMode(String symbol, boolean isLong, double symbolQty)
-            throws ExchangeException {
+            throws WrapperRESTException {
 
         long timestamp = getCurrentTimestampMillis();
         String sideCombo = isLong ? "&side=SELL&positionSide=LONG" : "&side=BUY&positionSide=SHORT";
@@ -243,14 +245,15 @@ public class WrapperREST {
         if (resObj.has("symbol")) {
             return new OrderResultWrapper(resObj.get("symbol").getAsString());
         } else if (resObj.has("code")) {
-            throw new ExchangeException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
-                    "WrapperREST::marketOpenHedgeMode");
+            throw new WrapperRESTException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
+                    "WrapperREST::marketCloseHedgeMode");
         } else {
-            throw new ExchangeException(-1, resObj.toString(), "WrapperREST::marketOpenHedgeMode");
+            throw new WrapperRESTException(WrapperRESTException.UNKNOWN_RESPONSE, resObj.toString(),
+                    "WrapperREST::marketCloseHedgeMode");
         }
     }
 
-    private JsonElement apiPostSignedRequestGetResponse(String endpoint, String params) throws ExchangeException {
+    private JsonElement apiPostSignedRequestGetResponse(String endpoint, String params) throws WrapperRESTException {
 
         String signature = Utils.bytesToHex(signHMAC.doFinal(params.getBytes(StandardCharsets.UTF_8)));
         String uri = host + endpoint + params + "&signature=" + signature;
@@ -261,7 +264,7 @@ public class WrapperREST {
         return retrySendRequestGetParsedResponse(httpPost);
     }
 
-    private JsonElement getAccountInformation() throws ExchangeException {
+    private JsonElement getAccountInformation() throws WrapperRESTException {
 
         String params = "recvWindow=" + RECV_WINDOW + "&timestamp=" + getCurrentTimestampMillis();
         String signature = Utils.bytesToHex(signHMAC.doFinal(params.getBytes(StandardCharsets.UTF_8)));
@@ -275,7 +278,7 @@ public class WrapperREST {
         return res;
     }
 
-    private JsonElement getExchangeInformation() throws ExchangeException {
+    private JsonElement getExchangeInformation() throws WrapperRESTException {
 
         String uri = host + "/fapi/v1/exchangeInfo";
         HttpGet httpget = new HttpGet(uri);
@@ -285,21 +288,22 @@ public class WrapperREST {
         return res;
     }
 
-    private void checkErrors(JsonElement json) throws ExchangeException {
+    private void checkErrors(JsonElement json) throws WrapperRESTException {
         if (json.isJsonObject()) {
             JsonObject objElem = json.getAsJsonObject();
             if (objElem.has("code") && objElem.has("msg")) {
                 int code = objElem.get("code").getAsInt();
                 if (code < NO_ERROR_CODE_LOWER_BOUND || code > NO_ERROR_CODE_UPPER_BOUND) {
-                    throw new ExchangeException(code, objElem.get("msg").getAsString(), ExchangeException.API_ERROR);
+                    throw new WrapperRESTException(code, objElem.get("msg").getAsString(), "WrapperREST::checkErrors");
                 }
             }
         }
     }
 
-    private JsonElement retrySendRequestGetParsedResponse(HttpUriRequest request) throws ExchangeException {
+    private JsonElement retrySendRequestGetParsedResponse(HttpUriRequest request) throws WrapperRESTException {
 
-        ExchangeException exception = new ExchangeException(-1, "Retry problem", ExchangeException.NOT_FIXABLE);
+        WrapperRESTException exception = new WrapperRESTException(WrapperRESTException.UNKNOWN_ERROR, "Retry problem",
+                "WrapperREST::retrySendRequestGetParsedResponse");
 
         for (int i = 0; i < NUM_RETRIES; i++) {
             try (CloseableHttpResponse res = httpClient.execute(request)) {
@@ -310,10 +314,14 @@ public class WrapperREST {
                 String json = EntityUtils.toString(entity, StandardCharsets.UTF_8);
                 return parseJsonString(json);
 
-            } catch (ExchangeException e) {
+            } catch (WrapperRESTException e) {
                 exception = e;
-            } catch (ParseException | IOException e) {
-                exception = new ExchangeException(-1, e.toString(), ExchangeException.NOT_FIXABLE);
+            } catch (ParseException e) {
+                exception = new WrapperRESTException(WrapperRESTException.PARSE_ERROR, e.toString(),
+                        "WrapperREST::retrySendRequestGetParsedResponse");
+            } catch (IOException e) {
+                exception = new WrapperRESTException(WrapperRESTException.CONNECTION_ERROR, e.toString(),
+                        "WrapperREST::retrySendRequestGetParsedResponse");
             }
 
             Utils.sleep(RETRY_TIME_MILLIS);
@@ -327,7 +335,6 @@ public class WrapperREST {
         int httpStatusCode = res.getStatusLine().getStatusCode();
 
         if (httpStatusCode == BACK_OFF_NO_SPAM_CODE || httpStatusCode == IP_BAN_CODE) {
-            // TODO test if res.getAllHeaders() gets converted .toString() auto
             logger.error("updateLimits: limits reached  |  headers: {}  |  httpStatusCode: {}", res.getAllHeaders(),
                     httpStatusCode);
 
@@ -335,15 +342,17 @@ public class WrapperREST {
         }
     }
 
-    private JsonElement parseJsonString(String jsonString) throws ExchangeException {
+    private JsonElement parseJsonString(String jsonString) throws WrapperRESTException {
 
         try {
             if (jsonString == null || jsonString.length() < 2) {
-                throw new ExchangeException(-1, "json string too small or null", ExchangeException.NOT_FIXABLE);
+                throw new WrapperRESTException(WrapperRESTException.BAD_RESPONSE_TO_PARSE,
+                        "json string too small or null", "WrapperREST::parseJsonString");
             }
             return JsonParser.parseString(jsonString);
         } catch (JsonParseException e) {
-            throw new ExchangeException(-1, e.toString(), ExchangeException.PARSING_PROBLEM);
+            throw new WrapperRESTException(WrapperRESTException.PARSE_ERROR, e.toString(),
+                    "WrapperREST::parseJsonString");
         }
     }
 

@@ -121,4 +121,10 @@ class SimAccountInfo implements AccountInfo {
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public double getTotalInitialMargin() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

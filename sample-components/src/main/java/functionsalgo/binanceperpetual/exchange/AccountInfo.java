@@ -25,4 +25,6 @@ public interface AccountInfo {
     boolean isHedgeMode();
 
     List<OrderError> getOrderErrors();
+
+    double getTotalInitialMargin();
 }

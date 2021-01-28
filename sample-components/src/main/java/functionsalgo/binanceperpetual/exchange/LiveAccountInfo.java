@@ -7,13 +7,20 @@ import functionsalgo.binanceperpetual.PositionWrapper;
 
 public class LiveAccountInfo implements AccountInfo {
 
-    public double marginBalance;
-    public double walletBalance;
-    public Map<String, Integer> leverages;
-    public Map<String, PositionWrapper> longPositions;
-    public Map<String, PositionWrapper> shortPositions;
-    public boolean isHedgeMode;
-    public long exchangeTime;
+    double marginBalance;
+    double walletBalance;
+    Map<String, Integer> leverages;
+    Map<String, PositionWrapper> longPositions;
+    Map<String, PositionWrapper> shortPositions;
+    boolean isHedgeMode;
+    long exchangeTime;
+    double totalInitialMargin;
+    List<OrderError> errors;
+
+    @Override
+    public double getTotalInitialMargin() {
+        return totalInitialMargin;
+    }
 
     @Override
     public long getTimestamp() {
@@ -59,8 +66,7 @@ public class LiveAccountInfo implements AccountInfo {
 
     @Override
     public List<OrderError> getOrderErrors() {
-        // TODO Auto-generated method stub
-        return null;
+        return errors;
     }
 
     @Override
