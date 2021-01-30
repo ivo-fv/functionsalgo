@@ -4,7 +4,7 @@ public class OrderResultWrapper {
 
     private String symbol;
 
-    OrderResultWrapper(String symbol) {
+    public OrderResultWrapper(String symbol) {
         this.symbol = symbol;
     }
 

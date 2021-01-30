@@ -4,8 +4,9 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.ArgumentMatchers.any;
 
-import java.lang.reflect.Field;
 import java.util.HashMap;
 
 import org.junit.BeforeClass;
@@ -16,9 +17,11 @@ import org.mockito.Mockito;
 
 import functionsalgo.binanceperpetual.AccountInfoWrapper;
 import functionsalgo.binanceperpetual.ExchangeInfoWrapper;
+import functionsalgo.binanceperpetual.OrderResultWrapper;
 import functionsalgo.binanceperpetual.PositionWrapper;
 import functionsalgo.binanceperpetual.WrapperREST;
 import functionsalgo.binanceperpetual.WrapperRESTException;
+import functionsalgo.binanceperpetual.exchange.exceptions.OrderExecutionException;
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolNotTradingException;
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolQuantityTooLow;
 
@@ -33,7 +36,7 @@ public class LiveExchangeTest {
         api = Mockito.mock(WrapperREST.class);
         exchange = new LiveExchange("test", "test");
         exchange.api = api;
-
+        // getExchangeInfo stub
         HashMap<String, Boolean> symbolTrading = new HashMap<>();
         symbolTrading.put("BTCUSDT", true);
         symbolTrading.put("ETHUSDT", true);
@@ -43,11 +46,7 @@ public class LiveExchangeTest {
         symbolQtyStepSize.put("ETHUSDT", 0.001);
         ExchangeInfoWrapper stubExchInfo = new ExchangeInfoWrapper(symbolTrading, symbolQtyStepSize, 1611876740899L);
         doReturn(stubExchInfo).when(api).getExchangeInfo();
-    }
-
-    @Test
-    public final void testGetAccountInfo() throws WrapperRESTException {
-
+        // getAccountInfo stub
         HashMap<String, Integer> leverages = new HashMap<>();
         leverages.put("BTCUSDT", 10);
         HashMap<String, PositionWrapper> longs = new HashMap<>();
@@ -56,6 +55,10 @@ public class LiveExchangeTest {
         HashMap<String, PositionWrapper> both = new HashMap<>();
         AccountInfoWrapper stubAccInfo = new AccountInfoWrapper(1000, 1200, 1300, leverages, longs, shorts, both, true);
         doReturn(stubAccInfo).when(api).getAccountInfo();
+    }
+
+    @Test
+    public final void testGetAccountInfo() throws WrapperRESTException {
 
         AccountInfo accInfo = exchange.getAccountInfo(0);
 
@@ -143,13 +146,29 @@ public class LiveExchangeTest {
     }
 
     @Test
-    public final void testZ2AddBatchMarketOpenAndExecuteBatchedMarketOpenOrders() {
+    public final void testZ2AddBatchMarketOpenAndExecuteBatchedMarketOpenOrders()
+            throws SymbolQuantityTooLow, SymbolNotTradingException, OrderExecutionException, WrapperRESTException {
 
-        // addbatch -> stub markeOpenHedgeMode -> execute -> verify wrapperapi with
-        // expected params -> assert AccountInfo consistent (must stub getinfo too
-        // probably, or do it once setupbeforeclass)
+        exchange.addBatchMarketOpen("1234", "BTCUSDT", false, 1);
+        exchange.addBatchMarketOpen("1235", "ETHUSDT", true, 1.2);
+        exchange.addBatchMarketOpen("1235", "ETHUSDT", true, 0.03);
 
-        fail("not implemented yet");
+        doAnswer(i -> {
+            String symbol = i.getArgument(0);
+            return new OrderResultWrapper(symbol); // TODO test where this triggers INCONSISTENT_ORDER_RESULT check
+                                                   // ordererror unknown
+        }).when(api).marketOpenHedgeMode(any(String.class), any(Boolean.class), any(Double.class));
+        // TODO test where it throws with code (check ordererror failed) and another
+        // with UNKNOWN_RESPONSE (check ordererror unknown)
+
+        AccountInfo retAccInfo = exchange.executeBatchedMarketOpenOrders();
+
+        verify(api, times(1)).marketOpenHedgeMode("BTCUSDT", false, 1);
+        verify(api, times(1)).marketOpenHedgeMode("ETHUSDT", true, 1.2);
+        verify(api, times(1)).marketOpenHedgeMode("ETHUSDT", true, 0.03);
+        verify(api, times(3)).marketOpenHedgeMode(any(String.class), any(Boolean.class), any(Double.class));
+
+        assertTrue("errors must be empty", retAccInfo.getOrderErrors().isEmpty());
     }
 
     @Test
