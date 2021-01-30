@@ -6,17 +6,20 @@ public class WrapperRESTException extends ExchangeException {
 
     private static final long serialVersionUID = 1L;
 
-    public static final int BAD_LEVERAGE = -10;
-    public static final int UNKNOWN_RESPONSE = -2;
-    public static final int UNKNOWN_ERROR = -1;
-    public static final int PARSE_ERROR = -3;
-    public static final int CONNECTION_ERROR = -4;
-    public static final int BAD_RESPONSE_TO_PARSE = -5;
-
-    public static final int LOCAL_ERROR_BOUNDARY = 99;
+    public static final String BAD_LEVERAGE = "BAD_LEVERAGE";
+    public static final String UNKNOWN_RESPONSE = "UNKNOWN_RESPONSE";
+    public static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
+    public static final String PARSE_ERROR = "PARSE_ERROR";
+    public static final String CONNECTION_ERROR = "CONNECTION_ERROR";
+    public static final String BAD_RESPONSE_TO_PARSE = "BAD_RESPONSE_TO_PARSE";
+    public static final String INCONSISTENT_ORDER_RESULT = "INCONSISTENT_ORDER_RESULT";
 
     public WrapperRESTException(int code, String responseMsg, String exceptionInfo) {
         super(code, responseMsg, exceptionInfo);
+    }
+
+    public WrapperRESTException(String errorType, String msg1, String msg2) {
+        super(errorType, msg1, msg2);
     }
 
 }

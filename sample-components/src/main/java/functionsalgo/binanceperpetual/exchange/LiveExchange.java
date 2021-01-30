@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 
 import functionsalgo.binanceperpetual.AccountInfoWrapper;
 import functionsalgo.binanceperpetual.ExchangeInfoWrapper;
+import functionsalgo.binanceperpetual.OrderResultWrapper;
 import functionsalgo.binanceperpetual.WrapperREST;
 import functionsalgo.binanceperpetual.WrapperRESTException;
 import functionsalgo.binanceperpetual.exchange.exceptions.OrderExecutionException;
@@ -119,15 +120,19 @@ public class LiveExchange implements Exchange {
 
         for (BatchedOrder order : batchedMarketOpenOrders) {
             try {
-                api.marketOpenHedgeMode(order.symbol, order.isLong, order.quantity);
+                OrderResultWrapper res = api.marketOpenHedgeMode(order.symbol, order.isLong, order.quantity);
+                if (!res.getSymbol().equals(order.symbol)) {
+                    throw new WrapperRESTException(WrapperRESTException.INCONSISTENT_ORDER_RESULT,
+                            "Result symbol doesn't match order symbol", "LiveExchange::executeBatchedMarketOpenOrders");
+                }
             } catch (WrapperRESTException e) {
                 logger.error("executeBatchedMarketOpenOrders - marketOpenHedgeMode", e);
                 logger.error("executeBatchedMarketOpenOrders - marketOpenHedgeMode - {} {} {} {}", order.orderId,
                         order.symbol, order.isLong, order.quantity);
 
-                int status = OrderError.FAILED;
-                if (e.getCode() <= WrapperRESTException.LOCAL_ERROR_BOUNDARY) {
-                    status = OrderError.UNKNOWN;
+                String status = OrderError.FAILED; // assume exchange returned a code
+                if (e.getErrorType().length() >= 1) {
+                    status = OrderError.UNKNOWN; // exchange didn't return a known code
                 }
                 errors.add(new OrderError(order.orderId, status, e));
             }
@@ -152,15 +157,20 @@ public class LiveExchange implements Exchange {
 
         for (BatchedOrder order : batchedMarketCloseOrders) {
             try {
-                api.marketCloseHedgeMode(order.symbol, order.isLong, order.quantity);
+                OrderResultWrapper res = api.marketCloseHedgeMode(order.symbol, order.isLong, order.quantity);
+                if (!res.getSymbol().equals(order.symbol)) {
+                    throw new WrapperRESTException(WrapperRESTException.INCONSISTENT_ORDER_RESULT,
+                            "Result symbol doesn't match order symbol",
+                            "LiveExchange::executeBatchedMarketCloseOrders");
+                }
             } catch (WrapperRESTException e) {
                 logger.error("executeBatchedMarketCloseOrders - marketCloseHedgeMode", e);
                 logger.error("executeBatchedMarketCloseOrders - marketCloseHedgeMode - {} {} {} {}", order.orderId,
                         order.symbol, order.isLong, order.quantity);
 
-                int status = OrderError.FAILED;
-                if (e.getCode() <= WrapperRESTException.LOCAL_ERROR_BOUNDARY) {
-                    status = OrderError.UNKNOWN;
+                String status = OrderError.FAILED; // assume exchange returned a code
+                if (e.getErrorType().length() >= 1) {
+                    status = OrderError.UNKNOWN; // exchange didn't return a known code
                 }
                 errors.add(new OrderError(order.orderId, status, e));
             }

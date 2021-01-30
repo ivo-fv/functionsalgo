@@ -29,7 +29,7 @@ public class LiveExchangeTest {
     @Test
     public final void test() {
         fail("Not yet implemented"); // TODO
-        asdasds
+        mock wrapper that returns predefined values , open and close add their arguments to structures that are returned in info
     }
 
 }

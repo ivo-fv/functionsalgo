@@ -14,13 +14,20 @@ public class ExchangeException extends Exception {
     public static final int INIT_FAILED = 1;
 
     int code;
+    String errorType;
     String responseMsg;
     String exceptionInfo;
     Throwable wrappedException;
 
     public ExchangeException(int code, String responseMsg, String exceptionInfo) {
-
         this(code, responseMsg, exceptionInfo, null);
+    }
+
+    public ExchangeException(String errorType, String msg1, String msg2) {
+        super(errorType + " ; " + msg1 + " ; " + msg2);
+        this.errorType = errorType;
+        this.responseMsg = msg1;
+        this.exceptionInfo = msg2;
     }
 
     public ExchangeException(int code, String responseMsg, String exceptionInfo, Throwable e) {
@@ -34,6 +41,14 @@ public class ExchangeException extends Exception {
     public int getCode() {
 
         return code;
+    }
+
+    public String getErrorType() {
+        return errorType;
+    }
+
+    public void setErrorType(String errorType) {
+        this.errorType = errorType;
     }
 
     public String getResponseMsg() {
@@ -52,7 +67,7 @@ public class ExchangeException extends Exception {
 
     @Override
     public String toString() {
-        return "ExchangeException [code=" + code + ", responseMsg=" + responseMsg + ", exceptionInfo=" + exceptionInfo
-                + "]";
+        return "ExchangeException [code=" + code + ", errorType=" + errorType + ", responseMsg=" + responseMsg
+                + ", exceptionInfo=" + exceptionInfo + ", wrappedException=" + wrappedException + "]";
     }
 }
