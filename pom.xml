@@ -12,7 +12,7 @@
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
 	</properties>
-	
+
 	<modules>
 		<module>shared</module>
 		<module>sample-components</module>
@@ -20,7 +20,7 @@
 		<module>sample-strategy</module>
 		<module>sample-lambda</module>
 	</modules>
-	
+
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
@@ -38,6 +38,13 @@
 			<artifactId>log4j-core</artifactId>
 			<version>[2.14.0,]</version>
 		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>[3.7.7,4.0)</version>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
-	
+
 </project>

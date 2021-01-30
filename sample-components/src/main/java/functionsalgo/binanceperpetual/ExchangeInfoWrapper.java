@@ -8,7 +8,7 @@ public class ExchangeInfoWrapper {
     private Map<String, Double> symbolQtyStepSize;
     private long exchangeTime;
 
-    ExchangeInfoWrapper(Map<String, Boolean> symbolTrading, Map<String, Double> symbolQtyStepSize,
+    public ExchangeInfoWrapper(Map<String, Boolean> symbolTrading, Map<String, Double> symbolQtyStepSize,
             long exchangeTime) {
 
         this.symbolTrading = symbolTrading;

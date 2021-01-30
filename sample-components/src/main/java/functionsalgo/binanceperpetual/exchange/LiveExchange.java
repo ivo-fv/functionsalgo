@@ -35,7 +35,7 @@ public class LiveExchange implements Exchange {
         }
     }
 
-    @Override
+    @Override // TODO getAccountInfo() (no param)
     public AccountInfo getAccountInfo(long timestamp) throws WrapperRESTException {
 
         LiveAccountInfo acc = new LiveAccountInfo();
@@ -170,7 +170,7 @@ public class LiveExchange implements Exchange {
 
                 String status = OrderError.FAILED; // assume exchange returned a code
                 if (e.getErrorType().length() >= 1) {
-                    status = OrderError.UNKNOWN; // exchange didn't return a known code
+                    status = OrderError.UNKNOWN; // exchange didn't return a known code or there was an inconsistency
                 }
                 errors.add(new OrderError(order.orderId, status, e));
             }

@@ -13,7 +13,7 @@ public class AccountInfoWrapper {
     private Map<String, PositionWrapper> bothPositions;
     private boolean isHedgeMode;
 
-    AccountInfoWrapper(double totalInitialMargin, double marginBalance, double walletBalance,
+    public AccountInfoWrapper(double totalInitialMargin, double marginBalance, double walletBalance,
             Map<String, Integer> leverages, Map<String, PositionWrapper> longPositions,
             Map<String, PositionWrapper> shortPositions, Map<String, PositionWrapper> bothPositions,
             boolean isHedgeMode) {
