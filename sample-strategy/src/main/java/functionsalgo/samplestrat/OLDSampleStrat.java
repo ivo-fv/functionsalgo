@@ -18,8 +18,10 @@ import functionsalgo.binanceperpetual.dataprovider.DataProvider;
 import functionsalgo.binanceperpetual.dataprovider.LiveDataProvider;
 import functionsalgo.binanceperpetual.exchange.AccountInfo;
 import functionsalgo.binanceperpetual.exchange.Exchange;
-import functionsalgo.binanceperpetual.exchange.OLDLiveExchange;
+import functionsalgo.binanceperpetual.exchange.LiveExchange;
 import functionsalgo.binanceperpetual.exchange.SimExchange;
+import functionsalgo.binanceperpetual.exchange.exceptions.SymbolNotTradingException;
+import functionsalgo.binanceperpetual.exchange.exceptions.SymbolQuantityTooLow;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.shared.Strategy;
@@ -30,8 +32,8 @@ public class OLDSampleStrat implements Strategy {
 
     // TODO use credentials/key manager
     // currently just test keys of dummy test account
-    private static final String PRIVATE_KEY = "b1de68c44b95077fa829d9a904b84c8edc89405ca0ae0f1768cbbdb9cabf841b";
-    private static final String API_KEY = "a02d4409583be65a2721e2de10104e1e6232f402d1fd909cd9390e4aa17aefad";
+    private static final String PRIVATE_KEY = "";
+    private static final String API_KEY = "";
 
     public static final double BACKTEST_START_BALANCE = 100;
 
@@ -97,7 +99,7 @@ public class OLDSampleStrat implements Strategy {
         if (isLive) {
             DynamoDBCommon dbCommon = new DynamoDBCommon();
             database = new DynamoDBSampleStrat(dbCommon);
-            exchange = new OLDLiveExchange(PRIVATE_KEY, API_KEY);
+            exchange = new LiveExchange(PRIVATE_KEY, API_KEY);
             dataProvider = new LiveDataProvider(new DynamoDBBPDataProvider(dbCommon));
         } else {
             database = new OLDSampleStratBacktestDB();
@@ -138,7 +140,8 @@ public class OLDSampleStrat implements Strategy {
                 boolean shouldClose = openTime % 2 == 0 ? true : false;
 
                 if (shouldClose) {
-                    exchange.addBatchMarketClose(pos.symbol + System.currentTimeMillis(), pos.symbol, pos.isLong, pos.qty);
+                    exchange.addBatchMarketClose(pos.symbol + System.currentTimeMillis(), pos.symbol, pos.isLong,
+                            pos.qty);
                     posToClose.add(pos);
                     if (adjustedTimestamp % 2 == 0) {
                         wins++;
@@ -150,6 +153,12 @@ public class OLDSampleStrat implements Strategy {
             } catch (ExchangeException e) {
                 logger.error("when batchMarketClose - PositionWrapper: " + pos.toString() + " | posToClose: "
                         + posToClose.toString(), e);
+            } catch (SymbolQuantityTooLow e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (SymbolNotTradingException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
             }
         }
 
@@ -180,8 +189,12 @@ public class OLDSampleStrat implements Strategy {
                 }
             }
 
-        } catch (ExchangeException e) {
-            logger.error("batchMarketOpen or executeBatchedOrders", e);
+        } catch (SymbolQuantityTooLow e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (SymbolNotTradingException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
 
         savePositions();

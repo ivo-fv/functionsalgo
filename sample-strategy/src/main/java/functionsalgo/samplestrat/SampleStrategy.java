@@ -1,6 +1,8 @@
 package functionsalgo.samplestrat;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,13 +15,9 @@ import functionsalgo.binanceperpetual.exchange.exceptions.SymbolNotTradingExcept
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolQuantityTooLow;
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.shared.Strategy;
+import functionsalgo.shared.Utils;
 
 public class SampleStrategy implements Strategy {
-
-    // TODO use credentials/key manager
-    // currently just test keys of dummy test account
-    private static final String PRIVATE_KEY = "b1de68c44b95077fa829d9a904b84c8edc89405ca0ae0f1768cbbdb9cabf841b";
-    private static final String API_KEY = "a02d4409583be65a2721e2de10104e1e6232f402d1fd909cd9390e4aa17aefad";
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -29,10 +27,11 @@ public class SampleStrategy implements Strategy {
     boolean live = false;
     int lastOrderId;
 
-    public SampleStrategy(boolean isLive) throws ExchangeException {
+    public SampleStrategy(boolean isLive) throws ExchangeException, ClassNotFoundException, IOException {
         if (isLive) {
             live = true;
-            bpExch = new LiveExchange(PRIVATE_KEY, API_KEY);
+            Properties keys = Utils.getProperties("apikeys_ignore.properties", "apikeys.properties");
+            bpExch = new LiveExchange(keys.getProperty("privateKey"), keys.getProperty("publicApiKey"));
         } else {
             // TODO simexchange
         }

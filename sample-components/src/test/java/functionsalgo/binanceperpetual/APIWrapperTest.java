@@ -2,26 +2,27 @@ package functionsalgo.binanceperpetual;
 
 import static org.junit.Assert.*;
 
+import java.util.Properties;
+
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
 import functionsalgo.exceptions.ExchangeException;
+import functionsalgo.shared.Utils;
 
 //TODO externalize strings to resource bundle and gitignore , make dummy bundle warn to rename before testing
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class APIWrapperTest {
 
-    private static final String TEST_PRIVATE_KEY = "b1de68c44b95077fa829d9a904b84c8edc89405ca0ae0f1768cbbdb9cabf841b";
-    private static final String TEST_API_KEY = "a02d4409583be65a2721e2de10104e1e6232f402d1fd909cd9390e4aa17aefad";
-
     public static WrapperREST bpapi;
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
-        bpapi = new WrapperREST(TEST_PRIVATE_KEY, TEST_API_KEY);
+        Properties keys = Utils.getProperties("apikeys_ignore.properties", "apikeys.properties");
+        bpapi = new WrapperREST(keys.getProperty("privateKey"), keys.getProperty("publicApiKey"));
         bpapi.setToTestHost();
     }
 

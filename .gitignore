@@ -1,5 +1,6 @@
 /target/
 **/*prvsgn*
+**/*ignore*
 misccode.txt
 /data/
 /plots/
