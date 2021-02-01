@@ -1,2 +1,2 @@
 # functionsalgo
-very early version, still in development
+Very early version, still in development.
