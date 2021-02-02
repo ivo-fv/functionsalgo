@@ -4,14 +4,15 @@ import functionsalgo.exceptions.ExchangeException;
 
 public class OrderError {
 
-    public static final String UNKNOWN = "UNKNOWN";
-    public static final String FAILED = "FAILED";
+    public enum OrderStatus {
+        UNKNOWN, FAILED
+    }
 
     String orderId;
-    String status;
+    OrderStatus status;
     ExchangeException exception;
 
-    public OrderError(String orderId, String status, ExchangeException exception) {
+    public OrderError(String orderId, OrderStatus status, ExchangeException exception) {
         super();
         this.orderId = orderId;
         this.status = status;
@@ -22,7 +23,7 @@ public class OrderError {
         return orderId;
     }
 
-    public String getStatus() {
+    public OrderStatus getStatus() {
         return status;
     }
 

@@ -131,9 +131,9 @@ public class LiveExchange implements Exchange {
                 logger.error("executeBatchedMarketOpenOrders - marketOpenHedgeMode - {} {} {} {}", order.orderId,
                         order.symbol, order.isLong, order.quantity);
 
-                String status = OrderError.FAILED; // assume exchange returned a code
+                OrderError.OrderStatus status = OrderError.OrderStatus.FAILED; // assume exchange returned a code
                 if (e.getErrorType() != null) {
-                    status = OrderError.UNKNOWN; // exchange didn't return a known code
+                    status = OrderError.OrderStatus.UNKNOWN; // exchange didn't return a known code
                 }
                 errors.add(new OrderError(order.orderId, status, e));
             }
@@ -169,9 +169,9 @@ public class LiveExchange implements Exchange {
                 logger.error("executeBatchedMarketCloseOrders - marketCloseHedgeMode - {} {} {} {}", order.orderId,
                         order.symbol, order.isLong, order.quantity);
 
-                String status = OrderError.FAILED; // assume exchange returned a code
+                OrderError.OrderStatus status = OrderError.OrderStatus.FAILED; // assume exchange returned a code
                 if (e.getErrorType() != null) {
-                    status = OrderError.UNKNOWN; // exchange didn't return a known code or there was an inconsistency
+                    status = OrderError.OrderStatus.UNKNOWN; // exchange didn't return a known code
                 }
                 errors.add(new OrderError(order.orderId, status, e));
             }
