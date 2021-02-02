@@ -15,7 +15,7 @@ import functionsalgo.shared.Utils;
 //TODO externalize strings to resource bundle and gitignore , make dummy bundle warn to rename before testing
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-public class APIWrapperTest {
+public class APIWrapperIntegrationTest {
 
     public static WrapperREST bpapi;
 
