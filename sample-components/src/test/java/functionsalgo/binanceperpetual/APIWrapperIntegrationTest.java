@@ -21,7 +21,8 @@ public class APIWrapperIntegrationTest {
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
-        Properties keys = Utils.getProperties("apikeys_ignore.properties", "apikeys.properties");
+        Properties keys = Utils.getProperties("binanceperpetual_apikeys_ignore.properties",
+                "binanceperpetual_apikeys.properties");
         bpapi = new WrapperREST(keys.getProperty("privateKey"), keys.getProperty("publicApiKey"));
         bpapi.setToTestHost();
     }

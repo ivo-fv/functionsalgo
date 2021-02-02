@@ -30,7 +30,8 @@ public class SampleStrategy implements Strategy {
     public SampleStrategy(boolean isLive) throws ExchangeException, ClassNotFoundException, IOException {
         if (isLive) {
             live = true;
-            Properties keys = Utils.getProperties("apikeys_ignore.properties", "apikeys.properties");
+            Properties keys = Utils.getProperties("binanceperpetual_apikeys_ignore.properties",
+                    "binanceperpetual_apikeys.properties");
             bpExch = new LiveExchange(keys.getProperty("privateKey"), keys.getProperty("publicApiKey"));
         } else {
             // TODO simexchange
