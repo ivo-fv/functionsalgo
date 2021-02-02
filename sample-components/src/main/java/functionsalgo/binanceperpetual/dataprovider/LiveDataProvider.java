@@ -123,7 +123,8 @@ public class LiveDataProvider implements DataProvider {
             if (e instanceof ExchangeException) {
                 throw e;
             } else {
-                throw new ExchangeException(-1, e.toString(), ExchangeException.PARSING_PROBLEM);
+                throw new ExchangeException(ExchangeException.ErrorType.PARSING_PROBLEM,
+                        "Problem parsing funding rates data", "LiveDataProvider::getExchangeFRates", e);
             }
         }
 
@@ -210,7 +211,8 @@ public class LiveDataProvider implements DataProvider {
             if (e instanceof ExchangeException) {
                 throw e;
             } else {
-                throw new ExchangeException(-1, e.toString(), ExchangeException.PARSING_PROBLEM);
+                throw new ExchangeException(ExchangeException.ErrorType.PARSING_PROBLEM, "Problem parsing klines data",
+                        "LiveDataProvider::getExchangeKlines", e);
             }
         }
 

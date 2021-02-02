@@ -31,7 +31,8 @@ public class LiveExchange implements Exchange {
         try {
             api = new WrapperREST(privateKey, apiKey);
         } catch (Exception e) {
-            throw new ExchangeException(ExchangeException.INIT_FAILED, e.toString(), "LiveExchange::LiveExchange", e);
+            throw new ExchangeException(ExchangeException.ErrorType.INIT_FAILED, "Failed to initialize keys",
+                    "LiveExchange::LiveExchange", e);
         }
     }
 
@@ -122,7 +123,7 @@ public class LiveExchange implements Exchange {
             try {
                 OrderResultWrapper res = api.marketOpenHedgeMode(order.symbol, order.isLong, order.quantity);
                 if (!res.getSymbol().equals(order.symbol)) {
-                    throw new WrapperRESTException(WrapperRESTException.INCONSISTENT_ORDER_RESULT,
+                    throw new WrapperRESTException(WrapperRESTException.ErrorType.INCONSISTENT_ORDER_RESULT,
                             "Result symbol doesn't match order symbol", "LiveExchange::executeBatchedMarketOpenOrders");
                 }
             } catch (WrapperRESTException e) {
@@ -131,7 +132,7 @@ public class LiveExchange implements Exchange {
                         order.symbol, order.isLong, order.quantity);
 
                 String status = OrderError.FAILED; // assume exchange returned a code
-                if (e.getErrorType().length() >= 1) {
+                if (e.getErrorType() != null) {
                     status = OrderError.UNKNOWN; // exchange didn't return a known code
                 }
                 errors.add(new OrderError(order.orderId, status, e));
@@ -159,7 +160,7 @@ public class LiveExchange implements Exchange {
             try {
                 OrderResultWrapper res = api.marketCloseHedgeMode(order.symbol, order.isLong, order.quantity);
                 if (!res.getSymbol().equals(order.symbol)) {
-                    throw new WrapperRESTException(WrapperRESTException.INCONSISTENT_ORDER_RESULT,
+                    throw new WrapperRESTException(WrapperRESTException.ErrorType.INCONSISTENT_ORDER_RESULT,
                             "Result symbol doesn't match order symbol",
                             "LiveExchange::executeBatchedMarketCloseOrders");
                 }
@@ -169,7 +170,7 @@ public class LiveExchange implements Exchange {
                         order.symbol, order.isLong, order.quantity);
 
                 String status = OrderError.FAILED; // assume exchange returned a code
-                if (e.getErrorType().length() >= 1) {
+                if (e.getErrorType() != null) {
                     status = OrderError.UNKNOWN; // exchange didn't return a known code or there was an inconsistency
                 }
                 errors.add(new OrderError(order.orderId, status, e));

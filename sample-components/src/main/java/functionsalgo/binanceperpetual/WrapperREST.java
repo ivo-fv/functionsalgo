@@ -182,14 +182,14 @@ public class WrapperREST {
         JsonObject resObj = res.getAsJsonObject();
         if (resObj.has("leverage")) {
             if (resObj.get("leverage").getAsInt() != leverage) {
-                throw new WrapperRESTException(WrapperRESTException.BAD_LEVERAGE, "incorrect leverage",
+                throw new WrapperRESTException(WrapperRESTException.ErrorType.BAD_LEVERAGE, "incorrect leverage",
                         "WrapperREST::setLeverage");
             }
         } else if (resObj.has("code")) {
             throw new WrapperRESTException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
                     "WrapperREST::setLeverage");
         } else {
-            throw new WrapperRESTException(WrapperRESTException.UNKNOWN_RESPONSE, resObj.toString(),
+            throw new WrapperRESTException(WrapperRESTException.ErrorType.UNKNOWN_RESPONSE, resObj.toString(),
                     "WrapperREST::setLeverage");
         }
     }
@@ -226,7 +226,7 @@ public class WrapperREST {
             throw new WrapperRESTException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
                     "WrapperREST::marketOpenHedgeMode");
         } else {
-            throw new WrapperRESTException(WrapperRESTException.UNKNOWN_RESPONSE, resObj.toString(),
+            throw new WrapperRESTException(WrapperRESTException.ErrorType.UNKNOWN_RESPONSE, resObj.toString(),
                     "WrapperREST::marketOpenHedgeMode");
         }
     }
@@ -248,7 +248,7 @@ public class WrapperREST {
             throw new WrapperRESTException(resObj.get("code").getAsInt(), resObj.get("msg").getAsString(),
                     "WrapperREST::marketCloseHedgeMode");
         } else {
-            throw new WrapperRESTException(WrapperRESTException.UNKNOWN_RESPONSE, resObj.toString(),
+            throw new WrapperRESTException(WrapperRESTException.ErrorType.UNKNOWN_RESPONSE, resObj.toString(),
                     "WrapperREST::marketCloseHedgeMode");
         }
     }
@@ -302,7 +302,7 @@ public class WrapperREST {
 
     private JsonElement retrySendRequestGetParsedResponse(HttpUriRequest request) throws WrapperRESTException {
 
-        WrapperRESTException exception = new WrapperRESTException(WrapperRESTException.UNKNOWN_ERROR, "Retry problem",
+        WrapperRESTException exception = new WrapperRESTException(WrapperRESTException.ErrorType.UNKNOWN_ERROR, "Retry problem",
                 "WrapperREST::retrySendRequestGetParsedResponse");
 
         for (int i = 0; i < NUM_RETRIES; i++) {
@@ -317,10 +317,10 @@ public class WrapperREST {
             } catch (WrapperRESTException e) {
                 exception = e;
             } catch (ParseException e) {
-                exception = new WrapperRESTException(WrapperRESTException.PARSE_ERROR, e.toString(),
+                exception = new WrapperRESTException(WrapperRESTException.ErrorType.PARSE_ERROR, e.toString(),
                         "WrapperREST::retrySendRequestGetParsedResponse");
             } catch (IOException e) {
-                exception = new WrapperRESTException(WrapperRESTException.CONNECTION_ERROR, e.toString(),
+                exception = new WrapperRESTException(WrapperRESTException.ErrorType.CONNECTION_ERROR, e.toString(),
                         "WrapperREST::retrySendRequestGetParsedResponse");
             }
 
@@ -346,12 +346,12 @@ public class WrapperREST {
 
         try {
             if (jsonString == null || jsonString.length() < 2) {
-                throw new WrapperRESTException(WrapperRESTException.BAD_RESPONSE_TO_PARSE,
+                throw new WrapperRESTException(WrapperRESTException.ErrorType.BAD_RESPONSE_TO_PARSE,
                         "json string too small or null", "WrapperREST::parseJsonString");
             }
             return JsonParser.parseString(jsonString);
         } catch (JsonParseException e) {
-            throw new WrapperRESTException(WrapperRESTException.PARSE_ERROR, e.toString(),
+            throw new WrapperRESTException(WrapperRESTException.ErrorType.PARSE_ERROR, e.toString(),
                     "WrapperREST::parseJsonString");
         }
     }

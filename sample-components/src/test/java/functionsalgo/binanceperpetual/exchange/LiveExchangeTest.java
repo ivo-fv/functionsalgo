@@ -172,8 +172,25 @@ public class LiveExchangeTest {
     }
 
     @Test
-    public final void testZ3AddBatchMarketCloseAndExecuteBatchedMarketCloseOrders() {
-        fail("not implemented yet");
+    public final void testZ3AddBatchMarketCloseAndExecuteBatchedMarketCloseOrders() throws SymbolQuantityTooLow, SymbolNotTradingException, WrapperRESTException, OrderExecutionException {
+        
+        exchange.addBatchMarketClose("1234", "BTCUSDT", false, 1);
+        exchange.addBatchMarketClose("1235", "ETHUSDT", true, 1.2);
+        exchange.addBatchMarketClose("1235", "ETHUSDT", true, 0.03);
+
+        doAnswer(i -> {
+            String symbol = i.getArgument(0);
+            return new OrderResultWrapper(symbol);
+        }).when(api).marketCloseHedgeMode(any(String.class), any(Boolean.class), any(Double.class));
+        
+        AccountInfo retAccInfo = exchange.executeBatchedMarketCloseOrders();
+
+        verify(api, times(1)).marketCloseHedgeMode("BTCUSDT", false, 1);
+        verify(api, times(1)).marketCloseHedgeMode("ETHUSDT", true, 1.2);
+        verify(api, times(1)).marketCloseHedgeMode("ETHUSDT", true, 0.03);
+        verify(api, times(3)).marketCloseHedgeMode(any(String.class), any(Boolean.class), any(Double.class));
+
+        assertTrue("errors must be empty", retAccInfo.getOrderErrors().isEmpty());
     }
 
     @Test
