@@ -9,13 +9,16 @@ public class ExchangeException extends Exception {
     }
 
     int code;
-    Enum<?> errorType = null;
+    Enum<?> errorType;
     String responseMsg;
     String exceptionInfo;
     Throwable wrappedException;
 
     public ExchangeException(int code, String responseMsg, String exceptionInfo) {
-        this(code, responseMsg, exceptionInfo, null);
+        super(code + " ; " + responseMsg + " ; " + exceptionInfo);
+        this.code = code;
+        this.responseMsg = responseMsg;
+        this.exceptionInfo = exceptionInfo;
     }
 
     public ExchangeException(int code, String responseMsg, String exceptionInfo, Throwable e) {

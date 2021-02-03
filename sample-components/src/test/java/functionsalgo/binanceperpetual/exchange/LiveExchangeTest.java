@@ -5,7 +5,9 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 import java.util.HashMap;
 
@@ -155,11 +157,8 @@ public class LiveExchangeTest {
 
         doAnswer(i -> {
             String symbol = i.getArgument(0);
-            return new OrderResultWrapper(symbol); // TODO test where this triggers INCONSISTENT_ORDER_RESULT check
-                                                   // ordererror unknown
+            return new OrderResultWrapper(symbol);
         }).when(api).marketOpenHedgeMode(any(String.class), any(Boolean.class), any(Double.class));
-        // TODO test where it throws with code (check ordererror failed) and another
-        // with UNKNOWN_RESPONSE (check ordererror unknown)
 
         AccountInfo retAccInfo = exchange.executeBatchedMarketOpenOrders();
 
@@ -172,8 +171,9 @@ public class LiveExchangeTest {
     }
 
     @Test
-    public final void testZ3AddBatchMarketCloseAndExecuteBatchedMarketCloseOrders() throws SymbolQuantityTooLow, SymbolNotTradingException, WrapperRESTException, OrderExecutionException {
-        
+    public final void testZ3AddBatchMarketCloseAndExecuteBatchedMarketCloseOrders()
+            throws SymbolQuantityTooLow, SymbolNotTradingException, WrapperRESTException, OrderExecutionException {
+
         exchange.addBatchMarketClose("1234", "BTCUSDT", false, 1);
         exchange.addBatchMarketClose("1235", "ETHUSDT", true, 1.2);
         exchange.addBatchMarketClose("1235", "ETHUSDT", true, 0.03);
@@ -182,7 +182,7 @@ public class LiveExchangeTest {
             String symbol = i.getArgument(0);
             return new OrderResultWrapper(symbol);
         }).when(api).marketCloseHedgeMode(any(String.class), any(Boolean.class), any(Double.class));
-        
+
         AccountInfo retAccInfo = exchange.executeBatchedMarketCloseOrders();
 
         verify(api, times(1)).marketCloseHedgeMode("BTCUSDT", false, 1);
@@ -194,20 +194,112 @@ public class LiveExchangeTest {
     }
 
     @Test
-    public final void testZ4ErrorsAddBatchMarketOpenAndExecuteBatchedMarketOpenOrders() {
+    public final void testZ4ErrorsAddBatchMarketOpenAndExecuteBatchedMarketOpenOrders()
+            throws SymbolQuantityTooLow, SymbolNotTradingException, WrapperRESTException, OrderExecutionException {
 
-        // addbatch -> stub markeOpenHedgeMode -> execute -> verify wrapperapi with
-        // expected params -> assert AccountInfo has expected errors
-        // errors when code is returned must be OrderError.FAILED else
-        // OrderError.UNKNOWN, so 2 stubs one must throw exception with code, the other
-        // with errortype
+        exchange.addBatchMarketOpen("1234", "BTCUSDT", false, 1.1);
+        exchange.addBatchMarketOpen("1235", "ETHUSDT", true, 1.3);
+        exchange.addBatchMarketOpen("1236", "ETHUSDT", true, 0.04);
+        exchange.addBatchMarketOpen("1237", "ETHUSDT", true, 2);
 
-        fail("not implemented yet");
+        // triggers INCONSISTENT_ORDER_RESULT check - OrderStatus.UNKNOWN
+        doReturn(new OrderResultWrapper("XXXUSDT")).when(api).marketOpenHedgeMode(eq("BTCUSDT"), any(Boolean.class),
+                any(Double.class));
+        // triggers code check - OrderStatus.FAILED
+        doThrow(new WrapperRESTException(2, "some error code", "WrapperREST::marketOpenHedgeMode")).when(api)
+                .marketOpenHedgeMode("ETHUSDT", true, 1.3);
+        // triggers non-code check - OrderStatus.UNKNOWN
+        doThrow(new WrapperRESTException(WrapperRESTException.ErrorType.UNKNOWN_RESPONSE, "some error code",
+                "WrapperREST::marketOpenHedgeMode")).when(api).marketOpenHedgeMode("ETHUSDT", true, 0.04);
+        // expect no errors
+        doAnswer(i -> {
+            String symbol = i.getArgument(0);
+            return new OrderResultWrapper(symbol);
+        }).when(api).marketOpenHedgeMode("ETHUSDT", true, 2);
+
+        AccountInfo retAccInfo = exchange.executeBatchedMarketOpenOrders();
+
+        verify(api, times(1)).marketOpenHedgeMode("BTCUSDT", false, 1.1);
+        verify(api, times(1)).marketOpenHedgeMode("ETHUSDT", true, 1.3);
+        verify(api, times(1)).marketOpenHedgeMode("ETHUSDT", true, 0.04);
+        verify(api, times(1)).marketOpenHedgeMode("ETHUSDT", true, 2);
+
+        assertTrue("there must be 3 errors", retAccInfo.getOrderErrors().size() == 3);
+
+        for (OrderError error : retAccInfo.getOrderErrors()) {
+            switch (error.getOrderId()) {
+            case "1234":
+                assertTrue("id 1234 must have OrderStatus.UNKNOWN",
+                        error.getStatus() == OrderError.OrderStatus.UNKNOWN);
+                break;
+            case "1235":
+                assertTrue("id 1235 must have OrderStatus.FAILED", error.getStatus() == OrderError.OrderStatus.FAILED);
+                break;
+            case "1236":
+                assertTrue("id 1236 must have OrderStatus.UNKNOWN",
+                        error.getStatus() == OrderError.OrderStatus.UNKNOWN);
+                break;
+            case "1237":
+                fail("id 1237 must not be in an error");
+                break;
+            default:
+                fail("no expected orderId");
+            }
+        }
     }
 
     @Test
-    public final void testZ5ErrorsAddBatchMarketCloseAndExecuteBatchedMarketCloseOrders() {
-        fail("not implemented yet");
+    public final void testZ5ErrorsAddBatchMarketCloseAndExecuteBatchedMarketCloseOrders()
+            throws SymbolQuantityTooLow, SymbolNotTradingException, WrapperRESTException, OrderExecutionException {
+        exchange.addBatchMarketClose("1234", "BTCUSDT", false, 1.1);
+        exchange.addBatchMarketClose("1235", "ETHUSDT", true, 1.3);
+        exchange.addBatchMarketClose("1236", "ETHUSDT", true, 0.04);
+        exchange.addBatchMarketClose("1237", "ETHUSDT", true, 2);
+
+        // triggers INCONSISTENT_ORDER_RESULT check - OrderStatus.UNKNOWN
+        doReturn(new OrderResultWrapper("XXXUSDT")).when(api).marketCloseHedgeMode(eq("BTCUSDT"), any(Boolean.class),
+                any(Double.class));
+        // triggers code check - OrderStatus.FAILED
+        doThrow(new WrapperRESTException(2, "some error code", "WrapperREST::marketOpenHedgeMode")).when(api)
+                .marketCloseHedgeMode("ETHUSDT", true, 1.3);
+        // triggers non-code check - OrderStatus.UNKNOWN
+        doThrow(new WrapperRESTException(WrapperRESTException.ErrorType.UNKNOWN_RESPONSE, "some error code",
+                "WrapperREST::marketOpenHedgeMode")).when(api).marketCloseHedgeMode("ETHUSDT", true, 0.04);
+        // expect no errors
+        doAnswer(i -> {
+            String symbol = i.getArgument(0);
+            return new OrderResultWrapper(symbol);
+        }).when(api).marketCloseHedgeMode("ETHUSDT", true, 2);
+
+        AccountInfo retAccInfo = exchange.executeBatchedMarketCloseOrders();
+
+        verify(api, times(1)).marketCloseHedgeMode("BTCUSDT", false, 1.1);
+        verify(api, times(1)).marketCloseHedgeMode("ETHUSDT", true, 1.3);
+        verify(api, times(1)).marketCloseHedgeMode("ETHUSDT", true, 0.04);
+        verify(api, times(1)).marketCloseHedgeMode("ETHUSDT", true, 2);
+
+        assertTrue("there must be 3 errors", retAccInfo.getOrderErrors().size() == 3);
+
+        for (OrderError error : retAccInfo.getOrderErrors()) {
+            switch (error.getOrderId()) {
+            case "1234":
+                assertTrue("id 1234 must have OrderStatus.UNKNOWN",
+                        error.getStatus() == OrderError.OrderStatus.UNKNOWN);
+                break;
+            case "1235":
+                assertTrue("id 1235 must have OrderStatus.FAILED", error.getStatus() == OrderError.OrderStatus.FAILED);
+                break;
+            case "1236":
+                assertTrue("id 1236 must have OrderStatus.UNKNOWN",
+                        error.getStatus() == OrderError.OrderStatus.UNKNOWN);
+                break;
+            case "1237":
+                fail("id 1237 must not be in an error");
+                break;
+            default:
+                fail("no expected orderId");
+            }
+        }
     }
 
 }
