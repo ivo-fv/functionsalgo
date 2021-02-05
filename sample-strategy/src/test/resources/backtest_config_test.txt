@@ -1,0 +1,4 @@
+binanceperpetual.symbols=BTCUSDT,ETHUSDT
+binanceperpetual.interval=5m
+binanceperpetual.startTime=1611646639946
+binanceperpetual.endTime=1612470647356

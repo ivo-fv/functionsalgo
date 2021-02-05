@@ -17,6 +17,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 
 import functionsalgo.exceptions.ExchangeException;
+import functionsalgo.exceptions.StandardJavaException;
 import functionsalgo.samplestrat.OLDSampleStrat.Statistics;
 
 public class OLDRunSampleStratBacktest {
@@ -41,7 +42,7 @@ public class OLDRunSampleStratBacktest {
     private static char decimalSeparator = ',';
     private File logFile;
 
-    public static void main(String[] args) throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException {
+    public static void main(String[] args) throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException, StandardJavaException {
 
         ArrayList<Long> timeRangeStart = new ArrayList<Long>();
         // timeRangeStart.add(LocalDateTime.of(2019, 12, 1, 0,
@@ -142,7 +143,7 @@ public class OLDRunSampleStratBacktest {
         logFile.delete();
     }
 
-    public BacktestResult runBacktest() throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException {
+    public BacktestResult runBacktest() throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException, StandardJavaException {
 
         OLDSampleStrat strat = new OLDSampleStrat(false, false);
 

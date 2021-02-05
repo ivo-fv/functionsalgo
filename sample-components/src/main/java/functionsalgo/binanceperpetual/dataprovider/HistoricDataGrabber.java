@@ -14,6 +14,8 @@ import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.TreeMap;
 
+import functionsalgo.binanceperpetual.HistoricFundingRates;
+import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.datapoints.Interval;
 
 public class HistoricDataGrabber {
@@ -63,7 +65,7 @@ public class HistoricDataGrabber {
         
         Interval interval = Interval._5m;
         
-        String klinesDirName = HistoricKlines.getDirName(interval);
+        String klinesDirName = HistoricKlines.getJSONDirName(interval);
         new File(klinesDirName).mkdirs();
         
         TreeMap<String, File> symbolFile = new TreeMap<>();

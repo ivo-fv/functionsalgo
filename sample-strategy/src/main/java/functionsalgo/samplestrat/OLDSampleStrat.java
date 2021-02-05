@@ -24,6 +24,7 @@ import functionsalgo.binanceperpetual.exchange.exceptions.SymbolNotTradingExcept
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolQuantityTooLow;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.ExchangeException;
+import functionsalgo.exceptions.StandardJavaException;
 import functionsalgo.shared.Strategy;
 import functionsalgo.shared.TradeStatistics;
 
@@ -92,7 +93,7 @@ public class OLDSampleStrat implements Strategy {
     List<Position> positions;
 
     public OLDSampleStrat(boolean isLive, boolean isTest)
-            throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException {
+            throws ExchangeException, InvalidKeyException, NoSuchAlgorithmException, StandardJavaException {
 
         this.isLive = isLive;
 
@@ -103,7 +104,7 @@ public class OLDSampleStrat implements Strategy {
             dataProvider = new LiveDataProvider(new DynamoDBBPDataProvider(dbCommon));
         } else {
             database = new OLDSampleStratBacktestDB();
-            exchange = new SimExchange(BACKTEST_START_BALANCE, (short) 20, Interval._5m);
+            exchange = new SimExchange(BACKTEST_START_BALANCE, (short) 20, Interval._5m, null, null, null);
             dataProvider = new BacktestDataProvider(new Interval[] { Interval._5m });
         }
     }

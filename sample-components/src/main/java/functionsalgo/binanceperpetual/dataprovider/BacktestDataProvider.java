@@ -3,17 +3,20 @@ package functionsalgo.binanceperpetual.dataprovider;
 import java.util.HashMap;
 import java.util.List;
 
-import functionsalgo.datapoints.FundingRate;
+import functionsalgo.binanceperpetual.FundingRate;
+import functionsalgo.binanceperpetual.HistoricFundingRates;
+import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;
+import functionsalgo.exceptions.StandardJavaException;
 
 public class BacktestDataProvider implements DataProvider {
     
     HashMap<Interval, HistoricKlines> klines;
     HistoricFundingRates fundRates;
     
-    public BacktestDataProvider(Interval[] intervals) {
+    public BacktestDataProvider(Interval[] intervals) throws StandardJavaException {
         
         klines = new HashMap<>();
         for (Interval interval : intervals) {

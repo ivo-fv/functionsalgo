@@ -2,7 +2,7 @@ package functionsalgo.binanceperpetual.dataprovider;
 
 import java.util.List;
 
-import functionsalgo.datapoints.FundingRate;
+import functionsalgo.binanceperpetual.FundingRate;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 

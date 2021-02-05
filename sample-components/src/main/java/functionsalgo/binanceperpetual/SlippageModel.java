@@ -1,4 +1,4 @@
-package functionsalgo.binanceperpetual.exchange;
+package functionsalgo.binanceperpetual;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;

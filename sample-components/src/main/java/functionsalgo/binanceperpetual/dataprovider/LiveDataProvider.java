@@ -15,8 +15,8 @@ import com.google.gson.JsonObject;
 
 import functionsalgo.aws.DynamoDBBPDataProvider;
 import functionsalgo.aws.DynamoDBCommon;
+import functionsalgo.binanceperpetual.FundingRate;
 import functionsalgo.binanceperpetual.WrapperREST;
-import functionsalgo.datapoints.FundingRate;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;

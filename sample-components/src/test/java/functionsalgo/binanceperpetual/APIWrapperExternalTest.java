@@ -2,6 +2,12 @@ package functionsalgo.binanceperpetual;
 
 import static org.junit.Assert.*;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Properties;
 
 import org.junit.BeforeClass;
@@ -9,13 +15,17 @@ import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+
+import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.shared.Utils;
 
 //TODO externalize strings to resource bundle and gitignore , make dummy bundle warn to rename before testing
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-public class APIWrapperIntegrationTest {
+public class APIWrapperExternalTest {
 
     public static WrapperREST bpapi;
 
@@ -98,6 +108,71 @@ public class APIWrapperIntegrationTest {
 
         res = bpapi.marketCloseHedgeMode("BTCUSDT", true, 0.02).getSymbol();
         assertTrue("close symbol", res.equals("BTCUSDT"));
+    }
+
+    @Test
+    public final void testSaveKlinesMult() throws IOException {
+        File btcFile = new File("BTCUSDT.json");
+        for (int i = 0; i < 10 && btcFile.exists(); i++) {
+            btcFile.delete();
+        }
+        File ethFile = new File("ETHUSDT.json");
+        for (int i = 0; i < 10 && ethFile.exists(); i++) {
+            ethFile.delete();
+        }
+
+        ArrayList<File> klinesFiles = new ArrayList<>();
+        klinesFiles.add(new File("BTCUSDT.json"));
+        klinesFiles.add(new File("ETHUSDT.json"));
+
+        ArrayList<String> symbols = new ArrayList<>();
+        symbols.add("BTCUSDT");
+        symbols.add("ETHUSDT");
+
+        bpapi.saveKlines(klinesFiles, symbols, Interval._5m, 1611646639946L, 1612470647356L);
+
+        assertTrue("file wasn't created", new File("BTCUSDT.json").exists() && new File("ETHUSDT.json").exists());
+
+        try (InputStreamReader is = new InputStreamReader(new FileInputStream(new File("BTCUSDT.json")),
+                StandardCharsets.UTF_8)) {
+            JsonElement btc = JsonParser.parseReader(is);
+            assertTrue("must be array", btc.isJsonArray());
+        }
+        try (InputStreamReader is = new InputStreamReader(new FileInputStream(new File("ETHUSDT.json")),
+                StandardCharsets.UTF_8)) {
+            JsonElement eth = JsonParser.parseReader(is);
+            assertTrue("must be array", eth.isJsonArray());
+        }
+
+        for (int i = 0; i < 10 && btcFile.exists(); i++) {
+            btcFile.delete();
+        }
+        for (int i = 0; i < 10 && ethFile.exists(); i++) {
+            ethFile.delete();
+        }
+    }
+
+    @Test
+    public final void testSaveKlinesSingle() throws IOException {
+        File ethFile = new File("ETHUSDT.json");
+        for (int i = 0; i < 10 && ethFile.exists(); i++) {
+            ethFile.delete();
+        }
+        String ethSymbol = "ETHUSDT";
+
+        bpapi.saveKlines(ethFile, ethSymbol, Interval._5m, 1612400647356L, 1612470647356L);
+
+        assertTrue("file wasn't created", ethFile.exists());
+
+        try (InputStreamReader is = new InputStreamReader(new FileInputStream(new File("ETHUSDT.json")),
+                StandardCharsets.UTF_8)) {
+            JsonElement eth = JsonParser.parseReader(is);
+            assertTrue("must be array", eth.isJsonArray());
+        }
+
+        for (int i = 0; i < 10 && ethFile.exists(); i++) {
+            ethFile.delete();
+        }
     }
 
     @Test

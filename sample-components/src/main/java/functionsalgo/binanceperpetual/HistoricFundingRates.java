@@ -1,4 +1,4 @@
-package functionsalgo.binanceperpetual.dataprovider;
+package functionsalgo.binanceperpetual;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -19,7 +19,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
-import functionsalgo.datapoints.FundingRate;
 import functionsalgo.datapoints.Interval;
 
 public class HistoricFundingRates implements Serializable {

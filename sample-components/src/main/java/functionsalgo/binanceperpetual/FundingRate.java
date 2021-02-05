@@ -1,4 +1,4 @@
-package functionsalgo.datapoints;
+package functionsalgo.binanceperpetual;
 
 import java.io.Serializable;
 

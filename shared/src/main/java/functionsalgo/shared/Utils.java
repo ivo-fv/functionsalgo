@@ -9,6 +9,8 @@ import java.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import functionsalgo.exceptions.StandardJavaException;
+
 public class Utils {
 
     private static final Logger logger = LogManager.getLogger();
@@ -42,29 +44,36 @@ public class Utils {
      * @param propertiesFilesNamesByOrderToBeLoaded
      * @return a Properties instance loaded from the first available file name/path
      *         passed as parameter in the resources directory.
+     * @throws StandardJavaException
      * @throws IOException            (FileNotFoundException) if no file was found
      * @throws ClassNotFoundException
      */
     public static Properties getProperties(String... propertiesFilesNamesByOrderToBeLoaded)
-            throws IOException, ClassNotFoundException {
+            throws StandardJavaException {
 
-        ClassLoader callerCL = Class.forName(new Exception().getStackTrace()[1].getClassName()).getClassLoader();
-        InputStream keysFile = null;
+        try {
+            ClassLoader callerCL = Class.forName(new Exception().getStackTrace()[1].getClassName()).getClassLoader();
+            InputStream keysFile = null;
 
-        for (String propFileName : propertiesFilesNamesByOrderToBeLoaded) {
-            keysFile = callerCL.getResourceAsStream(propFileName);
-            if (keysFile != null) {
-                break;
+            for (String propFileName : propertiesFilesNamesByOrderToBeLoaded) {
+                if (propFileName != null) {
+                    keysFile = callerCL.getResourceAsStream(propFileName);
+                    if (keysFile != null) {
+                        break;
+                    }
+                }
             }
-        }
 
-        if (keysFile == null) {
-            throw new FileNotFoundException("resources/"
-                    + propertiesFilesNamesByOrderToBeLoaded[propertiesFilesNamesByOrderToBeLoaded.length - 1]);
-        }
+            if (keysFile == null) {
+                throw new FileNotFoundException("resources/"
+                        + propertiesFilesNamesByOrderToBeLoaded[propertiesFilesNamesByOrderToBeLoaded.length - 1]);
+            }
 
-        Properties keys = new Properties();
-        keys.load(keysFile);
-        return keys;
+            Properties keys = new Properties();
+            keys.load(keysFile);
+            return keys;
+        } catch (IOException | ClassNotFoundException e) {
+            throw new StandardJavaException(e);
+        }
     }
 }

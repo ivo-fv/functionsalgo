@@ -2,8 +2,8 @@ package functionsalgo.aws;
 
 import java.util.List;
 
+import functionsalgo.binanceperpetual.FundingRate;
 import functionsalgo.binanceperpetual.dataprovider.DataProviderDB;
-import functionsalgo.datapoints.FundingRate;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 

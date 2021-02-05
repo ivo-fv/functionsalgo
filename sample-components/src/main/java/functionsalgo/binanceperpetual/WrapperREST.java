@@ -1,10 +1,12 @@
 package functionsalgo.binanceperpetual;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.crypto.Mac;
@@ -29,6 +31,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
+import functionsalgo.datapoints.Interval;
+import functionsalgo.shared.MultiplePageJSONArraysInOneFileSaver;
 import functionsalgo.shared.Utils;
 
 // TODO  no  magic numbers, make them constants
@@ -49,6 +53,7 @@ public class WrapperREST {
     private static final int BACK_OFF_NO_SPAM_CODE = 429;
     private static final int IP_BAN_CODE = 418;
     private static final String TRADING_STATUS = "TRADING";
+    private static final int MAX_REQUEST_KLINES = 1000;
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -78,6 +83,41 @@ public class WrapperREST {
 
     public void setToLiveHost() {
         host = HOST_LIVE;
+    }
+
+    public void saveKlines(List<File> klinesSymbolsFilesJSON, List<String> symbols, Interval interval, long startTime,
+            long endTime) throws IOException {
+
+        for (int i = 0; i < klinesSymbolsFilesJSON.size(); i++) {
+            saveKlines(klinesSymbolsFilesJSON.get(i), symbols.get(i), interval, startTime, endTime);
+            logger.info("Saved json of symbol: {}", symbols.get(i));
+        }
+        logger.info("Finished saving klines");
+    }
+
+    public void saveKlines(File klinesJSONFile, String symbol, Interval interval, long startTime, long endTime)
+            throws IOException {
+
+        long timeToAdd = (long) MAX_REQUEST_KLINES * interval.toMilliseconds();
+        long newTime = startTime;
+
+        MultiplePageJSONArraysInOneFileSaver jsonPagesSaver = new MultiplePageJSONArraysInOneFileSaver(klinesJSONFile);
+
+        while (newTime < endTime) {
+
+            String uri = host + "/fapi/v1/klines?" + "symbol=" + symbol + "&interval=" + interval + "&startTime="
+                    + newTime + "&endTime=" + endTime + "&limit=" + MAX_REQUEST_KLINES;
+            HttpGet httpget = new HttpGet(uri);
+
+            try (CloseableHttpResponse res = httpClient.execute(httpget)) {
+                HttpEntity entity = res.getEntity();
+                updateLimits(res);
+                jsonPagesSaver.append(entity.getContent());
+            }
+
+            newTime += timeToAdd;
+        }
+        jsonPagesSaver.finish();
     }
 
     public AccountInfoWrapper getAccountInfo() throws WrapperRESTException {
@@ -302,8 +342,8 @@ public class WrapperREST {
 
     private JsonElement retrySendRequestGetParsedResponse(HttpUriRequest request) throws WrapperRESTException {
 
-        WrapperRESTException exception = new WrapperRESTException(WrapperRESTException.ErrorType.UNKNOWN_ERROR, "Retry problem",
-                "WrapperREST::retrySendRequestGetParsedResponse");
+        WrapperRESTException exception = new WrapperRESTException(WrapperRESTException.ErrorType.UNKNOWN_ERROR,
+                "Retry problem", "WrapperREST::retrySendRequestGetParsedResponse");
 
         for (int i = 0; i < NUM_RETRIES; i++) {
             try (CloseableHttpResponse res = httpClient.execute(request)) {
@@ -360,4 +400,5 @@ public class WrapperREST {
 
         return System.currentTimeMillis() - TIMESTAMP_LAG;
     }
+
 }
