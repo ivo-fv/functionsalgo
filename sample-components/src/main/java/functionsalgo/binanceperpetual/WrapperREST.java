@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +54,7 @@ public class WrapperREST {
     private static final int BACK_OFF_NO_SPAM_CODE = 429;
     private static final int IP_BAN_CODE = 418;
     private static final String TRADING_STATUS = "TRADING";
-    private static final int MAX_REQUEST_KLINES = 1000;
+    private static final int MAX_REQUEST_KLINES_AND_FUNDING_RATES = 1000;
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -98,26 +99,21 @@ public class WrapperREST {
     public void saveKlines(File klinesJSONFile, String symbol, Interval interval, long startTime, long endTime)
             throws IOException {
 
-        long timeToAdd = (long) MAX_REQUEST_KLINES * interval.toMilliseconds();
-        long newTime = startTime;
+        saveMultiPageData(klinesJSONFile, symbol, interval, startTime, endTime, "/fapi/v1/klines?");
+    }
 
-        MultiplePageJSONArraysInOneFileSaver jsonPagesSaver = new MultiplePageJSONArraysInOneFileSaver(klinesJSONFile);
+    public void saveFundingRates(ArrayList<File> symbolsJSONFiles, List<String> symbols, long startTime, long endTime)
+            throws IOException {
 
-        while (newTime < endTime) {
-
-            String uri = host + "/fapi/v1/klines?" + "symbol=" + symbol + "&interval=" + interval + "&startTime="
-                    + newTime + "&endTime=" + endTime + "&limit=" + MAX_REQUEST_KLINES;
-            HttpGet httpget = new HttpGet(uri);
-
-            try (CloseableHttpResponse res = httpClient.execute(httpget)) {
-                HttpEntity entity = res.getEntity();
-                updateLimits(res);
-                jsonPagesSaver.append(entity.getContent());
-            }
-
-            newTime += timeToAdd;
+        for (int i = 0; i < symbolsJSONFiles.size(); i++) {
+            saveFundingRates(symbolsJSONFiles.get(i), symbols.get(i), startTime, endTime);
+            logger.info("Saved json of symbol: {}", symbols.get(i));
         }
-        jsonPagesSaver.finish();
+        logger.info("Finished saving funding rates");
+    }
+
+    public void saveFundingRates(File symbolsJSONFile, String symbol, long startTime, long endTime) throws IOException {
+        saveMultiPageData(symbolsJSONFile, symbol, Interval._8h, startTime, endTime, "/fapi/v1/fundingRate?");
     }
 
     public AccountInfoWrapper getAccountInfo() throws WrapperRESTException {
@@ -396,9 +392,33 @@ public class WrapperREST {
         }
     }
 
+    private void saveMultiPageData(File fileToSaveTo, String symbol, Interval interval, long startTime, long endTime,
+            String endpoint) throws IOException {
+
+        long timeToAdd = (long) MAX_REQUEST_KLINES_AND_FUNDING_RATES * interval.toMilliseconds();
+        long newTime = startTime;
+
+        MultiplePageJSONArraysInOneFileSaver jsonPagesSaver = new MultiplePageJSONArraysInOneFileSaver(fileToSaveTo);
+
+        while (newTime < endTime) {
+
+            String uri = host + endpoint + "symbol=" + symbol + "&interval=" + interval + "&startTime=" + newTime
+                    + "&endTime=" + endTime + "&limit=" + MAX_REQUEST_KLINES_AND_FUNDING_RATES;
+            HttpGet httpget = new HttpGet(uri);
+
+            try (CloseableHttpResponse res = httpClient.execute(httpget)) {
+                HttpEntity entity = res.getEntity();
+                updateLimits(res);
+                jsonPagesSaver.append(entity.getContent());
+            }
+
+            newTime += timeToAdd;
+        }
+        jsonPagesSaver.finish();
+    }
+
     private long getCurrentTimestampMillis() {
 
         return System.currentTimeMillis() - TIMESTAMP_LAG;
     }
-
 }

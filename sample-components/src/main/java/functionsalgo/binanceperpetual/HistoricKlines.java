@@ -77,7 +77,6 @@ public class HistoricKlines implements Serializable {
         } catch (InvalidKeyException | NoSuchAlgorithmException | IOException e) {
             throw new StandardJavaException(e);
         }
-
     }
 
     public static void generateKlinesFile(List<File> klinesSymbolsFilesJSON, File klinesFile, Interval interval)
@@ -102,8 +101,8 @@ public class HistoricKlines implements Serializable {
                 klinesObj.addSymbolData(symbol, parsedSymbolKlines);
             }
 
-            try (ObjectOutputStream out = new ObjectOutputStream(new BufferedOutputStream(
-                    new FileOutputStream(new File(DATA_DIR + "/" + KLINES_FILE_GENERIC_NAME + interval.toString()))))) {
+            try (ObjectOutputStream out = new ObjectOutputStream(
+                    new BufferedOutputStream(new FileOutputStream(klinesFile)))) {
 
                 out.writeObject(klinesObj);
                 out.flush();

@@ -25,7 +25,7 @@ import functionsalgo.shared.Utils;
 //TODO externalize strings to resource bundle and gitignore , make dummy bundle warn to rename before testing
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-public class APIWrapperExternalTest {
+public class WrapperRESTExternalTest {
 
     public static WrapperREST bpapi;
 
@@ -161,6 +161,71 @@ public class APIWrapperExternalTest {
         String ethSymbol = "ETHUSDT";
 
         bpapi.saveKlines(ethFile, ethSymbol, Interval._5m, 1612400647356L, 1612470647356L);
+
+        assertTrue("file wasn't created", ethFile.exists());
+
+        try (InputStreamReader is = new InputStreamReader(new FileInputStream(new File("ETHUSDT.json")),
+                StandardCharsets.UTF_8)) {
+            JsonElement eth = JsonParser.parseReader(is);
+            assertTrue("must be array", eth.isJsonArray());
+        }
+
+        for (int i = 0; i < 10 && ethFile.exists(); i++) {
+            ethFile.delete();
+        }
+    }
+
+    @Test
+    public final void testSaveFundingRatesMult() throws IOException {
+        File btcFile = new File("BTCUSDT.json");
+        for (int i = 0; i < 10 && btcFile.exists(); i++) {
+            btcFile.delete();
+        }
+        File ethFile = new File("ETHUSDT.json");
+        for (int i = 0; i < 10 && ethFile.exists(); i++) {
+            ethFile.delete();
+        }
+
+        ArrayList<File> fratesFiles = new ArrayList<>();
+        fratesFiles.add(new File("BTCUSDT.json"));
+        fratesFiles.add(new File("ETHUSDT.json"));
+
+        ArrayList<String> symbols = new ArrayList<>();
+        symbols.add("BTCUSDT");
+        symbols.add("ETHUSDT");
+
+        bpapi.saveFundingRates(fratesFiles, symbols, 1591646639946L, 1612470647356L);
+
+        assertTrue("file wasn't created", new File("BTCUSDT.json").exists() && new File("ETHUSDT.json").exists());
+
+        try (InputStreamReader is = new InputStreamReader(new FileInputStream(new File("BTCUSDT.json")),
+                StandardCharsets.UTF_8)) {
+            JsonElement btc = JsonParser.parseReader(is);
+            assertTrue("must be array", btc.isJsonArray());
+        }
+        try (InputStreamReader is = new InputStreamReader(new FileInputStream(new File("ETHUSDT.json")),
+                StandardCharsets.UTF_8)) {
+            JsonElement eth = JsonParser.parseReader(is);
+            assertTrue("must be array", eth.isJsonArray());
+        }
+
+        for (int i = 0; i < 10 && btcFile.exists(); i++) {
+            btcFile.delete();
+        }
+        for (int i = 0; i < 10 && ethFile.exists(); i++) {
+            ethFile.delete();
+        }
+    }
+
+    @Test
+    public final void testSaveFundingRatesSingle() throws IOException {
+        File ethFile = new File("ETHUSDT.json");
+        for (int i = 0; i < 10 && ethFile.exists(); i++) {
+            ethFile.delete();
+        }
+        String ethSymbol = "ETHUSDT";
+
+        bpapi.saveFundingRates(ethFile, ethSymbol, 1591646639946L, 1612470647356L);
 
         assertTrue("file wasn't created", ethFile.exists());
 

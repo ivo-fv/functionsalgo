@@ -1,6 +1,5 @@
 package functionsalgo.samplestrat;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -38,15 +37,15 @@ public class SampleStrategy implements Strategy {
     boolean live = false;
     int lastOrderId;
 
-    HistoricKlines bpHistoricKlines;
-    HistoricFundingRates bpHistoricFundingRates;
-    SlippageModel bpSlippageModel;
+    static HistoricKlines bpHistoricKlines;
+    static HistoricFundingRates bpHistoricFundingRates;
+    static SlippageModel bpSlippageModel;
 
     public static Strategy getLiveStrategy() throws ExchangeException, StandardJavaException {
         return new SampleStrategy(true);
     }
 
-    public static Strategy getBacktestStrategy(boolean generateBacktestData, String configFileName)
+    public static synchronized Strategy getBacktestStrategy(boolean generateBacktestData, String configFileName)
             throws ExchangeException, StandardJavaException {
 
         Properties backtesterConfig = Utils.getProperties(configFileName, "backtest_config_example.txt");
@@ -56,24 +55,24 @@ public class SampleStrategy implements Strategy {
         long startTime = Long.valueOf(backtesterConfig.getProperty("binanceperpetual.startTime"));
         long endTime = Long.valueOf(backtesterConfig.getProperty("binanceperpetual.endTime"));
 
-        SampleStrategy strat = new SampleStrategy(false);
         if (generateBacktestData) {
             try {
-                strat.bpHistoricKlines = HistoricKlines.pullKlines(symbolList, interval, startTime, endTime);
-                strat.bpHistoricFundingRates = null; // TODO
-                strat.bpSlippageModel = null; // TODO
+                SampleStrategy.bpHistoricKlines = HistoricKlines.pullKlines(symbolList, interval, startTime, endTime);
+                SampleStrategy.bpHistoricFundingRates = HistoricFundingRates.pullFundingRates(symbolList, startTime,
+                        endTime);
+                SampleStrategy.bpSlippageModel = null; // TODO
             } catch (StandardJavaException e) {
                 logger.error("couldn't pull backtest data", e);
             }
         }
         try {
-            strat.bpHistoricKlines = HistoricKlines.loadKlines(interval);
-            strat.bpHistoricFundingRates = null; // TODO
-            strat.bpSlippageModel = null; // TODO
+            SampleStrategy.bpHistoricKlines = HistoricKlines.loadKlines(interval);
+            SampleStrategy.bpHistoricFundingRates = HistoricFundingRates.loadFundingRates();
+            SampleStrategy.bpSlippageModel = null; // TODO
         } catch (StandardJavaException e) {
             logger.error("couldn't load backtest data", e);
         }
-        return strat;
+        return new SampleStrategy(false);
     }
 
     private SampleStrategy(boolean isLive) throws ExchangeException, StandardJavaException {
