@@ -78,7 +78,7 @@ public class HistoricFundingRates implements Serializable {
 
     private static void generateFundingRatesFile(List<File> symbolsJSONFiles, File fratesFile) throws IOException {
 
-        logger.info("Generating the klines object file {}", fratesFile);
+        logger.info("Generating the funding rates object file {}", fratesFile);
 
         if (!symbolsJSONFiles.isEmpty()) {
 
