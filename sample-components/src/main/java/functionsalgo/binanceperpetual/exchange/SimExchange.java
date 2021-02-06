@@ -13,6 +13,7 @@ import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;
 
+//TODO conform with Exchange interface (implement the remaining methods)
 public class SimExchange implements Exchange {
 
     @SuppressWarnings("unused")

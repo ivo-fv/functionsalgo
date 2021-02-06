@@ -39,6 +39,7 @@ public class HistoricFundingRates implements Serializable {
     private long fundingIntervalMillis = Interval._8h.toMilliseconds(); // 8 hours
     private HashMap<String, HashMap<Long, FundingRate>> rates;
 
+    // TODO able to specify a fundratesfile
     public static HistoricFundingRates pullFundingRates(List<String> symbols, long startTime, long endTime)
             throws StandardJavaException {
 

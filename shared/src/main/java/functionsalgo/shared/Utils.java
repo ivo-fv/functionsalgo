@@ -1,8 +1,10 @@
 package functionsalgo.shared;
 
+import java.io.BufferedInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
@@ -73,6 +75,18 @@ public class Utils {
             keys.load(keysFile);
             return keys;
         } catch (IOException | ClassNotFoundException e) {
+            throw new StandardJavaException(e);
+        }
+    }
+
+    public static Object loadObjectResource(String fileName) throws StandardJavaException {
+        try {
+            ClassLoader callerCL = Class.forName(new Exception().getStackTrace()[1].getClassName()).getClassLoader();
+            try (ObjectInputStream in = new ObjectInputStream(
+                    new BufferedInputStream(callerCL.getResourceAsStream(fileName)))) {
+                return in.readObject();
+            }
+        } catch (ClassNotFoundException | IOException e) {
             throw new StandardJavaException(e);
         }
     }

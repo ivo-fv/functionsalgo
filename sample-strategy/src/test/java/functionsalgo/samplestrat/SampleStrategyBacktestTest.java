@@ -12,6 +12,7 @@ public class SampleStrategyBacktestTest {
 
     @Test
     public final void testGetBacktestStrategy() throws ExchangeException, StandardJavaException {
-        Strategy sampleStrat = SampleStrategy.getBacktestStrategy(true, "backtest_config_test.txt"); // TODO
+        // Strategy sampleStrat = SampleStrategy.getBacktestStrategy(new
+        // BacktestConfig()); //TODO
     }
 }

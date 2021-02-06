@@ -18,6 +18,7 @@ import com.google.gson.Gson;
 
 import functionsalgo.binanceperpetual.dataprovider.HistoricDataGrabber;
 
+//TODO pull, download, generate, load, make a small slippagemodel object to be used as default in backtestconfig
 public class SlippageModel implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -37,7 +38,6 @@ public class SlippageModel implements Serializable {
         private double[][] asks;
     }
 
-    // TODO create .genresources if it doesn't exist
     public static final String MODEL_FILE = "../.genresources/data/slippage_model";
     public static final String JSON_ORDER_BOOKS_FOLDER = "../.genresources/data/binance_perp_json_order_books";
 
@@ -107,11 +107,6 @@ public class SlippageModel implements Serializable {
         }
     }
 
-    private SlippageModel() {
-
-        slippages = new HashMap<>();
-    }
-
     public static SlippageModel LoadSlippageModel(String slippageModelFile) {
 
         try (ObjectInputStream in = new ObjectInputStream(
@@ -121,6 +116,20 @@ public class SlippageModel implements Serializable {
             e.printStackTrace();
             return null;
         }
+    }
+
+    private SlippageModel() {
+
+        slippages = new HashMap<>();
+    }
+
+    public double getSlippage(double positionAmount, String symbol) {
+
+        if (positionAmount > MAX_RANGE_VALUE) {
+            positionAmount = MAX_RANGE_VALUE;
+        }
+
+        return slippages.get(symbol)[(int) positionAmount / SLIPPAGE_STEPS];
     }
 
     /**
@@ -180,16 +189,6 @@ public class SlippageModel implements Serializable {
         if (marketAmount > 0) {
             System.out.println("INFO: Market amount exceeds book depth.");
         }
-
         return quantity;
-    }
-
-    public double getSlippage(double positionAmount, String symbol) {
-
-        if (positionAmount > MAX_RANGE_VALUE) {
-            positionAmount = MAX_RANGE_VALUE;
-        }
-
-        return slippages.get(symbol)[(int) positionAmount / SLIPPAGE_STEPS];
     }
 }

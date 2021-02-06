@@ -1,6 +1,5 @@
 package functionsalgo.samplestrat;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -17,19 +16,15 @@ import functionsalgo.binanceperpetual.exchange.SimExchange;
 import functionsalgo.binanceperpetual.exchange.exceptions.OrderExecutionException;
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolNotTradingException;
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolQuantityTooLow;
-import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.exceptions.StandardJavaException;
 import functionsalgo.shared.Strategy;
 import functionsalgo.shared.Utils;
 
+//TODO dataproviders, statistics while execute
 public class SampleStrategy implements Strategy {
 
     private static final Logger logger = LogManager.getLogger();
-
-    private static final double BP_BACKTEST_INIITIAL_BALANCE = 100;
-    private static final short BP_BACKTEST_DEFAULT_LEVERAGE = 2;
-    private static final Interval BP_BACKTEST_TICK_INTERVAL = Interval._5m;
 
     Exchange bpExch;
 
@@ -42,50 +37,25 @@ public class SampleStrategy implements Strategy {
     static SlippageModel bpSlippageModel;
 
     public static Strategy getLiveStrategy() throws ExchangeException, StandardJavaException {
-        return new SampleStrategy(true);
+        return new SampleStrategy();
     }
 
-    public static synchronized Strategy getBacktestStrategy(boolean generateBacktestData, String configFileName)
-            throws ExchangeException, StandardJavaException {
-
-        Properties backtesterConfig = Utils.getProperties(configFileName, "backtest_config_example.txt");
-        String symbolListProp = backtesterConfig.getProperty("binanceperpetual.symbols");
-        List<String> symbolList = Arrays.asList(symbolListProp.split(",", 0));
-        Interval interval = Interval.parseString(backtesterConfig.getProperty("binanceperpetual.interval"));
-        long startTime = Long.valueOf(backtesterConfig.getProperty("binanceperpetual.startTime"));
-        long endTime = Long.valueOf(backtesterConfig.getProperty("binanceperpetual.endTime"));
-
-        if (generateBacktestData) {
-            try {
-                SampleStrategy.bpHistoricKlines = HistoricKlines.pullKlines(symbolList, interval, startTime, endTime);
-                SampleStrategy.bpHistoricFundingRates = HistoricFundingRates.pullFundingRates(symbolList, startTime,
-                        endTime);
-                SampleStrategy.bpSlippageModel = null; // TODO
-            } catch (StandardJavaException e) {
-                logger.error("couldn't pull backtest data", e);
-            }
-        }
-        try {
-            SampleStrategy.bpHistoricKlines = HistoricKlines.loadKlines(interval);
-            SampleStrategy.bpHistoricFundingRates = HistoricFundingRates.loadFundingRates();
-            SampleStrategy.bpSlippageModel = null; // TODO
-        } catch (StandardJavaException e) {
-            logger.error("couldn't load backtest data", e);
-        }
-        return new SampleStrategy(false);
+    public static Strategy getBacktestStrategy(BacktestConfig config) throws StandardJavaException {
+        return new SampleStrategy(config);
     }
 
-    private SampleStrategy(boolean isLive) throws ExchangeException, StandardJavaException {
-        this.live = isLive;
+    private SampleStrategy() throws ExchangeException, StandardJavaException {
+        live = true;
+        Properties keys = Utils.getProperties("binanceperpetual_apikeys_ignore.properties",
+                "binanceperpetual_apikeys.properties");
+        bpExch = new LiveExchange(keys.getProperty("privateKey"), keys.getProperty("publicApiKey"));
+    }
 
-        if (isLive) {
-            Properties keys = Utils.getProperties("binanceperpetual_apikeys_ignore.properties",
-                    "binanceperpetual_apikeys.properties");
-            bpExch = new LiveExchange(keys.getProperty("privateKey"), keys.getProperty("publicApiKey"));
-        } else {
-            bpExch = new SimExchange(BP_BACKTEST_INIITIAL_BALANCE, BP_BACKTEST_DEFAULT_LEVERAGE,
-                    BP_BACKTEST_TICK_INTERVAL, bpHistoricKlines, bpHistoricFundingRates, bpSlippageModel); // TODO
-        }
+    private SampleStrategy(BacktestConfig config) throws StandardJavaException {
+        live = false;
+        HistoricKlines klines = config.getBPKlines();
+        bpExch = new SimExchange(config.getBPInitialBalance(), config.getBPDefaultLeverage(), klines.getInterval(),
+                klines, config.getBPFundingRates(), config.getBPSlippageModel());
     }
 
     @Override
