@@ -11,12 +11,17 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.google.gson.Gson;
 
 import functionsalgo.binanceperpetual.dataprovider.HistoricDataGrabber;
+import functionsalgo.exceptions.StandardJavaException;
 
 //TODO pull, download, generate, load, make a small slippagemodel object to be used as default in backtestconfig
 public class SlippageModel implements Serializable {
@@ -38,8 +43,9 @@ public class SlippageModel implements Serializable {
         private double[][] asks;
     }
 
-    public static final String MODEL_FILE = "../.genresources/data/slippage_model";
-    public static final String JSON_ORDER_BOOKS_FOLDER = "../.genresources/data/binance_perp_json_order_books";
+    static String DATA_DIR = "../.genresources/data";
+    static String MODEL_FILE = DATA_DIR + "/slippage_model";
+    static String JSON_ORDER_BOOKS_FOLDER = DATA_DIR + "/binance_perp_json_order_books";
 
     /**
      * false = will only generate order books, appending to existing ones | true =
@@ -47,9 +53,9 @@ public class SlippageModel implements Serializable {
      */
     private static final boolean CALCULATE_SLIPPAGE = false;
 
-    private static final short DEFAULT_DEPTH = 100;
     private static final int MAX_RANGE_VALUE = 285000;
     private static final int SLIPPAGE_STEPS = 100;
+    private static final int BOOK_DEPTH = 100;
 
     private Map<String, double[]> slippages;
 
@@ -100,10 +106,30 @@ public class SlippageModel implements Serializable {
 
                 File outFile = new File(JSON_ORDER_BOOKS_FOLDER + "/" + symbol + ".json");
 
-                orderBookGrabber.saveSymbolOrderBook(symbol, DEFAULT_DEPTH, outFile);
+                orderBookGrabber.saveSymbolOrderBook(symbol, (short) BOOK_DEPTH, outFile);
             }
 
             System.out.println("Order book files generated successfully.");
+        }
+    }
+
+    public static SlippageModel pullSlippageModel(List<String> symbols, File fileToSaveSlippageModelTo) {
+        downloadModelJSONS(symbols, true);
+    }
+
+    private static void downloadModelJSONS(List<String> symbols, boolean append) {
+
+        ArrayList<File> symbolsJSONFiles = new ArrayList<>();
+        for (String symbol : symbols) {
+            symbolsJSONFiles.add(new File(JSON_ORDER_BOOKS_FOLDER + "/" + symbol + ".json"));
+        }
+
+        WrapperREST restAPI;
+        try {
+            restAPI = new WrapperREST("don't need a valid key", "for this use case");
+            restAPI.saveOrderBooks(symbolsJSONFiles, symbols, BOOK_DEPTH, append);
+        } catch (InvalidKeyException | NoSuchAlgorithmException | IOException e) {
+            throw new StandardJavaException(e);
         }
     }
 

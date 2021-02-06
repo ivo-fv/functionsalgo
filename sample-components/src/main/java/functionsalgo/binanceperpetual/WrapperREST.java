@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +32,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
 import functionsalgo.datapoints.Interval;
-import functionsalgo.shared.MultiplePageJSONArraysInOneFileSaver;
+import functionsalgo.shared.MultiplePageJSONInOneFileSaver;
 import functionsalgo.shared.Utils;
 
 // TODO  no  magic numbers, make them constants
@@ -41,6 +40,16 @@ public class WrapperREST {
 
     public static final String HOST_TEST = "https://testnet.binancefuture.com";
     public static final String HOST_LIVE = "https://fapi.binance.com";
+
+    private static final String EXCHANGE_INFO_ENDPOINT = "/fapi/v1/exchangeInfo";
+    private static final String ACCOUNT_INFO_ENDPOINT = "/fapi/v2/account?";
+    private static final String ORDER_ENDPOINT = "/fapi/v1/order?";
+    private static final String SET_CROSS_MARGIN_ENDPOINT = "/fapi/v1/marginType?";
+    private static final String SET_LEVERAGE_ENDPOINT = "/fapi/v1/leverage?";
+    private static final String SET_HEDGE_MODE_ENDPOINT = "/fapi/v1/positionSide/dual?";
+    private static final String ORDER_BOOK_ENDPOINT = "/fapi/v1/depth?";
+    private static final String FUNDING_RATE_ENDPOINT = "/fapi/v1/fundingRate?";
+    private static final String KLINES_ENDPOINT = "/fapi/v1/klines?";
 
     private static final long RECV_WINDOW = 15000;
     private static final long TIMESTAMP_LAG = 5000;
@@ -55,6 +64,7 @@ public class WrapperREST {
     private static final int IP_BAN_CODE = 418;
     private static final String TRADING_STATUS = "TRADING";
     private static final int MAX_REQUEST_KLINES_AND_FUNDING_RATES = 1000;
+    private static final int MAX_ORDERBOOK_REQUEST = 1000;
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -88,7 +98,7 @@ public class WrapperREST {
 
     public void saveKlines(List<File> klinesSymbolsFilesJSON, List<String> symbols, Interval interval, long startTime,
             long endTime) throws IOException {
-
+        logger.info("Saving klines");
         for (int i = 0; i < klinesSymbolsFilesJSON.size(); i++) {
             saveKlines(klinesSymbolsFilesJSON.get(i), symbols.get(i), interval, startTime, endTime);
             logger.info("Saved json of symbol: {}", symbols.get(i));
@@ -99,12 +109,12 @@ public class WrapperREST {
     public void saveKlines(File klinesJSONFile, String symbol, Interval interval, long startTime, long endTime)
             throws IOException {
 
-        saveMultiPageData(klinesJSONFile, symbol, interval, startTime, endTime, "/fapi/v1/klines?");
+        saveMultiPageData(klinesJSONFile, symbol, interval, startTime, endTime, KLINES_ENDPOINT);
     }
 
-    public void saveFundingRates(ArrayList<File> symbolsJSONFiles, List<String> symbols, long startTime, long endTime)
+    public void saveFundingRates(List<File> symbolsJSONFiles, List<String> symbols, long startTime, long endTime)
             throws IOException {
-
+        logger.info("Saving funding rates");
         for (int i = 0; i < symbolsJSONFiles.size(); i++) {
             saveFundingRates(symbolsJSONFiles.get(i), symbols.get(i), startTime, endTime);
             logger.info("Saved json of symbol: {}", symbols.get(i));
@@ -113,7 +123,38 @@ public class WrapperREST {
     }
 
     public void saveFundingRates(File symbolsJSONFile, String symbol, long startTime, long endTime) throws IOException {
-        saveMultiPageData(symbolsJSONFile, symbol, Interval._8h, startTime, endTime, "/fapi/v1/fundingRate?");
+        saveMultiPageData(symbolsJSONFile, symbol, Interval._8h, startTime, endTime, FUNDING_RATE_ENDPOINT);
+    }
+
+    public void saveOrderBooks(List<File> symbolsJSONFiles, List<String> symbols, int bookDepth, boolean append)
+            throws IOException {
+        logger.info("Saving order books");
+        for (int i = 0; i < symbolsJSONFiles.size(); i++) {
+            saveOrderBook(symbolsJSONFiles.get(i), symbols.get(i), bookDepth, append);
+            logger.info("Saved json of symbol: {}", symbols.get(i));
+        }
+        logger.info("Finished saving order books");
+    }
+
+    public void saveOrderBook(File orderBookJSONFile, String symbol, int bookDepth, boolean append) throws IOException {
+
+        if (bookDepth > MAX_ORDERBOOK_REQUEST) {
+            bookDepth = MAX_ORDERBOOK_REQUEST;
+        }
+
+        MultiplePageJSONInOneFileSaver jsonSaver = new MultiplePageJSONInOneFileSaver(orderBookJSONFile, append);
+
+        String endpoint = ORDER_BOOK_ENDPOINT;
+        String uri = host + endpoint + "symbol=" + symbol + "&limit=" + bookDepth;
+        HttpGet httpget = new HttpGet(uri);
+
+        try (CloseableHttpResponse res = httpClient.execute(httpget)) {
+            HttpEntity entity = res.getEntity();
+            updateLimits(res);
+            jsonSaver.appendObject(entity.getContent());
+        }
+
+        jsonSaver.finish();
     }
 
     public AccountInfoWrapper getAccountInfo() throws WrapperRESTException {
@@ -198,7 +239,7 @@ public class WrapperREST {
 
         String params = "dualSidePosition=true&recvWindow=" + RECV_WINDOW + "&timestamp=" + getCurrentTimestampMillis();
 
-        JsonElement res = apiPostSignedRequestGetResponse("/fapi/v1/positionSide/dual?", params);
+        JsonElement res = apiPostSignedRequestGetResponse(SET_HEDGE_MODE_ENDPOINT, params);
 
         JsonObject resObj = res.getAsJsonObject();
         int code = resObj.get("code").getAsInt();
@@ -213,7 +254,7 @@ public class WrapperREST {
         String params = "symbol=" + symbol + "&leverage=" + leverage + "&recvWindow=" + RECV_WINDOW + "&timestamp="
                 + getCurrentTimestampMillis();
 
-        JsonElement res = apiPostSignedRequestGetResponse("/fapi/v1/leverage?", params);
+        JsonElement res = apiPostSignedRequestGetResponse(SET_LEVERAGE_ENDPOINT, params);
 
         JsonObject resObj = res.getAsJsonObject();
         if (resObj.has("leverage")) {
@@ -235,7 +276,7 @@ public class WrapperREST {
         String params = "symbol=" + symbol + "&marginType=CROSSED&recvWindow=" + RECV_WINDOW + "&timestamp="
                 + getCurrentTimestampMillis();
 
-        JsonElement res = apiPostSignedRequestGetResponse("/fapi/v1/marginType?", params);
+        JsonElement res = apiPostSignedRequestGetResponse(SET_CROSS_MARGIN_ENDPOINT, params);
 
         JsonObject resObj = res.getAsJsonObject();
         int code = resObj.get("code").getAsInt();
@@ -253,7 +294,7 @@ public class WrapperREST {
         String params = "symbol=" + symbol + sideCombo + "&type=MARKET&quantity=" + symbolQty + "&recvWindow="
                 + RECV_WINDOW + "&timestamp=" + timestamp;
 
-        JsonElement res = apiPostSignedRequestGetResponse("/fapi/v1/order?", params);
+        JsonElement res = apiPostSignedRequestGetResponse(ORDER_ENDPOINT, params);
 
         JsonObject resObj = res.getAsJsonObject();
         if (resObj.has("symbol")) {
@@ -275,7 +316,7 @@ public class WrapperREST {
         String params = "symbol=" + symbol + sideCombo + "&type=MARKET&quantity=" + symbolQty + "&recvWindow="
                 + RECV_WINDOW + "&timestamp=" + timestamp;
 
-        JsonElement res = apiPostSignedRequestGetResponse("/fapi/v1/order?", params);
+        JsonElement res = apiPostSignedRequestGetResponse(ORDER_ENDPOINT, params);
 
         JsonObject resObj = res.getAsJsonObject();
         if (resObj.has("symbol")) {
@@ -304,7 +345,7 @@ public class WrapperREST {
 
         String params = "recvWindow=" + RECV_WINDOW + "&timestamp=" + getCurrentTimestampMillis();
         String signature = Utils.bytesToHex(signHMAC.doFinal(params.getBytes(StandardCharsets.UTF_8)));
-        String uri = host + "/fapi/v2/account?" + params + "&signature=" + signature;
+        String uri = host + ACCOUNT_INFO_ENDPOINT + params + "&signature=" + signature;
 
         HttpGet httpget = new HttpGet(uri);
         httpget.addHeader(HEADER_API_KEY, apiKey);
@@ -316,7 +357,7 @@ public class WrapperREST {
 
     private JsonElement getExchangeInformation() throws WrapperRESTException {
 
-        String uri = host + "/fapi/v1/exchangeInfo";
+        String uri = host + EXCHANGE_INFO_ENDPOINT;
         HttpGet httpget = new HttpGet(uri);
 
         JsonElement res = retrySendRequestGetParsedResponse(httpget);
@@ -398,7 +439,7 @@ public class WrapperREST {
         long timeToAdd = (long) MAX_REQUEST_KLINES_AND_FUNDING_RATES * interval.toMilliseconds();
         long newTime = startTime;
 
-        MultiplePageJSONArraysInOneFileSaver jsonPagesSaver = new MultiplePageJSONArraysInOneFileSaver(fileToSaveTo);
+        MultiplePageJSONInOneFileSaver jsonPagesSaver = new MultiplePageJSONInOneFileSaver(fileToSaveTo, false);
 
         while (newTime < endTime) {
 
@@ -409,7 +450,7 @@ public class WrapperREST {
             try (CloseableHttpResponse res = httpClient.execute(httpget)) {
                 HttpEntity entity = res.getEntity();
                 updateLimits(res);
-                jsonPagesSaver.append(entity.getContent());
+                jsonPagesSaver.appendArray(entity.getContent());
             }
 
             newTime += timeToAdd;

@@ -39,15 +39,21 @@ public class HistoricFundingRates implements Serializable {
     private long fundingIntervalMillis = Interval._8h.toMilliseconds(); // 8 hours
     private HashMap<String, HashMap<Long, FundingRate>> rates;
 
-    // TODO able to specify a fundratesfile
     public static HistoricFundingRates pullFundingRates(List<String> symbols, long startTime, long endTime)
             throws StandardJavaException {
+
+        return pullFundingRates(null, symbols, startTime, endTime);
+    }
+
+    public static HistoricFundingRates pullFundingRates(File fileToSaveFundingRatesTo, List<String> symbols,
+            long startTime, long endTime) throws StandardJavaException {
 
         File fratesDirJSON = new File(JSON_DATA_FOLDER);
         if (!fratesDirJSON.exists()) {
             fratesDirJSON.mkdirs();
         }
-        File fratesFile = new File(FUND_RATES_FILE);
+
+        File fratesFile = fileToSaveFundingRatesTo == null ? new File(FUND_RATES_FILE) : fileToSaveFundingRatesTo;
 
         ArrayList<File> symbolsJSONFiles = new ArrayList<>();
         for (String symbol : symbols) {
@@ -57,7 +63,7 @@ public class HistoricFundingRates implements Serializable {
         downloadFundingRates(symbolsJSONFiles, symbols, startTime, endTime);
 
         try {
-            generateFundingRatesFile(symbolsJSONFiles, fratesFile);
+            generateFundingRatesFile(symbolsJSONFiles, symbols, fratesFile);
         } catch (IOException e) {
             throw new StandardJavaException(e);
         }
@@ -77,7 +83,8 @@ public class HistoricFundingRates implements Serializable {
         }
     }
 
-    private static void generateFundingRatesFile(List<File> symbolsJSONFiles, File fratesFile) throws IOException {
+    private static void generateFundingRatesFile(List<File> symbolsJSONFiles, List<String> symbols, File fratesFile)
+            throws IOException {
 
         logger.info("Generating the funding rates object file {}", fratesFile);
 
@@ -87,15 +94,13 @@ public class HistoricFundingRates implements Serializable {
 
             Gson gson = new Gson();
 
-            for (File file : symbolsJSONFiles) {
-
-                String[] fileData = file.getName().split("\\.", 2);
-                String symbol = fileData[0];
+            for (int i = 0; i < symbolsJSONFiles.size(); i++) {
 
                 FundingRate[] parsedSymbolFundRates = gson.fromJson(
-                        new BufferedReader(new InputStreamReader(new FileInputStream(file))), FundingRate[].class);
+                        new BufferedReader(new InputStreamReader(new FileInputStream(symbolsJSONFiles.get(i)))),
+                        FundingRate[].class);
 
-                fundratesObj.addSymbolFundRates(symbol, parsedSymbolFundRates);
+                fundratesObj.addSymbolFundRates(symbols.get(i), parsedSymbolFundRates);
             }
 
             try (ObjectOutputStream out = new ObjectOutputStream(

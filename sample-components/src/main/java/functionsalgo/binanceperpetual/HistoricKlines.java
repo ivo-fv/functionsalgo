@@ -45,12 +45,21 @@ public class HistoricKlines implements Serializable {
     public static HistoricKlines pullKlines(List<String> symbols, Interval interval, long startTime, long endTime)
             throws StandardJavaException {
 
+        return pullKlines(null, symbols, interval, startTime, endTime);
+    }
+
+    public static HistoricKlines pullKlines(File fileToSaveKlinesTo, List<String> symbols, Interval interval,
+            long startTime, long endTime) throws StandardJavaException {
+
         String klinesDirJSONPath = getJSONDirName(interval);
         File klinesDirJSON = new File(klinesDirJSONPath);
         if (!klinesDirJSON.exists()) {
             klinesDirJSON.mkdirs();
         }
-        File klinesFile = new File(DATA_DIR + "/" + KLINES_FILE_GENERIC_NAME + interval.toString());
+
+        File klinesFile = fileToSaveKlinesTo == null
+                ? new File(DATA_DIR + "/" + KLINES_FILE_GENERIC_NAME + interval.toString())
+                : fileToSaveKlinesTo;
 
         ArrayList<File> symbolsJSONFiles = new ArrayList<>();
         for (String symbol : symbols) {
@@ -60,7 +69,7 @@ public class HistoricKlines implements Serializable {
         downloadKlines(symbolsJSONFiles, symbols, interval, startTime, endTime);
 
         try {
-            generateKlinesFile(symbolsJSONFiles, klinesFile, interval);
+            generateKlinesFile(symbolsJSONFiles, symbols, klinesFile, interval);
         } catch (IOException e) {
             throw new StandardJavaException(e);
         }
@@ -79,8 +88,8 @@ public class HistoricKlines implements Serializable {
         }
     }
 
-    public static void generateKlinesFile(List<File> klinesSymbolsFilesJSON, File klinesFile, Interval interval)
-            throws IOException {
+    public static void generateKlinesFile(List<File> klinesSymbolsFilesJSON, List<String> symbols, File klinesFile,
+            Interval interval) throws IOException {
 
         logger.info("Generating the klines object file {}", klinesFile);
 
@@ -90,15 +99,13 @@ public class HistoricKlines implements Serializable {
 
             Gson gson = new Gson();
 
-            for (File file : klinesSymbolsFilesJSON) {
-
-                String[] fileData = file.getName().split("\\.", 2);
-                String symbol = fileData[0];
+            for (int i = 0; i < klinesSymbolsFilesJSON.size(); i++) {
 
                 BigDecimal[][] parsedSymbolKlines = gson.fromJson(
-                        new BufferedReader(new InputStreamReader(new FileInputStream(file))), BigDecimal[][].class);
+                        new BufferedReader(new InputStreamReader(new FileInputStream(klinesSymbolsFilesJSON.get(i)))),
+                        BigDecimal[][].class);
 
-                klinesObj.addSymbolData(symbol, parsedSymbolKlines);
+                klinesObj.addSymbolData(symbols.get(i), parsedSymbolKlines);
             }
 
             try (ObjectOutputStream out = new ObjectOutputStream(
@@ -115,8 +122,11 @@ public class HistoricKlines implements Serializable {
     }
 
     public static HistoricKlines loadKlines(Interval interval) throws StandardJavaException {
-        try (ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(
-                new FileInputStream(new File(DATA_DIR + "/" + KLINES_FILE_GENERIC_NAME + interval.toString()))))) {
+        return loadKlines(new File(DATA_DIR + "/" + KLINES_FILE_GENERIC_NAME + interval.toString()));
+    }
+
+    public static HistoricKlines loadKlines(File klinesObject) throws StandardJavaException {
+        try (ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(new FileInputStream(klinesObject)))) {
             return (HistoricKlines) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
             throw new StandardJavaException(e);

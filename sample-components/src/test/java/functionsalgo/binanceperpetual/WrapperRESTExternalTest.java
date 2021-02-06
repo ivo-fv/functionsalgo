@@ -15,6 +15,7 @@ import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
@@ -235,6 +236,61 @@ public class WrapperRESTExternalTest {
             assertTrue("must be array", eth.isJsonArray());
         }
 
+        for (int i = 0; i < 10 && ethFile.exists(); i++) {
+            ethFile.delete();
+        }
+    }
+
+    @Test
+    public final void testSaveOrderBooks() throws IOException {
+        File btcFile = new File("BTCUSDT.json");
+        for (int i = 0; i < 10 && btcFile.exists(); i++) {
+            btcFile.delete();
+        }
+        File ethFile = new File("ETHUSDT.json");
+        for (int i = 0; i < 10 && ethFile.exists(); i++) {
+            ethFile.delete();
+        }
+
+        ArrayList<File> orderBookFiles = new ArrayList<>();
+        orderBookFiles.add(new File("BTCUSDT.json"));
+        orderBookFiles.add(new File("ETHUSDT.json"));
+
+        ArrayList<String> symbols = new ArrayList<>();
+        symbols.add("BTCUSDT");
+        symbols.add("ETHUSDT");
+
+        bpapi.saveOrderBooks(orderBookFiles, symbols, 50, true);
+
+        assertTrue("file wasn't created", new File("BTCUSDT.json").exists() && new File("ETHUSDT.json").exists());
+
+        try (InputStreamReader is = new InputStreamReader(new FileInputStream(new File("BTCUSDT.json")),
+                StandardCharsets.UTF_8)) {
+            JsonElement btc = JsonParser.parseReader(is);
+            assertTrue("must be array", btc.isJsonArray());
+        }
+        try (InputStreamReader is = new InputStreamReader(new FileInputStream(new File("ETHUSDT.json")),
+                StandardCharsets.UTF_8)) {
+            JsonElement eth = JsonParser.parseReader(is);
+            assertTrue("must be array", eth.isJsonArray());
+        }
+
+        bpapi.saveOrderBooks(orderBookFiles, symbols, 50, true);
+
+        try (InputStreamReader is = new InputStreamReader(new FileInputStream(new File("BTCUSDT.json")),
+                StandardCharsets.UTF_8)) {
+            JsonArray btc = JsonParser.parseReader(is).getAsJsonArray();
+            assertTrue("size must be 2", btc.size() == 2);
+        }
+        try (InputStreamReader is = new InputStreamReader(new FileInputStream(new File("ETHUSDT.json")),
+                StandardCharsets.UTF_8)) {
+            JsonArray eth = JsonParser.parseReader(is).getAsJsonArray();
+            assertTrue("size must be 2", eth.size() == 2);
+        }
+
+        for (int i = 0; i < 10 && btcFile.exists(); i++) {
+            btcFile.delete();
+        }
         for (int i = 0; i < 10 && ethFile.exists(); i++) {
             ethFile.delete();
         }
