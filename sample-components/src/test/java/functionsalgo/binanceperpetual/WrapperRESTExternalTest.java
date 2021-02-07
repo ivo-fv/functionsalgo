@@ -23,8 +23,6 @@ import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.shared.Utils;
 
-//TODO externalize strings to resource bundle and gitignore , make dummy bundle warn to rename before testing
-
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class WrapperRESTExternalTest {
 
@@ -32,6 +30,8 @@ public class WrapperRESTExternalTest {
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
+        // "binanceperpetual_apikeys.properties" by default doesn't have valid keys, so
+        // must modify the file with proper testnet keys
         Properties keys = Utils.getProperties("binanceperpetual_apikeys_ignore.properties",
                 "binanceperpetual_apikeys.properties");
         bpapi = new WrapperREST(keys.getProperty("privateKey"), keys.getProperty("publicApiKey"));

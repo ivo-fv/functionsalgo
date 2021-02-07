@@ -17,8 +17,8 @@ public class BacktestConfig {
     private static final short DEFAULT_BP_DEFAULT_LEVERAGE = 2;
     private static final String DEFAULT_BP_KLINES = "binance_perp_default_klines_5m";
     private static final String DEFAULT_BP_FUNDING_RATES = "binance_perp_default_fund_rates";
-    private static final String DEFAULT_BP_SLIPPAGE_MODEL = "binance_perp_default_slippage_model"; // TODO add this file
-                                                                                                   // to res
+    private static final String DEFAULT_BP_SLIPPAGE_MODEL = "binance_perp_default_slippage_model";
+
     private double bpInitialBalance = -1;
     private short bpDefaultLeverage = -1;
     private HistoricKlines bpKlines;
@@ -29,7 +29,7 @@ public class BacktestConfig {
         // use the with methods to build the config
     }
 
-    public BacktestConfig withBpInitialBalance(double bpInitialBalance) {
+    public BacktestConfig withBPInitialBalance(double bpInitialBalance) {
         this.bpInitialBalance = bpInitialBalance;
         return this;
     }

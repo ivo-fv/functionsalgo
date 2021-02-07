@@ -36,7 +36,7 @@ public class LiveExchange implements Exchange {
         }
     }
 
-    @Override // TODO getAccountInfo() (no param)
+    @Override
     public AccountInfo getAccountInfo(long timestamp) throws WrapperRESTException {
 
         LiveAccountInfo acc = new LiveAccountInfo();

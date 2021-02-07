@@ -5,6 +5,7 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -18,12 +19,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.gson.Gson;
 
-import functionsalgo.binanceperpetual.dataprovider.HistoricDataGrabber;
 import functionsalgo.exceptions.StandardJavaException;
 
-//TODO pull, download, generate, load, make a small slippagemodel object to be used as default in backtestconfig
 public class SlippageModel implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -43,87 +45,49 @@ public class SlippageModel implements Serializable {
         private double[][] asks;
     }
 
+    private static final Logger logger = LogManager.getLogger();
+
     static String DATA_DIR = "../.genresources/data";
     static String MODEL_FILE = DATA_DIR + "/slippage_model";
     static String JSON_ORDER_BOOKS_FOLDER = DATA_DIR + "/binance_perp_json_order_books";
 
-    /**
-     * false = will only generate order books, appending to existing ones | true =
-     * will only calculate from existing order books
-     */
-    private static final boolean CALCULATE_SLIPPAGE = false;
-
-    private static final int MAX_RANGE_VALUE = 285000;
-    private static final int SLIPPAGE_STEPS = 100;
-    private static final int BOOK_DEPTH = 100;
+    static int MAX_RANGE_VALUE = 285000;
+    static int SLIPPAGE_STEPS = 100;
+    static int BOOK_DEPTH = 100;
 
     private Map<String, double[]> slippages;
 
-    /**
-     * Used for generating a slippage model intended for backtesting.
-     */
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static SlippageModel pullSlippageModel(List<String> symbols) throws StandardJavaException {
 
-        if (CALCULATE_SLIPPAGE) {
+        return pullSlippageModel(symbols, new File(MODEL_FILE));
+    }
 
-            System.out.println("Creating Model...");
+    public static SlippageModel pullSlippageModel(List<String> symbols, File fileToSaveSlippageModelTo)
+            throws StandardJavaException {
 
-            SlippageModel slippageModel = new SlippageModel();
-
-            Gson gson = new Gson();
-
-            for (String symbol : HistoricDataGrabber.SYMBOLS) {
-
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                        new FileInputStream(new File(JSON_ORDER_BOOKS_FOLDER + "/" + symbol + ".json"))))) {
-
-                    OrderBookData[] multipleOrderBookData = gson.fromJson(reader, OrderBookData[].class);
-
-                    slippageModel.calculateSymbol(symbol, multipleOrderBookData);
-                }
-            }
-
-            File slippageModelFile = new File(MODEL_FILE);
-
-            try (ObjectOutputStream out = new ObjectOutputStream(
-                    new BufferedOutputStream(new FileOutputStream(slippageModelFile)))) {
-
-                out.writeObject(slippageModel);
-                out.flush();
-            }
-
-            System.out.println("Model created successfully, saved in the file: " + MODEL_FILE);
-
-        } else {
-            System.out.println("Generating the order book files...");
-
-            HistoricDataGrabber orderBookGrabber = new HistoricDataGrabber();
-
-            File orderBookDir = new File(JSON_ORDER_BOOKS_FOLDER);
-            orderBookDir.mkdir();
-
-            for (String symbol : HistoricDataGrabber.SYMBOLS) {
-
-                File outFile = new File(JSON_ORDER_BOOKS_FOLDER + "/" + symbol + ".json");
-
-                orderBookGrabber.saveSymbolOrderBook(symbol, (short) BOOK_DEPTH, outFile);
-            }
-
-            System.out.println("Order book files generated successfully.");
+        File obDirJSON = new File(JSON_ORDER_BOOKS_FOLDER);
+        if (!obDirJSON.exists()) {
+            obDirJSON.mkdirs();
         }
-    }
-
-    public static SlippageModel pullSlippageModel(List<String> symbols, File fileToSaveSlippageModelTo) {
-        downloadModelJSONS(symbols, true);
-    }
-
-    private static void downloadModelJSONS(List<String> symbols, boolean append) {
 
         ArrayList<File> symbolsJSONFiles = new ArrayList<>();
         for (String symbol : symbols) {
             symbolsJSONFiles.add(new File(JSON_ORDER_BOOKS_FOLDER + "/" + symbol + ".json"));
         }
 
+        downloadModelJSONS(symbolsJSONFiles, symbols, true);
+
+        try {
+            generateSlippageModel(symbolsJSONFiles, symbols, fileToSaveSlippageModelTo);
+        } catch (IOException e) {
+            throw new StandardJavaException(e);
+        }
+
+        return loadSlippageModel(fileToSaveSlippageModelTo);
+    }
+
+    public static void downloadModelJSONS(List<File> symbolsJSONFiles, List<String> symbols, boolean append)
+            throws StandardJavaException {
         WrapperREST restAPI;
         try {
             restAPI = new WrapperREST("don't need a valid key", "for this use case");
@@ -133,10 +97,49 @@ public class SlippageModel implements Serializable {
         }
     }
 
-    public static SlippageModel LoadSlippageModel(String slippageModelFile) {
+    public static void generateSlippageModel(ArrayList<File> symbolsJSONFiles, List<String> symbols,
+            File fileToSaveSlippageModelTo) throws IOException {
 
+        logger.info("Generating the SlippageModel object file {}", fileToSaveSlippageModelTo);
+
+        if (symbolsJSONFiles.isEmpty()) {
+            throw new FileNotFoundException("No symbol json files to process");
+        }
+
+        SlippageModel slippageModel = new SlippageModel();
+
+        Gson gson = new Gson();
+
+        for (int i = 0; i < symbolsJSONFiles.size(); i++) {
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(new FileInputStream(symbolsJSONFiles.get(i))))) {
+
+                OrderBookData[] multipleOrderBookData = gson.fromJson(reader, OrderBookData[].class);
+
+                slippageModel.calculateSymbol(symbols.get(i), multipleOrderBookData);
+            }
+        }
+
+        File slippageModelFile = fileToSaveSlippageModelTo == null ? new File(MODEL_FILE) : fileToSaveSlippageModelTo;
+
+        try (ObjectOutputStream out = new ObjectOutputStream(
+                new BufferedOutputStream(new FileOutputStream(slippageModelFile)))) {
+
+            out.writeObject(slippageModel);
+            out.flush();
+        }
+
+        logger.info("Finished generating the SlippageModel object file {}", fileToSaveSlippageModelTo);
+    }
+
+    public static SlippageModel loadSlippageModel() {
+        return loadSlippageModel(new File(MODEL_FILE));
+    }
+
+    public static SlippageModel loadSlippageModel(File slippageModelFile) {
         try (ObjectInputStream in = new ObjectInputStream(
-                new BufferedInputStream(new FileInputStream(new File(slippageModelFile))))) {
+                new BufferedInputStream(new FileInputStream(slippageModelFile)))) {
             return (SlippageModel) in.readObject();
         } catch (ClassNotFoundException | IOException e) {
             e.printStackTrace();
@@ -149,6 +152,14 @@ public class SlippageModel implements Serializable {
         slippages = new HashMap<>();
     }
 
+    /**
+     * @param positionAmount
+     * @param symbol
+     * @return the slippage >= 1 the positionAmount (notional) would incur when
+     *         market buying/selling with that positionAmount. A value of 1.012
+     *         would mean a slippage of 1.2% , meaning there would be 1.2% less
+     *         value gotten out of the order than expected
+     */
     public double getSlippage(double positionAmount, String symbol) {
 
         if (positionAmount > MAX_RANGE_VALUE) {
@@ -193,6 +204,14 @@ public class SlippageModel implements Serializable {
         slippages.put(symbol, slippageValues);
     }
 
+    /**
+     * how much of the symbol (quantity) in sideOfBook can be bought/sold with the
+     * given marketAmount (notional)
+     * 
+     * @param sideOfBook
+     * @param marketAmount
+     * @return
+     */
     private double calculateOneSideOfBookQuantity(double[][] sideOfBook, double marketAmount) {
 
         double quantity = 0;
@@ -213,7 +232,7 @@ public class SlippageModel implements Serializable {
         }
 
         if (marketAmount > 0) {
-            System.out.println("INFO: Market amount exceeds book depth.");
+            logger.info("Market amount exceeds book depth.");
         }
         return quantity;
     }

@@ -35,7 +35,6 @@ import functionsalgo.datapoints.Interval;
 import functionsalgo.shared.MultiplePageJSONInOneFileSaver;
 import functionsalgo.shared.Utils;
 
-// TODO  no  magic numbers, make them constants
 public class WrapperREST {
 
     public static final String HOST_TEST = "https://testnet.binancefuture.com";
@@ -74,7 +73,6 @@ public class WrapperREST {
     private CloseableHttpClient httpClient;
 
     // TODO security -> use char[] privateKey and overwrite it
-    // TODO use keys from a resource file (remove them from this constructor params)
     public WrapperREST(String privateKey, String apiKey) throws NoSuchAlgorithmException, InvalidKeyException {
 
         host = HOST_LIVE;
