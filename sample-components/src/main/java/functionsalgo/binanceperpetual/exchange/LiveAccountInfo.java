@@ -39,8 +39,7 @@ public class LiveAccountInfo implements AccountInfo {
 
     @Override
     public double getTakerFee() {
-        // TODO Auto-generated method stub
-        return 0;
+        return SimExchange.TAKER_OPEN_CLOSE_FEE;
     }
 
     @Override
@@ -56,12 +55,6 @@ public class LiveAccountInfo implements AccountInfo {
     @Override
     public double getAverageOpenPrice(String symbol, boolean isLong) {
         return isLong ? longPositions.get(symbol).averagePrice : shortPositions.get(symbol).averagePrice;
-    }
-
-    @Override
-    public double getWorstCurrenttMarginBalance() {
-        // TODO Auto-generated method stub
-        return 0;
     }
 
     @Override

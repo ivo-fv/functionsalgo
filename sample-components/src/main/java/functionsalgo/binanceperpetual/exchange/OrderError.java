@@ -5,7 +5,7 @@ import functionsalgo.exceptions.ExchangeException;
 public class OrderError {
 
     public enum OrderStatus {
-        UNKNOWN, FAILED
+        UNKNOWN, FAILED, NOT_ENOUGH_MARGIN_FAILED, NO_SUCH_POSITION_FAILED
     }
 
     String orderId;

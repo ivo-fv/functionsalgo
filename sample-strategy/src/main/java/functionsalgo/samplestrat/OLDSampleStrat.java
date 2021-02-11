@@ -200,7 +200,7 @@ public class OLDSampleStrat implements Strategy {
 
         savePositions();
 
-        appendStatistics(new Statistics(acc.getWorstCurrenttMarginBalance(), acc.getMarginBalance(),
+        appendStatistics(new Statistics(acc.getMarginBalance(), acc.getMarginBalance(),
                 acc.getWalletBalance(), wins, losses, acc.getTimestamp()));
         return null; // TODO TradeStatistics
     }

@@ -1,9 +1,9 @@
 package functionsalgo.binanceperpetual.exchange;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-
-import functionsalgo.exceptions.ExchangeException;
+import java.util.Map;
 
 class SimAccountInfo implements AccountInfo {
 
@@ -32,25 +32,25 @@ class SimAccountInfo implements AccountInfo {
     double marginBalance;
     double walletBalance;
     HashMap<String, Integer> leverages;
-    HashMap<String, PositionData> positions;
+    HashMap<String, PositionData> longPositions;
+    HashMap<String, PositionData> shortPositions;
     HashMap<String, Double> fundingRates;
     long lastUpdatedTime;
     public long nextFundingTime;
     double takerFee = SimExchange.TAKER_OPEN_CLOSE_FEE;
     double worstCurrentMarginBalance;
-    HashMap<String, ExchangeException> ordersWithErrors;
     HashMap<String, Double> ordersWithQuantities;
+    public ArrayList<OrderError> errors;
 
     SimAccountInfo(double walletBalance) {
 
         this.walletBalance = walletBalance;
         marginBalance = walletBalance;
         worstCurrentMarginBalance = walletBalance;
-
-        positions = new HashMap<>();
+        longPositions = new HashMap<>();
+        shortPositions = new HashMap<>();
         leverages = new HashMap<>();
         fundingRates = new HashMap<>();
-        ordersWithErrors = new HashMap<>();
         ordersWithQuantities = new HashMap<>();
 
         lastUpdatedTime = 0;
@@ -71,7 +71,7 @@ class SimAccountInfo implements AccountInfo {
     @Override
     public double getQuantity(String symbol, boolean isLong) {
 
-        return positions.get(SimExchange.getPositionId(symbol, isLong)).quantity;
+        return isLong ? longPositions.get(symbol).quantity : shortPositions.get(symbol).quantity;
     }
 
     @Override
@@ -95,13 +95,7 @@ class SimAccountInfo implements AccountInfo {
     @Override
     public double getAverageOpenPrice(String symbol, boolean isLong) {
 
-        return positions.get(SimExchange.getPositionId(symbol, isLong)).avgOpenPrice;
-    }
-
-    @Override
-    public double getWorstCurrenttMarginBalance() {
-
-        return worstCurrentMarginBalance;
+        return isLong ? longPositions.get(symbol).avgOpenPrice : shortPositions.get(symbol).avgOpenPrice;
     }
 
     @Override
@@ -118,13 +112,18 @@ class SimAccountInfo implements AccountInfo {
 
     @Override
     public List<OrderError> getOrderErrors() {
-        // TODO Auto-generated method stub
-        return null;
+        return errors;
     }
 
     @Override
     public double getTotalInitialMargin() {
-        // TODO Auto-generated method stub
-        return 0;
+        double marginUsed = 0;
+        for (Map.Entry<String, PositionData> entry : longPositions.entrySet()) {
+            marginUsed += entry.getValue().margin;
+        }
+        for (Map.Entry<String, PositionData> entry : shortPositions.entrySet()) {
+            marginUsed += entry.getValue().margin;
+        }
+        return marginUsed;
     }
 }

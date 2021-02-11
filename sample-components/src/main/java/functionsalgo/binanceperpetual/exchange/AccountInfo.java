@@ -18,8 +18,6 @@ public interface AccountInfo {
 
     double getAverageOpenPrice(String symbol, boolean isLong);
 
-    double getWorstCurrenttMarginBalance();
-
     boolean isSymbolIsolated(String symbol, boolean isLong);
 
     boolean isHedgeMode();

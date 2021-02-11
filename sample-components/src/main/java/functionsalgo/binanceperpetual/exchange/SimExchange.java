@@ -5,16 +5,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import functionsalgo.binanceperpetual.FundingRate;
 import functionsalgo.binanceperpetual.HistoricFundingRates;
 import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.binanceperpetual.SlippageModel;
+import functionsalgo.binanceperpetual.exchange.exceptions.NoBalanceInAccountException;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;
 
-//TODO conform with Exchange interface (implement the remaining methods)
+//TODO refactor not as useful positionId and awkward longPosition/shortPosition handling
 public class SimExchange implements Exchange {
+
+    private static final Logger logger = LogManager.getLogger();
 
     @SuppressWarnings("unused")
     private static final boolean IS_HEDGE_MODE = true;
@@ -35,25 +41,8 @@ public class SimExchange implements Exchange {
     private HistoricFundingRates bpHistoricFundingRates;
     private SlippageModel slippageModel;
 
-    private List<BatchedOrder> batchedMarketOrders;
-
-    private class BatchedOrder {
-
-        String orderId;
-        String symbol;
-        boolean isLong;
-        double quantity;
-        boolean isOpen;
-
-        public BatchedOrder(String orderId, String symbol, boolean isLong, double quantity, boolean isOpen) {
-
-            this.orderId = orderId;
-            this.symbol = symbol;
-            this.isLong = isLong;
-            this.quantity = quantity;
-            this.isOpen = isOpen;
-        }
-    }
+    private List<BatchedOrder> batchedMarketOpenOrders = new ArrayList<>();
+    private List<BatchedOrder> batchedMarketCloseOrders = new ArrayList<>();
 
     public SimExchange(double walletBalance, short defaultLeverage, Interval updateInterval,
             HistoricKlines bpHistoricKlines, HistoricFundingRates bpHistoricFundingRates, SlippageModel slippageModel) {
@@ -65,18 +54,22 @@ public class SimExchange implements Exchange {
         this.bpHistoricFundingRates = bpHistoricFundingRates;
         fundingIntervalMillis = bpHistoricFundingRates.getFundingIntervalMillis();
         this.slippageModel = slippageModel;
-        batchedMarketOrders = new ArrayList<>();
     }
 
     @Override
-    public AccountInfo getAccountInfo(long timestamp) {
+    public AccountInfo getAccountInfo(long timestamp) throws ExchangeException {
 
-        updateAccountInfo(timestamp);
+        try {
+            updateAccountInfo(timestamp);
+        } catch (NoBalanceInAccountException e) {
+            throw new ExchangeException(ExchangeException.ErrorType.INVALID_STATE,
+                    "no balance in account, can't continue backtest", "SimExchange::getAccountInfo", e);
+        }
 
         return accInfo;
     }
 
-    private void updateAccountInfo(long timestamp) {
+    private void updateAccountInfo(long timestamp) throws NoBalanceInAccountException {
 
         // TODO random position adl close, simulate not being able to trade for a period
         // of time
@@ -114,83 +107,132 @@ public class SimExchange implements Exchange {
         accInfo.marginBalance = accInfo.walletBalance;
         accInfo.worstCurrentMarginBalance = accInfo.walletBalance;
 
-        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.positions.entrySet()) {
+        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
             // should use mark price for more accuracy
             Kline kline = bpHistoricKlines.getKlines(entry.getValue().symbol, timestamp, timestamp).get(0);
-            if (entry.getValue().isLong) {
-                double currPrice = kline.getOpen();
-                entry.getValue().currPrice = currPrice;
-                double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
-                accInfo.marginBalance += pnl;
-                double worstPrice = kline.getLow();
-                double worstPnL = (worstPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
-                accInfo.worstCurrentMarginBalance += worstPnL;
-                int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
-                        ? accInfo.leverages.get(entry.getValue().symbol)
-                        : defaultLeverage;
-                entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
-            } else {
-                double currPrice = kline.getOpen();
-                entry.getValue().currPrice = currPrice;
-                double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
-                accInfo.marginBalance += pnl;
-                double worstPrice = kline.getHigh();
-                double worstPnL = (entry.getValue().avgOpenPrice - worstPrice) * entry.getValue().quantity;
-                accInfo.worstCurrentMarginBalance += worstPnL;
-                int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
-                        ? accInfo.leverages.get(entry.getValue().symbol)
-                        : defaultLeverage;
-                entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
-            }
+            double currPrice = kline.getOpen();
+            entry.getValue().currPrice = currPrice;
+            double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
+            accInfo.marginBalance += pnl;
+            double worstPrice = kline.getLow();
+            double worstPnL = (worstPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
+            accInfo.worstCurrentMarginBalance += worstPnL;
+            int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
+                    ? accInfo.leverages.get(entry.getValue().symbol)
+                    : defaultLeverage;
+            entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
         }
-
+        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.shortPositions.entrySet()) {
+            Kline kline = bpHistoricKlines.getKlines(entry.getValue().symbol, timestamp, timestamp).get(0);
+            double currPrice = kline.getOpen();
+            entry.getValue().currPrice = currPrice;
+            double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
+            accInfo.marginBalance += pnl;
+            double worstPrice = kline.getHigh();
+            double worstPnL = (entry.getValue().avgOpenPrice - worstPrice) * entry.getValue().quantity;
+            accInfo.worstCurrentMarginBalance += worstPnL;
+            int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
+                    ? accInfo.leverages.get(entry.getValue().symbol)
+                    : defaultLeverage;
+            entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
+        }
         if (timestamp >= nextFundingTime) {
-            for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.positions.entrySet()) {
+            for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
                 FundingRate frate = bpHistoricFundingRates
                         .getFundingRates(entry.getValue().symbol, timestamp, timestamp).get(0);
-                if (entry.getValue().isLong) {
-                    double fundingRate = frate.getFundingRate();
-                    accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
-                    double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
-                    accInfo.marginBalance -= funding;
-                    accInfo.walletBalance -= funding;
-                    accInfo.worstCurrentMarginBalance -= funding;
-                } else {
-                    double fundingRate = frate.getFundingRate();
-                    accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
-                    double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
-                    accInfo.marginBalance += funding;
-                    accInfo.walletBalance += funding;
-                    accInfo.worstCurrentMarginBalance += funding;
-                }
+
+                double fundingRate = frate.getFundingRate();
+                accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
+                double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
+                accInfo.marginBalance -= funding;
+                accInfo.walletBalance -= funding;
+                accInfo.worstCurrentMarginBalance -= funding;
+            }
+            for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
+                FundingRate frate = bpHistoricFundingRates
+                        .getFundingRates(entry.getValue().symbol, timestamp, timestamp).get(0);
+                double fundingRate = frate.getFundingRate();
+                accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
+                double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
+                accInfo.marginBalance += funding;
+                accInfo.walletBalance += funding;
+                accInfo.worstCurrentMarginBalance += funding;
             }
         }
     }
 
-    void checkMaintenanceMargin(long time) {
+    void checkMaintenanceMargin(long time) throws NoBalanceInAccountException {
 
         // assuming crossed margin type
         double highestInitialMargin = 0;
 
-        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.positions.entrySet()) {
-
+        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
             highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().margin);
         }
+        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.shortPositions.entrySet()) {
+            highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().margin);
+        }
+
         // the maintenance margin is *always less* than 50% of the initial margin
         if (accInfo.worstCurrentMarginBalance <= highestInitialMargin / 2) {
-            // TODO throw some exception
-            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            System.out.println("!!! Probably going to get liquidated at: " + time);
-            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            logger.error("Going to get liquidated at timestamp: {}", time);
             accInfo.marginBalance = 0;
             accInfo.walletBalance = 0;
-            accInfo.positions = new HashMap<>();
+            accInfo.longPositions = new HashMap<>();
+            accInfo.shortPositions = new HashMap<>();
+            throw new NoBalanceInAccountException("got liquidated at timestamp: " + time);
         }
+    }
+
+    @Override
+    public void addBatchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty) {
+
+        batchedMarketOpenOrders.add(new BatchedOrder(orderId, symbol, isLong, symbolQty, true));
+    }
+
+    @Override
+    public void addBatchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose) {
+
+        batchedMarketCloseOrders.add(new BatchedOrder(orderId, symbol, isLong, qtyToClose, false));
+    }
+
+    @Override
+    public AccountInfo executeBatchedMarketOpenOrders() {
+
+        ArrayList<OrderError> errors = new ArrayList<>();
+
+        for (BatchedOrder order : batchedMarketOpenOrders) {
+            boolean res = marketOpen(order.symbol, order.isLong, order.quantity);
+            if (!res) {
+                errors.add(new OrderError(order.orderId, OrderError.OrderStatus.NOT_ENOUGH_MARGIN_FAILED, null));
+            }
+        }
+
+        batchedMarketOpenOrders = new ArrayList<>();
+
+        accInfo.errors = errors;
+        return accInfo;
+    }
+
+    @Override
+    public AccountInfo executeBatchedMarketCloseOrders() {
+        ArrayList<OrderError> errors = new ArrayList<>();
+
+        for (BatchedOrder order : batchedMarketCloseOrders) {
+            boolean res = marketClose(order.symbol, order.isLong, order.quantity);
+            if (!res) {
+                errors.add(new OrderError(order.orderId, OrderError.OrderStatus.NO_SUCH_POSITION_FAILED, null));
+            }
+        }
+
+        batchedMarketCloseOrders = new ArrayList<>();
+
+        accInfo.errors = errors;
+        return accInfo;
     }
 
     private boolean marketOpen(String symbol, boolean isLong, double symbolQty) {
 
-        String positionId = getPositionId(symbol, isLong);
         Kline kline = bpHistoricKlines.getKlines(symbol, accInfo.lastUpdatedTime, accInfo.lastUpdatedTime).get(0);
         double openPrice = kline.getOpen();
         double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
@@ -202,15 +244,12 @@ public class SimExchange implements Exchange {
         }
         double notionalValue = openPrice * symbolQty;
 
-        double marginUsed = 0;
-        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.positions.entrySet()) {
-            marginUsed += entry.getValue().margin;
-        }
+        double marginUsed = accInfo.getTotalInitialMargin();
+
         if (marginUsed + (initialMargin * OPEN_LOSS_SIM_MULT) >= accInfo.marginBalance) {
-            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            System.out.println("!!! Not enough margin to open position at: " + accInfo.lastUpdatedTime);
-            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            // TODO log no margin to open position
+            logger.info("not enough margin to open position at timestamp: {}", accInfo.lastUpdatedTime);
+            // TODO a SimLog with successful/unsuccessful opens/closes (not enough margin,
+            // log not ok open)
             return false;
         }
 
@@ -218,41 +257,54 @@ public class SimExchange implements Exchange {
         accInfo.marginBalance -= openFee;
         accInfo.walletBalance -= openFee;
 
-        if (accInfo.positions.containsKey(positionId)) {
-            accInfo.positions.get(positionId).margin += initialMargin;
-            double newQty = accInfo.positions.get(positionId).quantity + symbolQty;
-            double percOldQty = accInfo.positions.get(positionId).quantity / newQty;
-            double prevAvgOpenPrice = accInfo.positions.get(positionId).avgOpenPrice;
-            double percNewQty = symbolQty / newQty;
-            accInfo.positions.get(positionId).avgOpenPrice = (prevAvgOpenPrice * percOldQty) + (openPrice * percNewQty);
-            accInfo.positions.get(positionId).quantity = newQty;
+        if (isLong) {
+            if (accInfo.longPositions.containsKey(symbol)) {
+                updatePositionsAfterOpen(accInfo.longPositions, symbol, symbolQty, openPrice, initialMargin);
+            } else {
+                accInfo.longPositions.put(symbol,
+                        accInfo.new PositionData(symbol, isLong, openPrice, symbolQty, initialMargin));
+            }
         } else {
-            accInfo.positions.put(positionId,
-                    accInfo.new PositionData(symbol, isLong, openPrice, symbolQty, initialMargin));
+            if (accInfo.shortPositions.containsKey(symbol)) {
+                updatePositionsAfterOpen(accInfo.shortPositions, symbol, symbolQty, openPrice, initialMargin);
+            } else {
+                accInfo.shortPositions.put(symbol,
+                        accInfo.new PositionData(symbol, isLong, openPrice, symbolQty, initialMargin));
+            }
         }
-        // TODO log successful open
+
+        // TODO a SimLog with successful/unsuccessful opens/closes (log ok open)
         return true;
     }
 
+    private void updatePositionsAfterOpen(HashMap<String, SimAccountInfo.PositionData> positions, String symbol,
+            double symbolQty, double openPrice, double initialMargin) {
+        positions.get(symbol).margin += initialMargin;
+        double newQty = positions.get(symbol).quantity + symbolQty;
+        double percOldQty = positions.get(symbol).quantity / newQty;
+        double prevAvgOpenPrice = positions.get(symbol).avgOpenPrice;
+        double percNewQty = symbolQty / newQty;
+        positions.get(symbol).avgOpenPrice = (prevAvgOpenPrice * percOldQty) + (openPrice * percNewQty);
+        positions.get(symbol).quantity = newQty;
+    }
+
     private boolean marketClose(String symbol, boolean isLong, double qtyToClose) {
+        HashMap<String, SimAccountInfo.PositionData> positions = isLong ? accInfo.longPositions
+                : accInfo.shortPositions;
+        if (positions.containsKey(symbol)) {
 
-        String positionId = getPositionId(symbol, isLong);
+            if (positions.get(symbol).quantity > qtyToClose) {
 
-        if (accInfo.positions.containsKey(positionId)) {
-
-            if (accInfo.positions.get(positionId).quantity > qtyToClose) {
-
-                double nValSlipp = qtyToClose * accInfo.positions.get(positionId).currPrice;
+                double nValSlipp = qtyToClose * positions.get(symbol).currPrice;
                 double closePrice;
                 double pnl;
-                if (accInfo.positions.get(positionId).isLong) {
-                    closePrice = accInfo.positions.get(positionId).currPrice
+                if (positions.get(symbol).isLong) {
+                    closePrice = positions.get(symbol).currPrice
                             * (1 - (slippageModel.getSlippage(nValSlipp, symbol) - 1));
-                    pnl = (closePrice - accInfo.positions.get(positionId).avgOpenPrice) * qtyToClose;
+                    pnl = (closePrice - positions.get(symbol).avgOpenPrice) * qtyToClose;
                 } else {
-                    closePrice = accInfo.positions.get(positionId).currPrice
-                            * slippageModel.getSlippage(nValSlipp, symbol);
-                    pnl = (accInfo.positions.get(positionId).avgOpenPrice - closePrice) * qtyToClose;
+                    closePrice = positions.get(symbol).currPrice * slippageModel.getSlippage(nValSlipp, symbol);
+                    pnl = (positions.get(symbol).avgOpenPrice - closePrice) * qtyToClose;
                 }
                 double notionalValue = closePrice * qtyToClose;
                 double closeFee = Math.abs(notionalValue + pnl) * MAKER_OPEN_CLOSE_FEE;
@@ -264,23 +316,22 @@ public class SimExchange implements Exchange {
                 double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol)
                         : defaultLeverage;
                 double margin = notionalValue / leverage;
-                accInfo.positions.get(positionId).margin -= margin;
-                accInfo.positions.get(positionId).quantity -= qtyToClose;
+                positions.get(symbol).margin -= margin;
+                positions.get(symbol).quantity -= qtyToClose;
 
-                // TODO log successful close
+                // TODO a SimLog with successful/unsuccessful opens/closes (log ok close)
             } else {
-                double quantity = accInfo.positions.get(positionId).quantity;
-                double nValSlipp = quantity * accInfo.positions.get(positionId).currPrice;
+                double quantity = positions.get(symbol).quantity;
+                double nValSlipp = quantity * positions.get(symbol).currPrice;
                 double closePrice;
                 double pnl;
-                if (accInfo.positions.get(positionId).isLong) {
-                    closePrice = accInfo.positions.get(positionId).currPrice
+                if (positions.get(symbol).isLong) {
+                    closePrice = positions.get(symbol).currPrice
                             * (1 - (slippageModel.getSlippage(nValSlipp, symbol) - 1));
-                    pnl = (closePrice - accInfo.positions.get(positionId).avgOpenPrice) * quantity;
+                    pnl = (closePrice - positions.get(symbol).avgOpenPrice) * quantity;
                 } else {
-                    closePrice = accInfo.positions.get(positionId).currPrice
-                            * slippageModel.getSlippage(nValSlipp, symbol);
-                    pnl = (accInfo.positions.get(positionId).avgOpenPrice - closePrice) * quantity;
+                    closePrice = positions.get(symbol).currPrice * slippageModel.getSlippage(nValSlipp, symbol);
+                    pnl = (positions.get(symbol).avgOpenPrice - closePrice) * quantity;
                 }
                 double notionalValue = closePrice * quantity;
                 double closeFee = Math.abs(notionalValue + pnl) * MAKER_OPEN_CLOSE_FEE;
@@ -289,58 +340,16 @@ public class SimExchange implements Exchange {
                 accInfo.marginBalance -= closeFee;
                 accInfo.walletBalance += pnl;
 
-                accInfo.positions.remove(positionId);
+                positions.remove(symbol);
 
-                // TODO log successful close
+                // TODO a SimLog with successful/unsuccessful opens/closes (log ok close)
             }
         } else {
-            // TODO log no position with positionId
+            // TODO a SimLog with successful/unsuccessful opens/closes (no position with
+            // this symbol, log not ok close)
             return false;
         }
-
         return true;
-    }
-
-    public static String getPositionId(String symbol, boolean isLong) {
-
-        return symbol + "_" + isLong;
-    }
-
-    @Override
-    public void addBatchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty) {
-
-        accInfo.ordersWithErrors.remove(orderId);
-        batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, symbolQty, true));
-    }
-
-    @Override
-    public void addBatchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose) {
-
-        accInfo.ordersWithErrors.remove(orderId);
-        batchedMarketOrders.add(new BatchedOrder(orderId, symbol, isLong, qtyToClose, false));
-    }
-
-    public AccountInfo executeBatchedOrders() {
-
-        ArrayList<BatchedOrder> tempBatch = new ArrayList<>(batchedMarketOrders);
-        batchedMarketOrders.clear();
-
-        for (BatchedOrder order : tempBatch) {
-            if (order.isOpen) {
-                if (!marketOpen(order.symbol, order.isLong, order.quantity)) {
-                    accInfo.ordersWithErrors.put(order.orderId,
-                            new ExchangeException(1, "Not enough margin to open", "Backtest"));
-                }
-
-            } else {
-                if (!marketClose(order.symbol, order.isLong, order.quantity)) {
-                    accInfo.ordersWithErrors.put(order.orderId,
-                            new ExchangeException(2, "Error when closing", "Backtest"));
-                }
-            }
-        }
-
-        return accInfo;
     }
 
     @Override
@@ -353,7 +362,6 @@ public class SimExchange implements Exchange {
     public void setLeverage(String symbol, int leverage) {
 
         accInfo.leverages.put(symbol, leverage);
-
     }
 
     @Override
@@ -361,17 +369,4 @@ public class SimExchange implements Exchange {
 
         // only cross margin supported so all symbols are already in cross margin mode
     }
-
-    @Override
-    public AccountInfo executeBatchedMarketOpenOrders() {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
-    public AccountInfo executeBatchedMarketCloseOrders() {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
 }
