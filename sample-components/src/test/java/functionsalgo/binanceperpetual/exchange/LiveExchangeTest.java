@@ -76,13 +76,7 @@ public class LiveExchangeTest {
         assertTrue("getAverageOpenPrice", accInfo.getAverageOpenPrice("BTCUSDT", true) == 21);
         assertTrue("isSymbolIsolated", accInfo.isSymbolIsolated("BTCUSDT", true) == false);
         assertTrue("isHedgeMode", accInfo.isHedgeMode() == true);
-
-        try {
-            accInfo.getQuantity("BTCUSDT", false);
-            fail("getQuantity short");
-        } catch (Exception e) {
-            // must catch the exception to pass the test
-        }
+        assertTrue("getQuantity no position must be 0", accInfo.getQuantity("BTCUSDT", false) == 0);
     }
 
     @Test
