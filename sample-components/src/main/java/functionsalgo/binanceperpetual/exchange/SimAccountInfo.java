@@ -70,8 +70,11 @@ class SimAccountInfo implements AccountInfo {
 
     @Override
     public double getQuantity(String symbol, boolean isLong) {
-
-        return isLong ? longPositions.get(symbol).quantity : shortPositions.get(symbol).quantity;
+        try {
+            return isLong ? longPositions.get(symbol).quantity : shortPositions.get(symbol).quantity;
+        } catch (NullPointerException e) {
+            return 0;
+        }
     }
 
     @Override
@@ -94,8 +97,11 @@ class SimAccountInfo implements AccountInfo {
 
     @Override
     public double getAverageOpenPrice(String symbol, boolean isLong) {
-
-        return isLong ? longPositions.get(symbol).avgOpenPrice : shortPositions.get(symbol).avgOpenPrice;
+        try {
+            return isLong ? longPositions.get(symbol).avgOpenPrice : shortPositions.get(symbol).avgOpenPrice;
+        } catch (NullPointerException e) {
+            return 0;
+        }
     }
 
     @Override

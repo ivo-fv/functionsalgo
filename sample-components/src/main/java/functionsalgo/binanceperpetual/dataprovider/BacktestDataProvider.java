@@ -2,6 +2,7 @@ package functionsalgo.binanceperpetual.dataprovider;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import functionsalgo.binanceperpetual.FundingRate;
 import functionsalgo.binanceperpetual.HistoricFundingRates;
@@ -13,7 +14,7 @@ import functionsalgo.exceptions.StandardJavaException;
 
 public class BacktestDataProvider implements DataProvider {
 
-    HashMap<Interval, HistoricKlines> klines;
+    Map<Interval, HistoricKlines> klines;
     HistoricFundingRates fundRates;
 
     public BacktestDataProvider(Interval[] intervals) throws StandardJavaException {
@@ -43,6 +44,14 @@ public class BacktestDataProvider implements DataProvider {
             throws ExchangeException {
 
         return klines.get(interval).getKlines(symbol, startTime, endTime);
+    }
+
+    public Map<String, Kline> getKlinesMult(List<String> symbol, Interval interval, long startTime, long endTime)
+            throws ExchangeException {
+        // TODO thread pool fetch each each interval for each symbol, consider removing
+        // checks from HistoricKlines and HistoricFundingRates, do them here
+        // return klines.get(interval).getKlines(symbol, startTime, endTime);
+        return null;
     }
 
 }

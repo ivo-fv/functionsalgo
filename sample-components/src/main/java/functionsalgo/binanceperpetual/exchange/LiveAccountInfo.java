@@ -49,12 +49,20 @@ public class LiveAccountInfo implements AccountInfo {
 
     @Override
     public double getQuantity(String symbol, boolean isLong) {
-        return isLong ? longPositions.get(symbol).quantity : shortPositions.get(symbol).quantity;
+        try {
+            return isLong ? longPositions.get(symbol).quantity : shortPositions.get(symbol).quantity;
+        } catch (NullPointerException e) {
+            return 0;
+        }
     }
 
     @Override
     public double getAverageOpenPrice(String symbol, boolean isLong) {
-        return isLong ? longPositions.get(symbol).averagePrice : shortPositions.get(symbol).averagePrice;
+        try {
+            return isLong ? longPositions.get(symbol).averagePrice : shortPositions.get(symbol).averagePrice;
+        } catch (NullPointerException e) {
+            return 0;
+        }
     }
 
     @Override

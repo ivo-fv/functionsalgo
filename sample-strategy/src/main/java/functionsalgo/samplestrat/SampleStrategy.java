@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 import functionsalgo.binanceperpetual.HistoricFundingRates;
 import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.binanceperpetual.SlippageModel;
+import functionsalgo.binanceperpetual.dataprovider.DataProvider;
 import functionsalgo.binanceperpetual.exchange.AccountInfo;
 import functionsalgo.binanceperpetual.exchange.Exchange;
 import functionsalgo.binanceperpetual.exchange.LiveExchange;
@@ -27,6 +28,7 @@ public class SampleStrategy implements Strategy {
     private static final Logger logger = LogManager.getLogger();
 
     Exchange bpExch;
+    DataProvider bpData;
 
     StrategyDecision strat = new StrategyDecision();
     boolean live = false;
@@ -49,6 +51,7 @@ public class SampleStrategy implements Strategy {
         Properties keys = Utils.getProperties("binanceperpetual_apikeys_ignore.properties",
                 "binanceperpetual_apikeys.properties");
         bpExch = new LiveExchange(keys.getProperty("privateKey"), keys.getProperty("publicApiKey"));
+        // TODO bpData = new LiveDataProvider(...);
     }
 
     private SampleStrategy(BacktestConfig config) throws StandardJavaException {
@@ -56,6 +59,7 @@ public class SampleStrategy implements Strategy {
         HistoricKlines klines = config.getBPKlines();
         bpExch = new SimExchange(config.getBPInitialBalance(), config.getBPDefaultLeverage(), klines.getInterval(),
                 klines, config.getBPFundingRates(), config.getBPSlippageModel());
+        // TODO bpData = new BacktestDataProvider(...);
     }
 
     @Override
