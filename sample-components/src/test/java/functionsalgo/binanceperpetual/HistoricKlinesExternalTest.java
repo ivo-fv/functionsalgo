@@ -25,6 +25,8 @@ public class HistoricKlinesExternalTest {
 
         assertTrue("invalid klines object file - getInterval", klines.getInterval() == Interval._5m);
         assertTrue("invalid klines object file - getKlines",
-                klines.getKlines("ETHUSDT", 1612390647356L, 1612395647356L).get(0).getOpen() >= 1000);
+                klines.getKlines("ETHUSDT", 1612390647356L, 1612395648222L).get(0).getOpen() >= 1000);
+        assertTrue("invalid klines object file - getKline",
+                klines.getKline("ETHUSDT", 1612390647356L).getOpen() >= 1000);
     }
 }

@@ -139,6 +139,11 @@ public class HistoricFundingRates implements Serializable {
         rates = new HashMap<>();
     }
 
+    public FundingRate getFundingRate(String symbol, long timestamp) {
+        long adjustedTimestamp = (timestamp / fundingIntervalMillis) * fundingIntervalMillis;
+        return rates.get(symbol).get(adjustedTimestamp);
+    }
+
     public List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) {
 
         long adjustedStartTime = (startTime / fundingIntervalMillis) * fundingIntervalMillis;

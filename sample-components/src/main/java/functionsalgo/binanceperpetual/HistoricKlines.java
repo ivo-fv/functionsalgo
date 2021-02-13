@@ -142,6 +142,11 @@ public class HistoricKlines implements Serializable {
         klines = new HashMap<>();
     }
 
+    public Kline getKline(String symbol, long timestamp) {
+        long adjustedTimestamp = (timestamp / interval.toMilliseconds()) * interval.toMilliseconds();
+        return klines.get(symbol).get(adjustedTimestamp);
+    }
+
     public List<Kline> getKlines(String symbol, long startTime, long endTime) {
 
         long adjustedStartTime = (startTime / interval.toMilliseconds()) * interval.toMilliseconds();

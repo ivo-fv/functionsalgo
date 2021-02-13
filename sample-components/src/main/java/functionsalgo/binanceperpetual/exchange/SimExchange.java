@@ -8,7 +8,6 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import functionsalgo.binanceperpetual.FundingRate;
 import functionsalgo.binanceperpetual.HistoricFundingRates;
 import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.binanceperpetual.SlippageModel;
@@ -102,6 +101,7 @@ public class SimExchange implements Exchange {
 
     }
 
+    // TODO refactor
     private void calculateMarginBalanceAndUpdatePositionData(long timestamp) {
 
         accInfo.marginBalance = accInfo.walletBalance;
@@ -109,7 +109,7 @@ public class SimExchange implements Exchange {
 
         for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
             // should use mark price for more accuracy
-            Kline kline = bpHistoricKlines.getKlines(entry.getValue().symbol, timestamp, timestamp).get(0);
+            Kline kline = bpHistoricKlines.getKline(entry.getValue().symbol, timestamp);
             double currPrice = kline.getOpen();
             entry.getValue().currPrice = currPrice;
             double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
@@ -123,7 +123,7 @@ public class SimExchange implements Exchange {
             entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
         }
         for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.shortPositions.entrySet()) {
-            Kline kline = bpHistoricKlines.getKlines(entry.getValue().symbol, timestamp, timestamp).get(0);
+            Kline kline = bpHistoricKlines.getKline(entry.getValue().symbol, timestamp);
             double currPrice = kline.getOpen();
             entry.getValue().currPrice = currPrice;
             double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
@@ -138,10 +138,8 @@ public class SimExchange implements Exchange {
         }
         if (timestamp >= nextFundingTime) {
             for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
-                FundingRate frate = bpHistoricFundingRates
-                        .getFundingRates(entry.getValue().symbol, timestamp, timestamp).get(0);
-
-                double fundingRate = frate.getFundingRate();
+                double fundingRate = bpHistoricFundingRates.getFundingRate(entry.getValue().symbol, timestamp)
+                        .getFundingRate();
                 accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
                 double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                 accInfo.marginBalance -= funding;
@@ -149,9 +147,8 @@ public class SimExchange implements Exchange {
                 accInfo.worstCurrentMarginBalance -= funding;
             }
             for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
-                FundingRate frate = bpHistoricFundingRates
-                        .getFundingRates(entry.getValue().symbol, timestamp, timestamp).get(0);
-                double fundingRate = frate.getFundingRate();
+                double fundingRate = bpHistoricFundingRates.getFundingRate(entry.getValue().symbol, timestamp)
+                        .getFundingRate();
                 accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
                 double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                 accInfo.marginBalance += funding;
@@ -231,9 +228,10 @@ public class SimExchange implements Exchange {
         return accInfo;
     }
 
+    // TODO refactor
     private boolean marketOpen(String symbol, boolean isLong, double symbolQty) {
 
-        Kline kline = bpHistoricKlines.getKlines(symbol, accInfo.lastUpdatedTime, accInfo.lastUpdatedTime).get(0);
+        Kline kline = bpHistoricKlines.getKline(symbol, accInfo.lastUpdatedTime);
         double openPrice = kline.getOpen();
         double leverage = accInfo.leverages.containsKey(symbol) ? accInfo.leverages.get(symbol) : defaultLeverage;
         double initialMargin = (openPrice * symbolQty) / leverage;
@@ -288,6 +286,7 @@ public class SimExchange implements Exchange {
         positions.get(symbol).quantity = newQty;
     }
 
+    // TODO refactor
     private boolean marketClose(String symbol, boolean isLong, double qtyToClose) {
         HashMap<String, SimAccountInfo.PositionData> positions = isLong ? accInfo.longPositions
                 : accInfo.shortPositions;

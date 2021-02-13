@@ -1,6 +1,5 @@
 package functionsalgo.binanceperpetual.dataprovider;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -10,21 +9,15 @@ import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;
-import functionsalgo.exceptions.StandardJavaException;
 
 public class BacktestDataProvider implements DataProvider {
 
     Map<Interval, HistoricKlines> klines;
     HistoricFundingRates fundRates;
 
-    public BacktestDataProvider(Interval[] intervals) throws StandardJavaException {
-
-        klines = new HashMap<>();
-        for (Interval interval : intervals) {
-            klines.put(interval, HistoricKlines.loadKlines(interval));
-        }
-
-        fundRates = HistoricFundingRates.loadFundingRates();
+    public BacktestDataProvider(Map<Interval, HistoricKlines> klinesPerInterval, HistoricFundingRates fundRates) {
+        klines = klinesPerInterval;
+        this.fundRates = fundRates;
     }
 
     @Override
@@ -33,6 +26,7 @@ public class BacktestDataProvider implements DataProvider {
         return fundRates.getFundingIntervalMillis();
     }
 
+    // TODO mult
     @Override
     public List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) throws ExchangeException {
 

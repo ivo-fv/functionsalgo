@@ -1,6 +1,8 @@
 package functionsalgo.samplestrat;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
@@ -9,6 +11,7 @@ import org.apache.logging.log4j.Logger;
 import functionsalgo.binanceperpetual.HistoricFundingRates;
 import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.binanceperpetual.SlippageModel;
+import functionsalgo.binanceperpetual.dataprovider.BacktestDataProvider;
 import functionsalgo.binanceperpetual.dataprovider.DataProvider;
 import functionsalgo.binanceperpetual.exchange.AccountInfo;
 import functionsalgo.binanceperpetual.exchange.Exchange;
@@ -17,6 +20,7 @@ import functionsalgo.binanceperpetual.exchange.SimExchange;
 import functionsalgo.binanceperpetual.exchange.exceptions.OrderExecutionException;
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolNotTradingException;
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolQuantityTooLow;
+import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.exceptions.StandardJavaException;
 import functionsalgo.shared.Strategy;
@@ -57,9 +61,12 @@ public class SampleStrategy implements Strategy {
     private SampleStrategy(BacktestConfig config) throws StandardJavaException {
         live = false;
         HistoricKlines klines = config.getBPKlines();
+        HistoricFundingRates frates = config.getBPFundingRates();
         bpExch = new SimExchange(config.getBPInitialBalance(), config.getBPDefaultLeverage(), klines.getInterval(),
-                klines, config.getBPFundingRates(), config.getBPSlippageModel());
-        // TODO bpData = new BacktestDataProvider(...);
+                klines, frates, config.getBPSlippageModel());
+        Map<Interval, HistoricKlines> klinesPerInterval = new HashMap<>();
+        klinesPerInterval.put(klines.getInterval(), klines);
+        bpData = new BacktestDataProvider(klinesPerInterval, frates);
     }
 
     @Override
@@ -128,13 +135,13 @@ public class SampleStrategy implements Strategy {
     }
 
     List<Position> getPositionsToOpen(AccountInfo acc) {
-        // strat.something()
+        // strat.something(), pass bpData
         // TODO Auto-generated method stub
         return null;
     }
 
     List<Position> getPositionsToClose(AccountInfo acc) {
-        // strat.something()
+        // strat.something(), pass bpData
         // TODO Auto-generated method stub
         return null;
     }

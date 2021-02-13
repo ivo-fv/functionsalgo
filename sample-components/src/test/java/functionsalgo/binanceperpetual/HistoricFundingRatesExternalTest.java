@@ -28,6 +28,8 @@ public class HistoricFundingRatesExternalTest {
         assertTrue("invalid fundingRates object file - getFundingIntervalMillis",
                 fundingRates.getFundingIntervalMillis() == Interval._8h.toMilliseconds());
         assertTrue("invalid fundingRates object file - getFundingRates",
-                fundingRates.getFundingRates("ETHUSDT", 1611846639946L, 1611946639946L).get(0).getFundingRate() > -10);
+                fundingRates.getFundingRates("ETHUSDT", 1611846639946L, 1611946644625L).get(0).getFundingRate() > -10);
+        assertTrue("invalid fundingRates object file - getFundingRates",
+                fundingRates.getFundingRate("ETHUSDT", 1611846639946L).getFundingRate() > -10);
     }
 }

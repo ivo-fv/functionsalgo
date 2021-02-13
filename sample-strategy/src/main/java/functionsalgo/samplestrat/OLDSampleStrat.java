@@ -105,7 +105,7 @@ public class OLDSampleStrat implements Strategy {
         } else {
             database = new OLDSampleStratBacktestDB();
             exchange = new SimExchange(BACKTEST_START_BALANCE, (short) 20, Interval._5m, null, null, null);
-            dataProvider = new BacktestDataProvider(new Interval[] { Interval._5m });
+            // dataProvider = new BacktestDataProvider(new Interval[] { Interval._5m });
         }
     }
 
@@ -200,8 +200,8 @@ public class OLDSampleStrat implements Strategy {
 
         savePositions();
 
-        appendStatistics(new Statistics(acc.getMarginBalance(), acc.getMarginBalance(),
-                acc.getWalletBalance(), wins, losses, acc.getTimestamp()));
+        appendStatistics(new Statistics(acc.getMarginBalance(), acc.getMarginBalance(), acc.getWalletBalance(), wins,
+                losses, acc.getTimestamp()));
         return null; // TODO TradeStatistics
     }
 
