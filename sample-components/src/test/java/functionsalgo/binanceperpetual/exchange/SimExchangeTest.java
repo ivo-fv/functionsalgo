@@ -53,21 +53,21 @@ public class SimExchangeTest {
         sim.addBatchMarketClose("20", "NONEXISTENTSYMBOL", true, 2);
         accInfo = sim.executeBatchedMarketCloseOrders();
 
-        assertTrue("bad position sizes", accInfo.getQuantity("ETHUSDT", true) - 0.35 < Math.abs(0.0001)
+        assertTrue("bad position sizes", Math.abs(accInfo.getQuantity("ETHUSDT", true) - 0.35) < 0.0001
                 && accInfo.getQuantity("BTCUSDT", false) == 0.01 && accInfo.getQuantity("BTCUSDT", true) == 0);
         assertTrue("must be an error",
                 accInfo.getOrderErrors().get(0).status == OrderError.OrderStatus.NO_SUCH_POSITION_FAILED);
 
         accInfo = sim.getAccountInfo(1612404843000L);
 
-        assertTrue("bad wallet balance", accInfo.getWalletBalance() - 10000.23 < Math.abs(0.01));
+        assertTrue("bad wallet balance", Math.abs(accInfo.getWalletBalance() - 10000.23) < 0.01);
 
         sim.addBatchMarketClose("100", "ETHUSDT", true, 1);
         sim.addBatchMarketClose("200", "BTCUSDT", false, 1);
         accInfo = sim.executeBatchedMarketCloseOrders();
 
-        assertTrue("bad final balances", accInfo.getWalletBalance() - accInfo.getMarginBalance() < Math.abs(0.01)
-                && accInfo.getMarginBalance() - 10205.528 < Math.abs(0.01));
+        assertTrue("bad final balances", Math.abs(accInfo.getWalletBalance() - accInfo.getMarginBalance()) < 0.01
+                && Math.abs(accInfo.getMarginBalance() - 10205.528) < 0.01);
     }
 
 }
