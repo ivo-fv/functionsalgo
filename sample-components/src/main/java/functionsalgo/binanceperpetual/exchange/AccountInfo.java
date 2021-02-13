@@ -4,7 +4,7 @@ import java.util.List;
 
 public interface AccountInfo {
 
-    long getTimestamp();
+    long getTimestampMillis();
 
     double getWalletBalance();
 

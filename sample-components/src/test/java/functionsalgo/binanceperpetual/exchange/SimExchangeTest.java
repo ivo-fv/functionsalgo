@@ -10,6 +10,7 @@ import org.junit.Test;
 import functionsalgo.binanceperpetual.HistoricFundingRates;
 import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.binanceperpetual.SlippageModel;
+import functionsalgo.datapoints.AdjustedTimestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.ExchangeException;
 
@@ -36,15 +37,16 @@ public class SimExchangeTest {
                 accInfo.getMarginBalance() == 10000 && accInfo.getTotalInitialMargin() == 0);
 
         accInfo = sim.getAccountInfo(1605147243000L);
-        assertTrue("bad timestamp (should be multiple of interval", accInfo.getTimestamp() == 1605147000000L);
+        assertTrue("bad timestamp", accInfo.getTimestampMillis() == 1605147000000L);
 
         sim.addBatchMarketOpen("1", "ETHUSDT", true, 0.4);
         sim.addBatchMarketOpen("2", "BTCUSDT", false, 0.01);
         sim.addBatchMarketOpen("3", "BTCUSDT", true, 0.001);
         sim.executeBatchedMarketOpenOrders();
 
-        for (long t = 1605147953000L; t <= 1605198953000L; t += Interval._5m.toMilliseconds()) {
-            sim.getAccountInfo(t);
+        for (AdjustedTimestamp t = new AdjustedTimestamp(1605147953000L, Interval._5m); t.getTime() <= 1605198953000L; t
+                .inc()) {
+            sim.getAccountInfo(t.getTime());
         }
         accInfo = sim.getAccountInfo(1605408953000L);
 

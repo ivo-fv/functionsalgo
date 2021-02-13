@@ -23,7 +23,7 @@ public class LiveAccountInfo implements AccountInfo {
     }
 
     @Override
-    public long getTimestamp() {
+    public long getTimestampMillis() {
         return exchangeTime;
     }
 

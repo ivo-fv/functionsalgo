@@ -6,6 +6,7 @@ import java.util.ArrayList;
 
 import org.junit.Test;
 
+import functionsalgo.datapoints.AdjustedTimestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.StandardJavaException;
 
@@ -26,10 +27,11 @@ public class HistoricFundingRatesExternalTest {
                 1612470647356L);
 
         assertTrue("invalid fundingRates object file - getFundingIntervalMillis",
-                fundingRates.getFundingIntervalMillis() == Interval._8h.toMilliseconds());
+                fundingRates.getFundingInterval().toMilliseconds() == Interval._8h.toMilliseconds());
         assertTrue("invalid fundingRates object file - getFundingRates",
-                fundingRates.getFundingRates("ETHUSDT", 1611846639946L, 1611946644625L).get(0).getFundingRate() > -10);
-        assertTrue("invalid fundingRates object file - getFundingRates",
-                fundingRates.getFundingRate("ETHUSDT", 1611846639946L).getFundingRate() > -10);
+                fundingRates.getFundingRates("ETHUSDT", new AdjustedTimestamp(1611846639946L, Interval._8h),
+                        new AdjustedTimestamp(1611946644625L, Interval._8h)).get(0).getFundingRate() > -10);
+        assertTrue("invalid fundingRates object file - getFundingRates", fundingRates
+                .getFundingRate("ETHUSDT", new AdjustedTimestamp(1611846639946L, Interval._8h)).getFundingRate() > -10);
     }
 }

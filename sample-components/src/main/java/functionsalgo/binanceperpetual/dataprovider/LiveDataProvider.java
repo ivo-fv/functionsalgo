@@ -17,6 +17,7 @@ import functionsalgo.aws.DynamoDBBPDataProvider;
 import functionsalgo.aws.DynamoDBCommon;
 import functionsalgo.binanceperpetual.FundingRate;
 import functionsalgo.binanceperpetual.WrapperREST;
+import functionsalgo.datapoints.AdjustedTimestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;
@@ -71,24 +72,24 @@ public class LiveDataProvider implements DataProvider {
     }
 
     @Override
-    public List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) throws ExchangeException {
-
-        List<FundingRate> dbFRates = getDBFundingRates(symbol, startTime, endTime);
-
-        long expectedNumFRates = (((endTime / FUNDING_INTERVAL.toMilliseconds()) * FUNDING_INTERVAL.toMilliseconds())
-                - ((startTime / FUNDING_INTERVAL.toMilliseconds()) * FUNDING_INTERVAL.toMilliseconds()))
-                / FUNDING_INTERVAL.toMilliseconds() + 1;
-
-        if (expectedNumFRates == dbFRates.size()) {
-            return dbFRates;
-        } else {
-            long adjustedStartTime = (startTime / FUNDING_INTERVAL.toMilliseconds())
-                    * FUNDING_INTERVAL.toMilliseconds();
-            List<FundingRate> newFRates = getExchangeFRates(symbol, adjustedStartTime - FRATES_LEEWAY,
-                    endTime + FRATES_LEEWAY);
-            setDBFRates(symbol, adjustedStartTime, newFRates);
-            return newFRates;
-        }
+    public List<FundingRate> getFundingRates(String symbol, AdjustedTimestamp startTime, AdjustedTimestamp endTime)
+            throws ExchangeException {
+        /*
+         * List<FundingRate> dbFRates = getDBFundingRates(symbol, startTime, endTime);
+         * 
+         * long expectedNumFRates = (((endTime / FUNDING_INTERVAL.toMilliseconds()) *
+         * FUNDING_INTERVAL.toMilliseconds()) - ((startTime /
+         * FUNDING_INTERVAL.toMilliseconds()) * FUNDING_INTERVAL.toMilliseconds())) /
+         * FUNDING_INTERVAL.toMilliseconds() + 1;
+         * 
+         * if (expectedNumFRates == dbFRates.size()) { return dbFRates; } else { long
+         * adjustedStartTime = (startTime / FUNDING_INTERVAL.toMilliseconds())
+         * FUNDING_INTERVAL.toMilliseconds(); List<FundingRate> newFRates =
+         * getExchangeFRates(symbol, adjustedStartTime - FRATES_LEEWAY, endTime +
+         * FRATES_LEEWAY); setDBFRates(symbol, adjustedStartTime, newFRates); return
+         * newFRates; }
+         */
+        return null; // TODO
     }
 
     private List<FundingRate> getExchangeFRates(String symbol, long startTime, long endTime) throws ExchangeException {
@@ -148,31 +149,29 @@ public class LiveDataProvider implements DataProvider {
     }
 
     @Override
-    public long getFundingInterval() {
+    public Interval getFundingInterval() {
 
-        return FUNDING_INTERVAL.toMilliseconds();
+        return FUNDING_INTERVAL;
     }
 
     @Override
-    public List<Kline> getKlines(String symbol, Interval interval, long startTime, long endTime)
-            throws ExchangeException {
-
-        List<Kline> dbKlines = getDBKlines(symbol, interval, startTime, endTime);
-
-        long expectedNumKlines = (((endTime / interval.toMilliseconds()) * interval.toMilliseconds())
-                - ((startTime / interval.toMilliseconds()) * interval.toMilliseconds())) / interval.toMilliseconds()
-                + 1;
-
-        if (expectedNumKlines == dbKlines.size()) {
-            return dbKlines;
-        } else {
-            long adjustedStartTime = ((startTime / interval.toMilliseconds()) * interval.toMilliseconds())
-                    - interval.toMilliseconds();
-            List<Kline> newKlines = getExchangeKlines(symbol, interval, adjustedStartTime, endTime);
-            setDBKlines(symbol, interval, adjustedStartTime, newKlines);
-            newKlines.remove(0);
-            return newKlines;
-        }
+    public List<Kline> getKlines(String symbol, Interval interval, AdjustedTimestamp startTime,
+            AdjustedTimestamp endTime) throws ExchangeException {
+        /*
+         * List<Kline> dbKlines = getDBKlines(symbol, interval, startTime, endTime);
+         * 
+         * long expectedNumKlines = (((endTime / interval.toMilliseconds()) *
+         * interval.toMilliseconds()) - ((startTime / interval.toMilliseconds()) *
+         * interval.toMilliseconds())) / interval.toMilliseconds() + 1;
+         * 
+         * if (expectedNumKlines == dbKlines.size()) { return dbKlines; } else { long
+         * adjustedStartTime = ((startTime / interval.toMilliseconds()) *
+         * interval.toMilliseconds()) - interval.toMilliseconds(); List<Kline> newKlines
+         * = getExchangeKlines(symbol, interval, adjustedStartTime, endTime);
+         * setDBKlines(symbol, interval, adjustedStartTime, newKlines);
+         * newKlines.remove(0); return newKlines; }
+         */
+        return null;
     }
 
     private List<Kline> getExchangeKlines(String symbol, Interval interval, long startTime, long endTime)

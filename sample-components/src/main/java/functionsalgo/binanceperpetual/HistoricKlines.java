@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import functionsalgo.datapoints.AdjustedTimestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.StandardJavaException;
@@ -142,18 +143,15 @@ public class HistoricKlines implements Serializable {
         klines = new HashMap<>();
     }
 
-    public Kline getKline(String symbol, long timestamp) {
-        long adjustedTimestamp = (timestamp / interval.toMilliseconds()) * interval.toMilliseconds();
-        return klines.get(symbol).get(adjustedTimestamp);
+    public Kline getKline(String symbol, AdjustedTimestamp timestamp) {
+        return klines.get(symbol).get(timestamp.getTime());
     }
 
-    public List<Kline> getKlines(String symbol, long startTime, long endTime) {
+    public List<Kline> getKlines(String symbol, AdjustedTimestamp startTime, AdjustedTimestamp endTime) {
 
-        long adjustedStartTime = (startTime / interval.toMilliseconds()) * interval.toMilliseconds();
-        long adjustedEndTime = (endTime / interval.toMilliseconds()) * interval.toMilliseconds();
         List<Kline> returnKlines = new ArrayList<>();
 
-        for (long time = adjustedStartTime; time <= adjustedEndTime; time += interval.toMilliseconds()) {
+        for (long time = startTime.getTime(); time <= endTime.getTime(); time += interval.toMilliseconds()) {
             returnKlines.add(klines.get(symbol).get(time));
         }
 

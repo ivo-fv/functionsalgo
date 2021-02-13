@@ -67,7 +67,7 @@ public class LiveExchangeTest {
         verify(api, times(1)).getExchangeInfo();
         verify(api, times(1)).getAccountInfo();
 
-        assertTrue("getTimestamp", accInfo.getTimestamp() == 1611876740899L);
+        assertTrue("getTimestamp", accInfo.getTimestampMillis() == 1611876740899L);
         assertTrue("getTotalInitialMargin", accInfo.getTotalInitialMargin() == 1000);
         assertTrue("getMarginBalance", accInfo.getMarginBalance() == 1200);
         assertTrue("getWalletBalance", accInfo.getWalletBalance() == 1300);

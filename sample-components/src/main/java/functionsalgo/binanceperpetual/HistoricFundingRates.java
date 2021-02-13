@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import functionsalgo.datapoints.AdjustedTimestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.StandardJavaException;
 
@@ -36,7 +37,7 @@ public class HistoricFundingRates implements Serializable {
     static String FUND_RATES_FILE = DATA_DIR + "/binance_perp_fund_rates";
     static String JSON_DATA_FOLDER = DATA_DIR + "/binance_perp_json_data/fund_rates";
 
-    private long fundingIntervalMillis = Interval._8h.toMilliseconds(); // 8 hours
+    private long fundingIntervalMillis = Interval._8h.toMilliseconds();
     private HashMap<String, HashMap<Long, FundingRate>> rates;
 
     public static HistoricFundingRates pullFundingRates(List<String> symbols, long startTime, long endTime)
@@ -139,27 +140,23 @@ public class HistoricFundingRates implements Serializable {
         rates = new HashMap<>();
     }
 
-    public FundingRate getFundingRate(String symbol, long timestamp) {
-        long adjustedTimestamp = (timestamp / fundingIntervalMillis) * fundingIntervalMillis;
-        return rates.get(symbol).get(adjustedTimestamp);
+    public FundingRate getFundingRate(String symbol, AdjustedTimestamp timestamp) {
+        return rates.get(symbol).get(timestamp.getTime());
     }
 
-    public List<FundingRate> getFundingRates(String symbol, long startTime, long endTime) {
+    public List<FundingRate> getFundingRates(String symbol, AdjustedTimestamp startTime, AdjustedTimestamp endTime) {
 
-        long adjustedStartTime = (startTime / fundingIntervalMillis) * fundingIntervalMillis;
-        long adjustedEndTime = (endTime / fundingIntervalMillis) * fundingIntervalMillis;
         List<FundingRate> returnFRates = new ArrayList<>();
 
-        for (long time = adjustedStartTime; time <= adjustedEndTime; time += fundingIntervalMillis) {
+        for (long time = startTime.getTime(); time <= endTime.getTime(); time += fundingIntervalMillis) {
             returnFRates.add(rates.get(symbol).get(time));
         }
 
         return returnFRates;
     }
 
-    public long getFundingIntervalMillis() {
-
-        return fundingIntervalMillis;
+    public Interval getFundingInterval() {
+        return Interval._8h;
     }
 
     private void addSymbolFundRates(String symbol, FundingRate[] parsedSymbolFundRates) {

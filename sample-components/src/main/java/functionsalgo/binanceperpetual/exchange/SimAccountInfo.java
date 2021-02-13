@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import functionsalgo.datapoints.AdjustedTimestamp;
+
 class SimAccountInfo implements AccountInfo {
 
     class PositionData {
@@ -35,15 +37,14 @@ class SimAccountInfo implements AccountInfo {
     HashMap<String, PositionData> longPositions;
     HashMap<String, PositionData> shortPositions;
     HashMap<String, Double> fundingRates;
-    long lastUpdatedTime;
-    public long nextFundingTime;
+    AdjustedTimestamp lastUpdatedTime;
     double takerFee = SimExchange.TAKER_OPEN_CLOSE_FEE;
     double worstCurrentMarginBalance;
     HashMap<String, Double> ordersWithQuantities;
-    public ArrayList<OrderError> errors;
+    ArrayList<OrderError> errors;
 
-    SimAccountInfo(double walletBalance) {
-
+    SimAccountInfo(double walletBalance, AdjustedTimestamp lastUpdatedTime) {
+        this.lastUpdatedTime = lastUpdatedTime;
         this.walletBalance = walletBalance;
         marginBalance = walletBalance;
         worstCurrentMarginBalance = walletBalance;
@@ -52,14 +53,12 @@ class SimAccountInfo implements AccountInfo {
         leverages = new HashMap<>();
         fundingRates = new HashMap<>();
         ordersWithQuantities = new HashMap<>();
-
-        lastUpdatedTime = 0;
     }
 
     @Override
-    public long getTimestamp() {
+    public long getTimestampMillis() {
 
-        return lastUpdatedTime;
+        return lastUpdatedTime.getTime();
     }
 
     @Override

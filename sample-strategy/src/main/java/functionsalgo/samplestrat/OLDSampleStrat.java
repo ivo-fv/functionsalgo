@@ -135,8 +135,10 @@ public class OLDSampleStrat implements Strategy {
         for (Position pos : positions) {
 
             try {
-                long openTime = dataProvider.getKlines(pos.symbol, Interval._5m, adjustedTimestamp, adjustedTimestamp)
-                        .get(0).getOpenTime();
+                long openTime = 123456789;/*
+                                           * dataProvider.getKlines(pos.symbol, Interval._5m, adjustedTimestamp,
+                                           * adjustedTimestamp) .get(0).getOpenTime();
+                                           */
 
                 boolean shouldClose = openTime % 2 == 0 ? true : false;
 
@@ -151,15 +153,9 @@ public class OLDSampleStrat implements Strategy {
                     }
                 }
 
-            } catch (ExchangeException e) {
+            } catch (Exception e) {
                 logger.error("when batchMarketClose - PositionWrapper: " + pos.toString() + " | posToClose: "
                         + posToClose.toString(), e);
-            } catch (SymbolQuantityTooLow e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } catch (SymbolNotTradingException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
             }
         }
 
@@ -170,7 +166,7 @@ public class OLDSampleStrat implements Strategy {
         }
 
         try {
-            if ((int) Math.floor(acc.getMarginBalance()) % 2 == 0 && acc.getTimestamp() % 2 == 0) {
+            if ((int) Math.floor(acc.getMarginBalance()) % 2 == 0 && acc.getTimestampMillis() % 2 == 0) {
                 Position newPos = new Position("ETHUSDT", 0.5, true);
                 exchange.addBatchMarketOpen(newPos.symbol + System.currentTimeMillis(), newPos.symbol, newPos.isLong,
                         newPos.qty);
@@ -201,7 +197,7 @@ public class OLDSampleStrat implements Strategy {
         savePositions();
 
         appendStatistics(new Statistics(acc.getMarginBalance(), acc.getMarginBalance(), acc.getWalletBalance(), wins,
-                losses, acc.getTimestamp()));
+                losses, acc.getTimestampMillis()));
         return null; // TODO TradeStatistics
     }
 

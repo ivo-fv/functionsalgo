@@ -12,6 +12,7 @@ import functionsalgo.binanceperpetual.HistoricFundingRates;
 import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.binanceperpetual.SlippageModel;
 import functionsalgo.binanceperpetual.exchange.exceptions.NoBalanceInAccountException;
+import functionsalgo.datapoints.AdjustedTimestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;
@@ -31,10 +32,10 @@ public class SimExchange implements Exchange {
 
     private SimAccountInfo accInfo;
 
-    private long fundingIntervalMillis;
-    private long nextFundingTime;
+    private Interval fundingInterval;
+    private AdjustedTimestamp nextFundingTime;
     private short defaultLeverage;
-    private long updateIntervalMillis;
+    private Interval updateInterval;
 
     private HistoricKlines bpHistoricKlines;
     private HistoricFundingRates bpHistoricFundingRates;
@@ -46,12 +47,12 @@ public class SimExchange implements Exchange {
     public SimExchange(double walletBalance, short defaultLeverage, Interval updateInterval,
             HistoricKlines bpHistoricKlines, HistoricFundingRates bpHistoricFundingRates, SlippageModel slippageModel) {
 
-        accInfo = new SimAccountInfo(walletBalance);
+        accInfo = new SimAccountInfo(walletBalance, new AdjustedTimestamp(0, updateInterval));
         this.defaultLeverage = defaultLeverage;
-        updateIntervalMillis = updateInterval.toMilliseconds();
+        this.updateInterval = updateInterval;
         this.bpHistoricKlines = bpHistoricKlines;
         this.bpHistoricFundingRates = bpHistoricFundingRates;
-        fundingIntervalMillis = bpHistoricFundingRates.getFundingIntervalMillis();
+        fundingInterval = bpHistoricFundingRates.getFundingInterval();
         this.slippageModel = slippageModel;
     }
 
@@ -59,7 +60,7 @@ public class SimExchange implements Exchange {
     public AccountInfo getAccountInfo(long timestamp) throws ExchangeException {
 
         try {
-            updateAccountInfo(timestamp);
+            updateAccountInfo(new AdjustedTimestamp(timestamp, updateInterval));
         } catch (NoBalanceInAccountException e) {
             throw new ExchangeException(ExchangeException.ErrorType.INVALID_STATE,
                     "no balance in account, can't continue backtest", "SimExchange::getAccountInfo", e);
@@ -68,48 +69,44 @@ public class SimExchange implements Exchange {
         return accInfo;
     }
 
-    private void updateAccountInfo(long timestamp) throws NoBalanceInAccountException {
+    private void updateAccountInfo(AdjustedTimestamp timestamp) throws NoBalanceInAccountException {
 
         // TODO random position adl close, simulate not being able to trade for a period
         // of time
-        if (timestamp <= accInfo.lastUpdatedTime) {
+        if (timestamp.getTime() <= accInfo.lastUpdatedTime.getTime()) {
             throw new IllegalArgumentException("timestamp must be larger than the previous");
         }
 
-        if (accInfo.lastUpdatedTime != 0) {
+        if (accInfo.lastUpdatedTime.getTime() != 0) {
+            accInfo.lastUpdatedTime.inc();
+            for (; accInfo.lastUpdatedTime.getTime() <= timestamp.getTime(); accInfo.lastUpdatedTime.inc()) {
 
-            for (long time = accInfo.lastUpdatedTime
-                    + updateIntervalMillis; time <= timestamp; time += updateIntervalMillis) {
+                calculateMarginBalanceAndUpdatePositionData();
+                checkMaintenanceMargin();
 
-                calculateMarginBalanceAndUpdatePositionData(time);
-                checkMaintenanceMargin(time);
-
-                if (time >= nextFundingTime) {
-                    nextFundingTime += fundingIntervalMillis;
+                if (accInfo.lastUpdatedTime.getTime() >= nextFundingTime.getTime()) {
+                    nextFundingTime.inc();
                 }
             }
-            accInfo.nextFundingTime = nextFundingTime;
-            accInfo.lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
+            accInfo.lastUpdatedTime.dec();
         } else {
-            nextFundingTime = ((timestamp / fundingIntervalMillis) * fundingIntervalMillis) + fundingIntervalMillis;
-            accInfo.nextFundingTime = nextFundingTime;
-            calculateMarginBalanceAndUpdatePositionData(timestamp);
-            checkMaintenanceMargin(timestamp);
-
-            accInfo.lastUpdatedTime = (timestamp / updateIntervalMillis) * updateIntervalMillis;
+            nextFundingTime = new AdjustedTimestamp(timestamp.getTime(), fundingInterval).inc();
+            calculateMarginBalanceAndUpdatePositionData();
+            checkMaintenanceMargin();
+            accInfo.lastUpdatedTime = new AdjustedTimestamp(timestamp.getTime(), updateInterval);
         }
 
     }
 
     // TODO refactor
-    private void calculateMarginBalanceAndUpdatePositionData(long timestamp) {
+    private void calculateMarginBalanceAndUpdatePositionData() {
 
         accInfo.marginBalance = accInfo.walletBalance;
         accInfo.worstCurrentMarginBalance = accInfo.walletBalance;
 
         for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
             // should use mark price for more accuracy
-            Kline kline = bpHistoricKlines.getKline(entry.getValue().symbol, timestamp);
+            Kline kline = bpHistoricKlines.getKline(entry.getValue().symbol, accInfo.lastUpdatedTime);
             double currPrice = kline.getOpen();
             entry.getValue().currPrice = currPrice;
             double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
@@ -123,7 +120,7 @@ public class SimExchange implements Exchange {
             entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
         }
         for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.shortPositions.entrySet()) {
-            Kline kline = bpHistoricKlines.getKline(entry.getValue().symbol, timestamp);
+            Kline kline = bpHistoricKlines.getKline(entry.getValue().symbol, accInfo.lastUpdatedTime);
             double currPrice = kline.getOpen();
             entry.getValue().currPrice = currPrice;
             double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
@@ -136,10 +133,10 @@ public class SimExchange implements Exchange {
                     : defaultLeverage;
             entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
         }
-        if (timestamp >= nextFundingTime) {
+        if (accInfo.lastUpdatedTime.getTime() >= nextFundingTime.getTime()) {
             for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
-                double fundingRate = bpHistoricFundingRates.getFundingRate(entry.getValue().symbol, timestamp)
-                        .getFundingRate();
+                double fundingRate = bpHistoricFundingRates
+                        .getFundingRate(entry.getValue().symbol, accInfo.lastUpdatedTime).getFundingRate();
                 accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
                 double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                 accInfo.marginBalance -= funding;
@@ -147,8 +144,8 @@ public class SimExchange implements Exchange {
                 accInfo.worstCurrentMarginBalance -= funding;
             }
             for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
-                double fundingRate = bpHistoricFundingRates.getFundingRate(entry.getValue().symbol, timestamp)
-                        .getFundingRate();
+                double fundingRate = bpHistoricFundingRates
+                        .getFundingRate(entry.getValue().symbol, accInfo.lastUpdatedTime).getFundingRate();
                 accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
                 double funding = entry.getValue().currPrice * entry.getValue().quantity * fundingRate;
                 accInfo.marginBalance += funding;
@@ -158,7 +155,7 @@ public class SimExchange implements Exchange {
         }
     }
 
-    void checkMaintenanceMargin(long time) throws NoBalanceInAccountException {
+    void checkMaintenanceMargin() throws NoBalanceInAccountException {
 
         // assuming crossed margin type
         double highestInitialMargin = 0;
@@ -172,12 +169,12 @@ public class SimExchange implements Exchange {
 
         // the maintenance margin is *always less* than 50% of the initial margin
         if (accInfo.worstCurrentMarginBalance <= highestInitialMargin / 2) {
-            logger.error("Going to get liquidated at timestamp: {}", time);
+            logger.error("Going to get liquidated at timestamp: {}", accInfo.lastUpdatedTime.getTime());
             accInfo.marginBalance = 0;
             accInfo.walletBalance = 0;
             accInfo.longPositions = new HashMap<>();
             accInfo.shortPositions = new HashMap<>();
-            throw new NoBalanceInAccountException("got liquidated at timestamp: " + time);
+            throw new NoBalanceInAccountException("got liquidated at timestamp: " + accInfo.lastUpdatedTime.getTime());
         }
     }
 

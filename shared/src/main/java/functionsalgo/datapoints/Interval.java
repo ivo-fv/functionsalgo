@@ -1,6 +1,8 @@
 package functionsalgo.datapoints;
 
-public enum Interval {
+import java.io.Serializable;
+
+public enum Interval implements Serializable {
     _1m {
         
         @Override
