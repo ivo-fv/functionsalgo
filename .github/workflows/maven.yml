@@ -21,4 +21,6 @@ jobs:
       with:
         java-version: 1.8
     - name: Build with Maven
+      env:
+        FUNCTIONSALGO_SECRETS_KEY: ${{ secrets.FUNCTIONSALGO_SECRETS_KEY }}
       run: mvn -B package --file pom.xml

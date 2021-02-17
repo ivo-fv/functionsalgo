@@ -9,7 +9,7 @@ public final class AdjustedTimestamp {
         this.time = (timestamp / interval.toMilliseconds()) * interval.toMilliseconds();
     }
 
-    public long getTime() {
+    public final long getTime() {
         return time;
     }
 
@@ -21,22 +21,22 @@ public final class AdjustedTimestamp {
      * @return this instance (the AdjustedTimestamp instance to which timestamp was
      *         added to)
      */
-    public AdjustedTimestamp add(AdjustedTimestamp timestamp) {
+    public final AdjustedTimestamp add(AdjustedTimestamp timestamp) {
         time += timestamp.time;
         return this;
     }
 
-    public AdjustedTimestamp inc() {
+    public final AdjustedTimestamp inc() {
         time += interval.toMilliseconds();
         return this;
     }
 
-    public AdjustedTimestamp sub(AdjustedTimestamp timestamp) {
+    public final AdjustedTimestamp sub(AdjustedTimestamp timestamp) {
         time -= timestamp.time;
         return this;
     }
 
-    public AdjustedTimestamp dec() {
+    public final AdjustedTimestamp dec() {
         time -= interval.toMilliseconds();
         return this;
     }

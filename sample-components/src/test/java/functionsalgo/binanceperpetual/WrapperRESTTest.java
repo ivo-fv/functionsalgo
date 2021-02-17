@@ -6,10 +6,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Properties;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
@@ -21,20 +24,50 @@ import com.google.gson.JsonParser;
 
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.ExchangeException;
+import functionsalgo.exceptions.StandardJavaException;
 import functionsalgo.shared.Utils;
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-public class WrapperRESTExternalTest {
+public class WrapperRESTTest {
+
+    private static final Logger logger = LogManager.getLogger();
+
+    public static final File encryptedSecrets = new File("src/test/resources/encrypted_secrets");
 
     public static WrapperREST bpapi;
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
-        // "binanceperpetual_apikeys.properties" by default doesn't have valid keys, so
-        // must modify the file with proper testnet keys
-        Properties keys = Utils.getProperties("binanceperpetual_apikeys_ignore.properties",
-                "binanceperpetual_apikeys.properties");
-        bpapi = new WrapperREST(keys.getProperty("privateKey"), keys.getProperty("publicApiKey"));
+        Properties keys = new Properties();
+        try {
+            keys.load(Utils.getFileOrResource("secrets_ignore.properties").openStream());
+            URL keyUrl = Utils.getFileOrResource("../secrets_key_ignore", "secrets_key_ignore");
+            Utils.saveAndEncryptProperties(keys, encryptedSecrets.toURI().toURL(), keyUrl);
+        } catch (IOException | StandardJavaException e) {
+            logger.warn(
+                    "secrets_ignore or secrets_key_ignore was likely not found, trying with encrypted_secrets and env key FUNCTIONSALGO_SECRETS_KEY",
+                    e);
+            URL secretsUrl = Utils.getFileOrResource("encrypted_secrets", "src/test/resources/encrypted_secrets");
+            /////// TODO remove
+            String keystr = System.getenv("FUNCTIONSALGO_SECRETS_KEY");
+            logger.info("LENGTH OF ENV KEY (DEBUG): " + keystr.length());
+            logger.info("FIRST AND LAST LETTER OF ENV KEY (DEBUG): " + keystr.charAt(0) + " | "
+                    + keystr.charAt(keystr.length() - 1));
+            /////// TODO remove
+            keys = Utils.loadEncryptedProperties(secretsUrl, System.getenv("FUNCTIONSALGO_SECRETS_KEY"));
+        }
+        //TODO remove
+        //URL keyUrl = Utils.getFileOrResource("secrets_key_ignore", "../secrets_key_ignore");
+        //URL secretsUrl = Utils.getFileOrResource("encrypted_secrets", "src/test/resources/encrypted_secrets");
+        //keys = Utils.loadEncryptedProperties(secretsUrl, keyUrl);
+
+        // "secrets.properties" by default doesn't have valid keys, so
+        // must modify the file with proper secrets
+        if (keys.getProperty("binanceperpetual.publicApiKey").length() < 60) {
+            keys.load(Utils.getFileOrResource("secrets.properties").openStream());
+        }
+        bpapi = new WrapperREST(keys.getProperty("binanceperpetual.privateKey"),
+                keys.getProperty("binanceperpetual.publicApiKey"));
         bpapi.setToTestHost();
     }
 
@@ -179,13 +212,9 @@ public class WrapperRESTExternalTest {
     @Test
     public final void testSaveFundingRatesMult() throws IOException {
         File btcFile = new File("BTCUSDT.json");
-        for (int i = 0; i < 10 && btcFile.exists(); i++) {
-            btcFile.delete();
-        }
+        Utils.deleteFile(btcFile);
         File ethFile = new File("ETHUSDT.json");
-        for (int i = 0; i < 10 && ethFile.exists(); i++) {
-            ethFile.delete();
-        }
+        Utils.deleteFile(ethFile);
 
         ArrayList<File> fratesFiles = new ArrayList<>();
         fratesFiles.add(new File("BTCUSDT.json"));
@@ -209,21 +238,14 @@ public class WrapperRESTExternalTest {
             JsonElement eth = JsonParser.parseReader(is);
             assertTrue("must be array", eth.isJsonArray());
         }
-
-        for (int i = 0; i < 10 && btcFile.exists(); i++) {
-            btcFile.delete();
-        }
-        for (int i = 0; i < 10 && ethFile.exists(); i++) {
-            ethFile.delete();
-        }
+        Utils.deleteFile(btcFile);
+        Utils.deleteFile(ethFile);
     }
 
     @Test
     public final void testSaveFundingRatesSingle() throws IOException {
         File ethFile = new File("ETHUSDT.json");
-        for (int i = 0; i < 10 && ethFile.exists(); i++) {
-            ethFile.delete();
-        }
+        Utils.deleteFile(ethFile);
         String ethSymbol = "ETHUSDT";
 
         bpapi.saveFundingRates(ethFile, ethSymbol, 1591646639946L, 1612470647356L);
@@ -235,22 +257,15 @@ public class WrapperRESTExternalTest {
             JsonElement eth = JsonParser.parseReader(is);
             assertTrue("must be array", eth.isJsonArray());
         }
-
-        for (int i = 0; i < 10 && ethFile.exists(); i++) {
-            ethFile.delete();
-        }
+        Utils.deleteFile(ethFile);
     }
 
     @Test
     public final void testSaveOrderBooks() throws IOException {
         File btcFile = new File("BTCUSDT.json");
-        for (int i = 0; i < 10 && btcFile.exists(); i++) {
-            btcFile.delete();
-        }
+        Utils.deleteFile(btcFile);
         File ethFile = new File("ETHUSDT.json");
-        for (int i = 0; i < 10 && ethFile.exists(); i++) {
-            ethFile.delete();
-        }
+        Utils.deleteFile(ethFile);
 
         ArrayList<File> orderBookFiles = new ArrayList<>();
         orderBookFiles.add(new File("BTCUSDT.json"));
@@ -288,12 +303,8 @@ public class WrapperRESTExternalTest {
             assertTrue("size must be 2", eth.size() == 2);
         }
 
-        for (int i = 0; i < 10 && btcFile.exists(); i++) {
-            btcFile.delete();
-        }
-        for (int i = 0; i < 10 && ethFile.exists(); i++) {
-            ethFile.delete();
-        }
+        Utils.deleteFile(btcFile);
+        Utils.deleteFile(ethFile);
     }
 
     @Test

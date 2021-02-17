@@ -1,5 +1,6 @@
 package functionsalgo.samplestrat;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ public class SampleStrategy implements Strategy {
     static HistoricFundingRates bpHistoricFundingRates;
     static SlippageModel bpSlippageModel;
 
-    public static Strategy getLiveStrategy() throws ExchangeException, StandardJavaException {
+    public static Strategy getLiveStrategy() throws ExchangeException, IOException {
         return new SampleStrategy();
     }
 
@@ -50,11 +51,12 @@ public class SampleStrategy implements Strategy {
         return new SampleStrategy(config);
     }
 
-    private SampleStrategy() throws ExchangeException, StandardJavaException {
+    private SampleStrategy() throws ExchangeException, IOException {
         live = true;
-        Properties keys = Utils.getProperties("binanceperpetual_apikeys_ignore.properties",
-                "binanceperpetual_apikeys.properties");
-        bpExch = new LiveExchange(keys.getProperty("privateKey"), keys.getProperty("publicApiKey"));
+        Properties keys = new Properties();
+        keys.load(Utils.getFileOrResource("secrets_ignore.properties", "secrets.properties").openStream());
+        bpExch = new LiveExchange(keys.getProperty("binanceperpetual.privateKey"),
+                keys.getProperty("binanceperpetual.publicApiKey"));
         // TODO bpData = new LiveDataProvider(...);
     }
 
