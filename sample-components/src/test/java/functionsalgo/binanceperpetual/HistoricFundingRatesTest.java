@@ -10,7 +10,7 @@ import functionsalgo.datapoints.AdjustedTimestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.StandardJavaException;
 
-public class HistoricFundingRatesExternalTest {
+public class HistoricFundingRatesTest {
 
     @Test
     public final void testHistoricFundingRateAll() throws StandardJavaException {

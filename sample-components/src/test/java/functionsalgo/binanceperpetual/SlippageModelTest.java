@@ -8,7 +8,7 @@ import org.junit.Test;
 
 import functionsalgo.exceptions.StandardJavaException;
 
-public class SlippageModelExternalTest {
+public class SlippageModelTest {
 
     @Test
     public final void testSlippageModelAll() throws StandardJavaException {

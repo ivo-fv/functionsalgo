@@ -10,7 +10,7 @@ import functionsalgo.datapoints.AdjustedTimestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.StandardJavaException;
 
-public class HistoricKlinesExternalTest {
+public class HistoricKlinesTest {
 
     @Test
     public final void testHistoricKlinesAll() throws StandardJavaException {

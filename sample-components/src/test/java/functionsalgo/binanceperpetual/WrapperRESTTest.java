@@ -48,18 +48,8 @@ public class WrapperRESTTest {
                     "secrets_ignore or secrets_key_ignore was likely not found, trying with encrypted_secrets and env key FUNCTIONSALGO_SECRETS_KEY",
                     e);
             URL secretsUrl = Utils.getFileOrResource("encrypted_secrets", "src/test/resources/encrypted_secrets");
-            /////// TODO remove
-            String keystr = System.getenv("FUNCTIONSALGO_SECRETS_KEY");
-            logger.info("LENGTH OF ENV KEY (DEBUG): " + keystr.length());
-            logger.info("FIRST AND LAST LETTER OF ENV KEY (DEBUG): " + keystr.charAt(0) + " | "
-                    + keystr.charAt(keystr.length() - 1));
-            /////// TODO remove
             keys = Utils.loadEncryptedProperties(secretsUrl, System.getenv("FUNCTIONSALGO_SECRETS_KEY"));
         }
-        //TODO remove
-        //URL keyUrl = Utils.getFileOrResource("secrets_key_ignore", "../secrets_key_ignore");
-        //URL secretsUrl = Utils.getFileOrResource("encrypted_secrets", "src/test/resources/encrypted_secrets");
-        //keys = Utils.loadEncryptedProperties(secretsUrl, keyUrl);
 
         // "secrets.properties" by default doesn't have valid keys, so
         // must modify the file with proper secrets
