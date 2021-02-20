@@ -12,5 +12,4 @@ public class Position {
         this.isLong = isLong;
         this.quantity = quantity;
     }
-
 }

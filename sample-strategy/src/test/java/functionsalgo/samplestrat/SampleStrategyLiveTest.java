@@ -7,7 +7,7 @@ import org.junit.Test;
 
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.shared.Strategy;
-import functionsalgo.shared.TradeStatistics;
+import functionsalgo.shared.Statistics;
 
 public class SampleStrategyLiveTest {
     static Strategy sampleStrat;
@@ -21,7 +21,7 @@ public class SampleStrategyLiveTest {
     public final void testExecute() throws ExchangeException {
         // TODO reflection to use a mock StrategyDecision
         /*
-         * SampleStratTradeStatistics stats = (SampleStratTradeStatistics)
+         * SampleStrategyStatistics stats = (SampleStrategyStatistics)
          * sampleStrat.execute(System.currentTimeMillis());
          */
         // TODO stats.toString().equals("expected")

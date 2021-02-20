@@ -6,7 +6,7 @@ import java.util.ArrayList;
 
 import org.junit.Test;
 
-import functionsalgo.datapoints.AdjustedTimestamp;
+import functionsalgo.datapoints.Timestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.StandardJavaException;
 
@@ -26,9 +26,9 @@ public class HistoricKlinesTest {
 
         assertTrue("invalid klines object file - getInterval", klines.getInterval() == Interval._5m);
         assertTrue("invalid klines object file - getKlines",
-                klines.getKlines("ETHUSDT", new AdjustedTimestamp(1612390647356L, Interval._5m),
-                        new AdjustedTimestamp(1612395648222L, Interval._5m)).get(0).getOpen() >= 1000);
+                klines.getKlines("ETHUSDT", new Timestamp(1612390647356L, Interval._5m),
+                        new Timestamp(1612395648222L, Interval._5m)).get(0).getOpen() >= 1000);
         assertTrue("invalid klines object file - getKline",
-                klines.getKline("ETHUSDT", new AdjustedTimestamp(1612390647356L, Interval._5m)).getOpen() >= 1000);
+                klines.getKline("ETHUSDT", new Timestamp(1612390647356L, Interval._5m)).getOpen() >= 1000);
     }
 }

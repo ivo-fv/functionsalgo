@@ -23,7 +23,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
-import functionsalgo.datapoints.AdjustedTimestamp;
+import functionsalgo.datapoints.Timestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.StandardJavaException;
 
@@ -140,11 +140,11 @@ public class HistoricFundingRates implements Serializable {
         rates = new HashMap<>();
     }
 
-    public FundingRate getFundingRate(String symbol, AdjustedTimestamp timestamp) {
+    public final FundingRate getFundingRate(String symbol, Timestamp timestamp) {
         return rates.get(symbol).get(timestamp.getTime());
     }
 
-    public List<FundingRate> getFundingRates(String symbol, AdjustedTimestamp startTime, AdjustedTimestamp endTime) {
+    public List<FundingRate> getFundingRates(String symbol, Timestamp startTime, Timestamp endTime) {
 
         List<FundingRate> returnFRates = new ArrayList<>();
 

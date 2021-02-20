@@ -12,7 +12,7 @@ import functionsalgo.binanceperpetual.HistoricFundingRates;
 import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.binanceperpetual.SlippageModel;
 import functionsalgo.binanceperpetual.exchange.exceptions.NoBalanceInAccountException;
-import functionsalgo.datapoints.AdjustedTimestamp;
+import functionsalgo.datapoints.Timestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.datapoints.Kline;
 import functionsalgo.exceptions.ExchangeException;
@@ -33,7 +33,7 @@ public class SimExchange implements Exchange {
     private SimAccountInfo accInfo;
 
     private Interval fundingInterval;
-    private AdjustedTimestamp nextFundingTime;
+    private Timestamp nextFundingTime;
     private short defaultLeverage;
     private Interval updateInterval;
 
@@ -47,7 +47,7 @@ public class SimExchange implements Exchange {
     public SimExchange(double walletBalance, short defaultLeverage, Interval updateInterval,
             HistoricKlines bpHistoricKlines, HistoricFundingRates bpHistoricFundingRates, SlippageModel slippageModel) {
 
-        accInfo = new SimAccountInfo(walletBalance, new AdjustedTimestamp(0, updateInterval));
+        accInfo = new SimAccountInfo(walletBalance, new Timestamp(0, updateInterval));
         this.defaultLeverage = defaultLeverage;
         this.updateInterval = updateInterval;
         this.bpHistoricKlines = bpHistoricKlines;
@@ -60,7 +60,7 @@ public class SimExchange implements Exchange {
     public AccountInfo getAccountInfo(long timestamp) throws ExchangeException {
 
         try {
-            updateAccountInfo(new AdjustedTimestamp(timestamp, updateInterval));
+            updateAccountInfo(new Timestamp(timestamp, updateInterval));
         } catch (NoBalanceInAccountException e) {
             throw new ExchangeException(ExchangeException.ErrorType.INVALID_STATE,
                     "no balance in account, can't continue backtest", "SimExchange::getAccountInfo", e);
@@ -69,7 +69,7 @@ public class SimExchange implements Exchange {
         return accInfo;
     }
 
-    private void updateAccountInfo(AdjustedTimestamp timestamp) throws NoBalanceInAccountException {
+    private void updateAccountInfo(Timestamp timestamp) throws NoBalanceInAccountException {
 
         // TODO random position adl close, simulate not being able to trade for a period
         // of time
@@ -90,10 +90,10 @@ public class SimExchange implements Exchange {
             }
             accInfo.lastUpdatedTime.dec();
         } else {
-            nextFundingTime = new AdjustedTimestamp(timestamp.getTime(), fundingInterval).inc();
+            nextFundingTime = new Timestamp(timestamp.getTime(), fundingInterval).inc();
             calculateMarginBalanceAndUpdatePositionData();
             checkMaintenanceMargin();
-            accInfo.lastUpdatedTime = new AdjustedTimestamp(timestamp.getTime(), updateInterval);
+            accInfo.lastUpdatedTime = new Timestamp(timestamp.getTime(), updateInterval);
         }
 
     }

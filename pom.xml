@@ -18,7 +18,6 @@
 	<modules>
 		<module>shared</module>
 		<module>sample-components</module>
-		<module>backtester</module>
 		<module>sample-strategy</module>
 		<module>sample-lambda</module>
 	</modules>

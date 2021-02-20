@@ -34,10 +34,12 @@ public class SampleStrategy implements Strategy {
 
     Exchange bpExch;
     DataProvider bpData;
+    Storage storage;
+    SampleStrategyStatistics stats = new SampleStrategyStatistics();
 
     StrategyDecision strat = new StrategyDecision();
     boolean live = false;
-    int lastOrderId;
+    State state;
 
     static HistoricKlines bpHistoricKlines;
     static HistoricFundingRates bpHistoricFundingRates;
@@ -47,7 +49,7 @@ public class SampleStrategy implements Strategy {
         return new SampleStrategy();
     }
 
-    public static Strategy getBacktestStrategy(BacktestConfig config) throws StandardJavaException {
+    public static Strategy getBacktestStrategy(BacktestConfiguration config) throws StandardJavaException {
         return new SampleStrategy(config);
     }
 
@@ -58,9 +60,10 @@ public class SampleStrategy implements Strategy {
         bpExch = new LiveExchange(keys.getProperty("binanceperpetual.privateKey"),
                 keys.getProperty("binanceperpetual.publicApiKey"));
         // TODO bpData = new LiveDataProvider(...);
+        // TODO storage = LiveStorage(...);
     }
 
-    private SampleStrategy(BacktestConfig config) throws StandardJavaException {
+    private SampleStrategy(BacktestConfiguration config) throws StandardJavaException {
         live = false;
         HistoricKlines klines = config.getBPKlines();
         HistoricFundingRates frates = config.getBPFundingRates();
@@ -69,10 +72,16 @@ public class SampleStrategy implements Strategy {
         Map<Interval, HistoricKlines> klinesPerInterval = new HashMap<>();
         klinesPerInterval.put(klines.getInterval(), klines);
         bpData = new BacktestDataProvider(klinesPerInterval, frates);
+        storage = new BacktestStorage(new State());
     }
 
     @Override
-    public SampleStratTradeStatistics execute(long timestamp) {
+    public boolean isLive() {
+        return live;
+    }
+
+    @Override
+    public SampleStrategyStatistics execute(long timestamp) {
 
         AccountInfo acc = null;
         try {
@@ -81,33 +90,49 @@ public class SampleStrategy implements Strategy {
             logger.error("first getAccountInfo failed", e);
             // the algorithm should handle these kinds of problems
         }
-        // TODO get current state from DB, use it for getSymbols and to set lastOrderId
-        // TODO handle orphaned positions
 
-        List<Position> posToclose = getPositionsToClose(acc);
+        state = storage.getCurrentState();
+
+        syncState(state, acc);
+
+        List<Position> posToclose = getPositionsToClose();
         try {
             acc = closePositions(posToclose);
-            // TODO if present, handle errors present in acc
+            // TODO if present, handle errors present in acc (includes removing non handled
+            // bad positions from state via orderId)
         } catch (OrderExecutionException e) {
             logger.error("closePositions failed", e);
             // the algorithm should handle these kinds of problems
         }
 
-        List<Position> posToOpen = getPositionsToOpen(acc);
+        List<Position> posToOpen = getPositionsToOpen();
         try {
             acc = openPositions(posToOpen);
-            // TODO if present, handle errors present in acc
+            // TODO if present, handle errors present in acc (includes removing non handled
+            // bad positions from state via orderId)
         } catch (OrderExecutionException e) {
             logger.error("openPositions failed", e);
             // the algorithm should handle these kinds of problems
         }
 
-        // TODO check for orphaned positions
+        stats.addBalance(acc.getTimestampMillis(), acc.getMarginBalance());
+        stats.addWalletBalance(acc.getTimestampMillis(), acc.getWalletBalance());
 
-        // TODO save acc and lastOrderId and current state in DB
+        syncState(state, acc);
 
+        try {
+            storage.saveCurrentState(state);
+        } catch (IOException e) {
+            logger.error("couldn't save state");
+            // TODO maybe handle this
+        }
+
+        return stats;
+    }
+
+    private void syncState(State state, AccountInfo acc) {
+        // handleOrphanedAndInconsistentPositions, for live trading
         // TODO Auto-generated method stub
-        return null;
     }
 
     AccountInfo openPositions(List<Position> posToOpen) throws OrderExecutionException {
@@ -115,6 +140,7 @@ public class SampleStrategy implements Strategy {
         for (Position pos : posToOpen) {
             try {
                 bpExch.addBatchMarketOpen(pos.id, pos.symbol, pos.isLong, pos.quantity);
+                state.addPosition(pos.id, pos);
             } catch (SymbolQuantityTooLow | SymbolNotTradingException e) {
                 logger.error("openPositions - batchMarketOpen failed", e);
                 // the algorithm should handle these kinds of problems
@@ -128,6 +154,7 @@ public class SampleStrategy implements Strategy {
         for (Position pos : posToclose) {
             try {
                 bpExch.addBatchMarketClose(pos.id, pos.symbol, pos.isLong, pos.quantity);
+                state.remove(pos.id);
             } catch (SymbolQuantityTooLow | SymbolNotTradingException e) {
                 logger.error("closePositions - batchMarketClose failed", e);
                 // the algorithm should handle these kinds of problems
@@ -136,21 +163,15 @@ public class SampleStrategy implements Strategy {
         return bpExch.executeBatchedMarketCloseOrders();
     }
 
-    List<Position> getPositionsToOpen(AccountInfo acc) {
-        // strat.something(), pass bpData
+    List<Position> getPositionsToOpen() {
+        // StrategyDecision strat.something(state)
         // TODO Auto-generated method stub
         return null;
     }
 
-    List<Position> getPositionsToClose(AccountInfo acc) {
-        // strat.something(), pass bpData
+    List<Position> getPositionsToClose() {
+        // StrategyDecision strat.something(state)
         // TODO Auto-generated method stub
         return null;
     }
-
-    @Override
-    public boolean isLive() {
-        return live;
-    }
-
 }

@@ -10,7 +10,7 @@ import org.junit.Test;
 import functionsalgo.binanceperpetual.HistoricFundingRates;
 import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.binanceperpetual.SlippageModel;
-import functionsalgo.datapoints.AdjustedTimestamp;
+import functionsalgo.datapoints.Timestamp;
 import functionsalgo.datapoints.Interval;
 import functionsalgo.exceptions.ExchangeException;
 
@@ -44,7 +44,7 @@ public class SimExchangeTest {
         sim.addBatchMarketOpen("3", "BTCUSDT", true, 0.001);
         sim.executeBatchedMarketOpenOrders();
 
-        for (AdjustedTimestamp t = new AdjustedTimestamp(1605147953000L, Interval._5m); t.getTime() <= 1605198953000L; t
+        for (Timestamp t = new Timestamp(1605147953000L, Interval._5m); t.getTime() <= 1605198953000L; t
                 .inc()) {
             sim.getAccountInfo(t.getTime());
         }

@@ -1,10 +1,10 @@
 package functionsalgo.datapoints;
 
-public final class AdjustedTimestamp {
+public final class Timestamp {
     private long time;
     private final Interval interval;
 
-    public AdjustedTimestamp(long timestamp, Interval interval) {
+    public Timestamp(long timestamp, Interval interval) {
         this.interval = interval;
         this.time = (timestamp / interval.toMilliseconds()) * interval.toMilliseconds();
     }
@@ -14,29 +14,29 @@ public final class AdjustedTimestamp {
     }
 
     /**
-     * "AdjustedTimestamp t1;" "t1.add(t2).add(t3);" is analogous to "t1 = t1 + t2 +
+     * "Timestamp t1;" "t1.add(t2).add(t3);" is analogous to "t1 = t1 + t2 +
      * t3;"
      * 
      * @param timestamp
-     * @return this instance (the AdjustedTimestamp instance to which timestamp was
+     * @return this instance (the Timestamp instance to which timestamp was
      *         added to)
      */
-    public final AdjustedTimestamp add(AdjustedTimestamp timestamp) {
+    public final Timestamp add(Timestamp timestamp) {
         time += timestamp.time;
         return this;
     }
 
-    public final AdjustedTimestamp inc() {
+    public final Timestamp inc() {
         time += interval.toMilliseconds();
         return this;
     }
 
-    public final AdjustedTimestamp sub(AdjustedTimestamp timestamp) {
+    public final Timestamp sub(Timestamp timestamp) {
         time -= timestamp.time;
         return this;
     }
 
-    public final AdjustedTimestamp dec() {
+    public final Timestamp dec() {
         time -= interval.toMilliseconds();
         return this;
     }
