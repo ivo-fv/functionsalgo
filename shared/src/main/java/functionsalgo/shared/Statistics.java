@@ -15,8 +15,26 @@ public class Statistics {
     protected Map<Long, Double> balances = new HashMap<>();
 
     public Results calculateStatistics() {
-        // TODO max min drawdown, plot file
-        return null;
+
+        double maxBalance = 0;
+        double minBalance = 0;
+        double maxDrawdown = 0;
+
+        for (double balance : balances.values()) {
+            maxBalance = Math.max(maxBalance, balance);
+            minBalance = Math.min(minBalance, balance);
+            maxDrawdown = Math.max(maxDrawdown, 1 - (balance / maxBalance));
+        }
+
+        Results results = new Results();
+        results.textStats = "\nMax balance: " + maxBalance + "\n Min balance: " + minBalance + "\nMax drawdown %: "
+                + maxDrawdown * 100;
+        
+        // TODO svg
+        
+        
+        
+        return results;
     }
 
     public void addBalance(long timestamp, double balance) {

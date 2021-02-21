@@ -78,6 +78,11 @@ public class Utils {
         } catch (ClassNotFoundException e) {
             throw new FileNotFoundException(e.toString());
         }
+        return getFileOrResource(callerCL, filesNamesOrPathByOrder);
+    }
+
+    private static URL getFileOrResource(ClassLoader callerCL, String... filesNamesOrPathByOrder)
+            throws FileNotFoundException {
         URL url = null;
         for (String file : filesNamesOrPathByOrder) {
             try {
@@ -180,11 +185,11 @@ public class Utils {
         }
     }
 
-    public static Object loadObjectResource(String fileName) throws StandardJavaException {
+    public static Object loadObjectFileOrResource(String fileName) throws StandardJavaException {
         try {
             ClassLoader callerCL = Class.forName(new Exception().getStackTrace()[1].getClassName()).getClassLoader();
-            try (ObjectInputStream in = new ObjectInputStream(
-                    new BufferedInputStream(callerCL.getResourceAsStream(fileName)))) {
+            URL url = getFileOrResource(callerCL, fileName);
+            try (ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(url.openStream()))) {
                 return in.readObject();
             }
         } catch (ClassNotFoundException | IOException e) {

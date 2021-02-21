@@ -1,10 +1,17 @@
 package functionsalgo.shared;
 
+import functionsalgo.datapoints.Interval;
+import functionsalgo.exceptions.StandardJavaException;
+
 public interface BacktestConfiguration {
 
-    void generateConfiguration();
+    void loadConfiguration(String configFile, boolean gen, boolean forceGen) throws StandardJavaException;
 
-    void loadConfiguration();
+    Strategy getStrategy() throws StandardJavaException;
 
-    Strategy getStrategy();
+    long getBacktestStartTime();
+
+    long getBacktestEndTime();
+
+    Interval getBacktestInterval();
 }

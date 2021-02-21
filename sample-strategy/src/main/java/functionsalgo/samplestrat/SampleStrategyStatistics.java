@@ -7,15 +7,17 @@ import functionsalgo.shared.Statistics;
 
 public class SampleStrategyStatistics extends Statistics {
 
-    private Map<Long, Double> marginBalances = new HashMap<>();
+    private Map<Long, Double> walletBalances = new HashMap<>();
 
     @Override
     public Results calculateStatistics() {
         // TODO max min drawdown, plot file, including new SampleStrat specific stuff
-        return null;
+        super.calculateStatistics();// .....
+        throw new RuntimeException("SampleStrategyStatistics - extension :" + walletBalances.get(1234567L));
+        // return null;
     }
 
     public void addWalletBalance(long timestamp, double balance) {
-        marginBalances.put(timestamp, balance);
+        walletBalances.put(timestamp, balance);
     }
 }

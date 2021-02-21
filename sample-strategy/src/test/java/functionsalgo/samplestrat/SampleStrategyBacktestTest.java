@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.exceptions.StandardJavaException;
+import functionsalgo.shared.Statistics;
 import functionsalgo.shared.Strategy;
 
 public class SampleStrategyBacktestTest {
