@@ -18,6 +18,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -156,6 +157,10 @@ public class HistoricKlines implements Serializable {
         }
 
         return returnKlines;
+    }
+
+    public Map<Long, Kline> getKlines(String symbol) {
+        return klines.get(symbol);
     }
 
     public Interval getInterval() {

@@ -17,6 +17,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -155,6 +156,10 @@ public class HistoricFundingRates implements Serializable {
         return returnFRates;
     }
 
+    public Map<Long, FundingRate> getFundingRates(String symbol) {
+        return rates.get(symbol);
+    }
+    
     public Interval getFundingInterval() {
         return Interval._8h;
     }
@@ -172,4 +177,5 @@ public class HistoricFundingRates implements Serializable {
 
         rates.put(symbol, rate);
     }
+
 }

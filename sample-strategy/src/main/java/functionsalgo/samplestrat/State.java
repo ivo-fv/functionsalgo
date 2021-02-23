@@ -4,17 +4,17 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class State {
-    private Map<String, Position> positions = new HashMap<>();
+    private Map<Integer, Position> positions = new HashMap<>();
 
-    public void addPosition(String id, Position pos) {
+    public void addPosition(int id, Position pos) {
         positions.put(id, pos);
     }
 
-    public void remove(String id) {
+    public void remove(int id) {
         positions.remove(id);
     }
 
-    public Position getPosition(String id) {
+    public Position getPosition(int id) {
         return positions.get(id);
     }
 

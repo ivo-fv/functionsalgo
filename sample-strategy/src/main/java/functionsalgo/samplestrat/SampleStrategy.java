@@ -1,6 +1,8 @@
 package functionsalgo.samplestrat;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,24 +24,31 @@ import functionsalgo.binanceperpetual.exchange.exceptions.OrderExecutionExceptio
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolNotTradingException;
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolQuantityTooLow;
 import functionsalgo.datapoints.Interval;
+import functionsalgo.datapoints.Timestamp;
 import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.exceptions.StandardJavaException;
 import functionsalgo.shared.Strategy;
 import functionsalgo.shared.Utils;
 
-//TODO dataproviders, statistics while execute
 public class SampleStrategy implements Strategy {
 
     private static final Logger logger = LogManager.getLogger();
+
+    public static List<String> symbolsToTrade = Arrays.asList("BTCUSDT", "ETHUSDT");
 
     Exchange bpExch;
     DataProvider bpData;
     Storage storage;
     SampleStrategyStatistics stats = new SampleStrategyStatistics();
 
-    StrategyDecision strat = new StrategyDecision();
     boolean live = false;
     State state;
+    Timestamp timestamp;
+    Interval interval = Interval._5m;
+    int id = 0;
+    double riskPer = 0.05;
+    AccountInfo acc;
+    int leverage = 10;
 
     static HistoricKlines bpHistoricKlines;
     static HistoricFundingRates bpHistoricFundingRates;
@@ -59,6 +68,7 @@ public class SampleStrategy implements Strategy {
         keys.load(Utils.getFileOrResource("secrets_ignore.properties", "secrets.properties").openStream());
         bpExch = new LiveExchange(keys.getProperty("binanceperpetual.privateKey"),
                 keys.getProperty("binanceperpetual.publicApiKey"));
+        // TODO make sure leverage gets set to this.leverage
         // TODO bpData = new LiveDataProvider(...);
         // TODO storage = LiveStorage(...);
     }
@@ -69,6 +79,14 @@ public class SampleStrategy implements Strategy {
         HistoricFundingRates frates = config.getBPFundingRates();
         bpExch = new SimExchange(config.getBPInitialBalance(), config.getBPDefaultLeverage(), klines.getInterval(),
                 klines, frates, config.getBPSlippageModel());
+        for (String symbol : symbolsToTrade) {
+            try {
+                bpExch.setLeverage(symbol, leverage);
+            } catch (ExchangeException e) {
+                // will never happen in a backtest
+            }
+        }
+
         Map<Interval, HistoricKlines> klinesPerInterval = new HashMap<>();
         klinesPerInterval.put(klines.getInterval(), klines);
         bpData = new BacktestDataProvider(klinesPerInterval, frates);
@@ -82,8 +100,9 @@ public class SampleStrategy implements Strategy {
 
     @Override
     public SampleStrategyStatistics execute(long timestamp) {
+        // arbitrary interval decided by whatever the strategy is
+        this.timestamp = new Timestamp(timestamp, Interval._5m);
 
-        AccountInfo acc = null;
         try {
             acc = bpExch.getAccountInfo(timestamp);
         } catch (ExchangeException e) {
@@ -92,27 +111,30 @@ public class SampleStrategy implements Strategy {
         }
 
         state = storage.getCurrentState();
+        // TODO for live: stats = storage.getStats();
 
         syncState(state, acc);
 
         List<Position> posToclose = getPositionsToClose();
         try {
             acc = closePositions(posToclose);
-            // TODO if present, handle errors present in acc (includes removing non handled
-            // bad positions from state via orderId)
+            // TODO (live) if present, handle errors present in acc (includes removing non
+            // handled bad positions from state via orderId using acc.getOrderErrors())
         } catch (OrderExecutionException e) {
             logger.error("closePositions failed", e);
-            // the algorithm should handle these kinds of problems
+            // (live) the algorithm should handle these kinds of problems, call syncState
+            // with a fresh account
         }
 
         List<Position> posToOpen = getPositionsToOpen();
         try {
             acc = openPositions(posToOpen);
-            // TODO if present, handle errors present in acc (includes removing non handled
-            // bad positions from state via orderId)
+            // TODO (live) if present, handle errors present in acc (includes removing non
+            // handled bad positions from state via orderId using acc.getOrderErrors())
         } catch (OrderExecutionException e) {
             logger.error("openPositions failed", e);
-            // the algorithm should handle these kinds of problems
+            // (live) the algorithm should handle these kinds of problems, call syncState
+            // with a fresh account
         }
 
         stats.addBalance(acc.getTimestampMillis(), acc.getMarginBalance());
@@ -124,7 +146,7 @@ public class SampleStrategy implements Strategy {
             storage.saveCurrentState(state);
         } catch (IOException e) {
             logger.error("couldn't save state");
-            // TODO maybe handle this
+            // TODO (live) handle this
         }
 
         return stats;
@@ -143,7 +165,8 @@ public class SampleStrategy implements Strategy {
                 state.addPosition(pos.id, pos);
             } catch (SymbolQuantityTooLow | SymbolNotTradingException e) {
                 logger.error("openPositions - batchMarketOpen failed", e);
-                // the algorithm should handle these kinds of problems
+                state.remove(pos.id);
+                // TODO (live) the algorithm should handle these kinds of problems
             }
         }
         return bpExch.executeBatchedMarketOpenOrders();
@@ -157,20 +180,35 @@ public class SampleStrategy implements Strategy {
                 state.remove(pos.id);
             } catch (SymbolQuantityTooLow | SymbolNotTradingException e) {
                 logger.error("closePositions - batchMarketClose failed", e);
-                // the algorithm should handle these kinds of problems
+                state.addPosition(pos.id, pos);
+                // TODO (live) the algorithm should handle these kinds of problems
             }
         }
         return bpExch.executeBatchedMarketCloseOrders();
     }
 
     List<Position> getPositionsToOpen() {
-        // StrategyDecision strat.something(state)
-        // TODO Auto-generated method stub
-        return null;
+        List<Position> positions = new ArrayList<>();
+        for (String symbol : symbolsToTrade) {
+            try {
+                Timestamp prev12hTime = timestamp.copy().sub(Interval._12h.toMilliseconds());
+                double previous12hPrice = bpData.getKlines(symbol, interval, prev12hTime, prev12hTime)
+                        .get(prev12hTime.getTime()).getOpen();
+                double currPrice = bpData.getKlines(symbol, interval, timestamp, timestamp).get(timestamp.getTime())
+                        .getOpen();
+                if (currPrice / previous12hPrice >= 1.05) {
+                    double qty = acc.getMarginBalance() * riskPer * leverage / currPrice;
+                    positions.add(new Position(id++, symbol, true, qty));
+                }
+            } catch (ExchangeException e) {
+                logger.error("couldn't get kline data of {} at {}", symbol, timestamp.getTime());
+            }
+        }
+        return positions;
     }
 
     List<Position> getPositionsToClose() {
-        // StrategyDecision strat.something(state)
+        // TODO for each symbol if avgprice lower than x% Xhours before
         // TODO Auto-generated method stub
         return null;
     }

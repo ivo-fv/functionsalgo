@@ -4,9 +4,9 @@ public class Position {
     String symbol;
     boolean isLong;
     double quantity;
-    public String id;
+    public int id;
 
-    Position(String id, String symbol, boolean isLong, double quantity) {
+    Position(int id, String symbol, boolean isLong, double quantity) {
         this.id = id;
         this.symbol = symbol;
         this.isLong = isLong;

@@ -13,6 +13,7 @@ public class Statistics {
     }
 
     protected Map<Long, Double> balances = new HashMap<>();
+    protected long lastTimestamp;
 
     public Results calculateStatistics() {
 
@@ -27,17 +28,16 @@ public class Statistics {
         }
 
         Results results = new Results();
-        results.textStats = "\nMax balance: " + maxBalance + "\n Min balance: " + minBalance + "\nMax drawdown %: "
-                + maxDrawdown * 100;
-        
-        // TODO svg
-        
-        
-        
+        results.textStats = "\nFinal balance: " + balances.get(lastTimestamp) + "\nMax balance: " + maxBalance
+                + "\nMin balance: " + minBalance + "\nMax drawdown %: " + maxDrawdown * 100;
+
+        // TODO svg chart of balances
+
         return results;
     }
 
     public void addBalance(long timestamp, double balance) {
         balances.put(timestamp, balance);
+        lastTimestamp = timestamp;
     }
 }

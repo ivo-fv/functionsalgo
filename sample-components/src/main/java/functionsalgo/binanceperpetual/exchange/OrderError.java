@@ -8,18 +8,18 @@ public class OrderError {
         UNKNOWN, FAILED, NOT_ENOUGH_MARGIN_FAILED, NO_SUCH_POSITION_FAILED
     }
 
-    String orderId;
+    int orderId;
     OrderStatus status;
     ExchangeException exception;
 
-    public OrderError(String orderId, OrderStatus status, ExchangeException exception) {
+    public OrderError(int orderId, OrderStatus status, ExchangeException exception) {
         super();
         this.orderId = orderId;
         this.status = status;
         this.exception = exception;
     }
 
-    public String getOrderId() {
+    public int getOrderId() {
         return orderId;
     }
 

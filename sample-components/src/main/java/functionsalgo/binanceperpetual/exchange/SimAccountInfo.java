@@ -5,37 +5,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import functionsalgo.binanceperpetual.PositionWrapper;
 import functionsalgo.datapoints.Timestamp;
 
 class SimAccountInfo implements AccountInfo {
 
-    class PositionData {
-
-        static final String MARGIN_TYPE = "CROSSED";
-
-        String symbol;
-        boolean isLong;
-        double avgOpenPrice;
-        double currPrice;
-        double quantity;
-        double margin;
-
-        PositionData(String symbol, boolean isLong, double avgOpenPrice, double quantity, double initialMargin) {
-
-            this.symbol = symbol;
-            this.isLong = isLong;
-            this.avgOpenPrice = avgOpenPrice;
-            this.currPrice = avgOpenPrice;
-            this.quantity = quantity;
-            this.margin = initialMargin;
-        }
-    }
-
     double marginBalance;
     double walletBalance;
     HashMap<String, Integer> leverages;
-    HashMap<String, PositionData> longPositions;
-    HashMap<String, PositionData> shortPositions;
+    HashMap<String, PositionWrapper> longPositions;
+    HashMap<String, PositionWrapper> shortPositions;
     HashMap<String, Double> fundingRates;
     Timestamp lastUpdatedTime;
     double takerFee = SimExchange.TAKER_OPEN_CLOSE_FEE;
@@ -97,7 +76,7 @@ class SimAccountInfo implements AccountInfo {
     @Override
     public double getAverageOpenPrice(String symbol, boolean isLong) {
         try {
-            return isLong ? longPositions.get(symbol).avgOpenPrice : shortPositions.get(symbol).avgOpenPrice;
+            return isLong ? longPositions.get(symbol).averagePrice : shortPositions.get(symbol).averagePrice;
         } catch (NullPointerException e) {
             return 0;
         }
@@ -123,12 +102,22 @@ class SimAccountInfo implements AccountInfo {
     @Override
     public double getTotalInitialMargin() {
         double marginUsed = 0;
-        for (Map.Entry<String, PositionData> entry : longPositions.entrySet()) {
+        for (Map.Entry<String, PositionWrapper> entry : longPositions.entrySet()) {
             marginUsed += entry.getValue().margin;
         }
-        for (Map.Entry<String, PositionData> entry : shortPositions.entrySet()) {
+        for (Map.Entry<String, PositionWrapper> entry : shortPositions.entrySet()) {
             marginUsed += entry.getValue().margin;
         }
         return marginUsed;
+    }
+
+    @Override
+    public Map<String, PositionWrapper> getLongPositions() {
+        return longPositions;
+    }
+
+    @Override
+    public Map<String, PositionWrapper> getShortPositions() {
+        return shortPositions;
     }
 }

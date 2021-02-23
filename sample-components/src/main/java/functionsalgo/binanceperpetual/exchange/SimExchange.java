@@ -10,6 +10,7 @@ import org.apache.logging.log4j.Logger;
 
 import functionsalgo.binanceperpetual.HistoricFundingRates;
 import functionsalgo.binanceperpetual.HistoricKlines;
+import functionsalgo.binanceperpetual.PositionWrapper;
 import functionsalgo.binanceperpetual.SlippageModel;
 import functionsalgo.binanceperpetual.exchange.exceptions.NoBalanceInAccountException;
 import functionsalgo.datapoints.Timestamp;
@@ -104,29 +105,29 @@ public class SimExchange implements Exchange {
         accInfo.marginBalance = accInfo.walletBalance;
         accInfo.worstCurrentMarginBalance = accInfo.walletBalance;
 
-        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
+        for (Map.Entry<String, PositionWrapper> entry : accInfo.longPositions.entrySet()) {
             // should use mark price for more accuracy
             Kline kline = bpHistoricKlines.getKline(entry.getValue().symbol, accInfo.lastUpdatedTime);
             double currPrice = kline.getOpen();
             entry.getValue().currPrice = currPrice;
-            double pnl = (entry.getValue().currPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
+            double pnl = (entry.getValue().currPrice - entry.getValue().averagePrice) * entry.getValue().quantity;
             accInfo.marginBalance += pnl;
             double worstPrice = kline.getLow();
-            double worstPnL = (worstPrice - entry.getValue().avgOpenPrice) * entry.getValue().quantity;
+            double worstPnL = (worstPrice - entry.getValue().averagePrice) * entry.getValue().quantity;
             accInfo.worstCurrentMarginBalance += worstPnL;
             int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
                     ? accInfo.leverages.get(entry.getValue().symbol)
                     : defaultLeverage;
             entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
         }
-        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.shortPositions.entrySet()) {
+        for (Map.Entry<String, PositionWrapper> entry : accInfo.shortPositions.entrySet()) {
             Kline kline = bpHistoricKlines.getKline(entry.getValue().symbol, accInfo.lastUpdatedTime);
             double currPrice = kline.getOpen();
             entry.getValue().currPrice = currPrice;
-            double pnl = (entry.getValue().avgOpenPrice - entry.getValue().currPrice) * entry.getValue().quantity;
+            double pnl = (entry.getValue().averagePrice - entry.getValue().currPrice) * entry.getValue().quantity;
             accInfo.marginBalance += pnl;
             double worstPrice = kline.getHigh();
-            double worstPnL = (entry.getValue().avgOpenPrice - worstPrice) * entry.getValue().quantity;
+            double worstPnL = (entry.getValue().averagePrice - worstPrice) * entry.getValue().quantity;
             accInfo.worstCurrentMarginBalance += worstPnL;
             int leverage = accInfo.leverages.containsKey(entry.getValue().symbol)
                     ? accInfo.leverages.get(entry.getValue().symbol)
@@ -134,7 +135,7 @@ public class SimExchange implements Exchange {
             entry.getValue().margin = (entry.getValue().currPrice * entry.getValue().quantity) / leverage;
         }
         if (accInfo.lastUpdatedTime.getTime() >= nextFundingTime.getTime()) {
-            for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
+            for (Map.Entry<String, PositionWrapper> entry : accInfo.longPositions.entrySet()) {
                 double fundingRate = bpHistoricFundingRates
                         .getFundingRate(entry.getValue().symbol, accInfo.lastUpdatedTime).getFundingRate();
                 accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
@@ -143,7 +144,7 @@ public class SimExchange implements Exchange {
                 accInfo.walletBalance -= funding;
                 accInfo.worstCurrentMarginBalance -= funding;
             }
-            for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
+            for (Map.Entry<String, PositionWrapper> entry : accInfo.longPositions.entrySet()) {
                 double fundingRate = bpHistoricFundingRates
                         .getFundingRate(entry.getValue().symbol, accInfo.lastUpdatedTime).getFundingRate();
                 accInfo.fundingRates.put(entry.getValue().symbol, fundingRate);
@@ -160,10 +161,10 @@ public class SimExchange implements Exchange {
         // assuming crossed margin type
         double highestInitialMargin = 0;
 
-        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.longPositions.entrySet()) {
+        for (Map.Entry<String, PositionWrapper> entry : accInfo.longPositions.entrySet()) {
             highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().margin);
         }
-        for (Map.Entry<String, SimAccountInfo.PositionData> entry : accInfo.shortPositions.entrySet()) {
+        for (Map.Entry<String, PositionWrapper> entry : accInfo.shortPositions.entrySet()) {
             highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().margin);
         }
 
@@ -179,13 +180,13 @@ public class SimExchange implements Exchange {
     }
 
     @Override
-    public void addBatchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty) {
+    public void addBatchMarketOpen(int orderId, String symbol, boolean isLong, double symbolQty) {
 
         batchedMarketOpenOrders.add(new BatchedOrder(orderId, symbol, isLong, symbolQty, true));
     }
 
     @Override
-    public void addBatchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose) {
+    public void addBatchMarketClose(int orderId, String symbol, boolean isLong, double qtyToClose) {
 
         batchedMarketCloseOrders.add(new BatchedOrder(orderId, symbol, isLong, qtyToClose, false));
     }
@@ -257,14 +258,14 @@ public class SimExchange implements Exchange {
                 updatePositionsAfterOpen(accInfo.longPositions, symbol, symbolQty, openPrice, initialMargin);
             } else {
                 accInfo.longPositions.put(symbol,
-                        accInfo.new PositionData(symbol, isLong, openPrice, symbolQty, initialMargin));
+                        new PositionWrapper(symbol, isLong, openPrice, symbolQty, initialMargin));
             }
         } else {
             if (accInfo.shortPositions.containsKey(symbol)) {
                 updatePositionsAfterOpen(accInfo.shortPositions, symbol, symbolQty, openPrice, initialMargin);
             } else {
                 accInfo.shortPositions.put(symbol,
-                        accInfo.new PositionData(symbol, isLong, openPrice, symbolQty, initialMargin));
+                        new PositionWrapper(symbol, isLong, openPrice, symbolQty, initialMargin));
             }
         }
 
@@ -272,21 +273,20 @@ public class SimExchange implements Exchange {
         return true;
     }
 
-    private void updatePositionsAfterOpen(HashMap<String, SimAccountInfo.PositionData> positions, String symbol,
-            double symbolQty, double openPrice, double initialMargin) {
+    private void updatePositionsAfterOpen(HashMap<String, PositionWrapper> positions, String symbol, double symbolQty,
+            double openPrice, double initialMargin) {
         positions.get(symbol).margin += initialMargin;
         double newQty = positions.get(symbol).quantity + symbolQty;
         double percOldQty = positions.get(symbol).quantity / newQty;
-        double prevAvgOpenPrice = positions.get(symbol).avgOpenPrice;
+        double prevAvgOpenPrice = positions.get(symbol).averagePrice;
         double percNewQty = symbolQty / newQty;
-        positions.get(symbol).avgOpenPrice = (prevAvgOpenPrice * percOldQty) + (openPrice * percNewQty);
+        positions.get(symbol).averagePrice = (prevAvgOpenPrice * percOldQty) + (openPrice * percNewQty);
         positions.get(symbol).quantity = newQty;
     }
 
     // TODO refactor
     private boolean marketClose(String symbol, boolean isLong, double qtyToClose) {
-        HashMap<String, SimAccountInfo.PositionData> positions = isLong ? accInfo.longPositions
-                : accInfo.shortPositions;
+        HashMap<String, PositionWrapper> positions = isLong ? accInfo.longPositions : accInfo.shortPositions;
         if (positions.containsKey(symbol)) {
 
             if (positions.get(symbol).quantity > qtyToClose) {
@@ -297,10 +297,10 @@ public class SimExchange implements Exchange {
                 if (positions.get(symbol).isLong) {
                     closePrice = positions.get(symbol).currPrice
                             * (1 - (slippageModel.getSlippage(nValSlipp, symbol) - 1));
-                    pnl = (closePrice - positions.get(symbol).avgOpenPrice) * qtyToClose;
+                    pnl = (closePrice - positions.get(symbol).averagePrice) * qtyToClose;
                 } else {
                     closePrice = positions.get(symbol).currPrice * slippageModel.getSlippage(nValSlipp, symbol);
-                    pnl = (positions.get(symbol).avgOpenPrice - closePrice) * qtyToClose;
+                    pnl = (positions.get(symbol).averagePrice - closePrice) * qtyToClose;
                 }
                 double notionalValue = closePrice * qtyToClose;
                 double closeFee = Math.abs(notionalValue + pnl) * MAKER_OPEN_CLOSE_FEE;
@@ -324,10 +324,10 @@ public class SimExchange implements Exchange {
                 if (positions.get(symbol).isLong) {
                     closePrice = positions.get(symbol).currPrice
                             * (1 - (slippageModel.getSlippage(nValSlipp, symbol) - 1));
-                    pnl = (closePrice - positions.get(symbol).avgOpenPrice) * quantity;
+                    pnl = (closePrice - positions.get(symbol).averagePrice) * quantity;
                 } else {
                     closePrice = positions.get(symbol).currPrice * slippageModel.getSlippage(nValSlipp, symbol);
-                    pnl = (positions.get(symbol).avgOpenPrice - closePrice) * quantity;
+                    pnl = (positions.get(symbol).averagePrice - closePrice) * quantity;
                 }
                 double notionalValue = closePrice * quantity;
                 double closeFee = Math.abs(notionalValue + pnl) * MAKER_OPEN_CLOSE_FEE;

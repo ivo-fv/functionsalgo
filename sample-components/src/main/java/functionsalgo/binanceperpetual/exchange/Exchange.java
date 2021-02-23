@@ -15,10 +15,10 @@ public interface Exchange {
 
     void setCrossMargin(String symbol) throws ExchangeException;
 
-    void addBatchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty)
+    void addBatchMarketOpen(int orderId, String symbol, boolean isLong, double symbolQty)
             throws SymbolQuantityTooLow, SymbolNotTradingException;
 
-    void addBatchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose)
+    void addBatchMarketClose(int orderId, String symbol, boolean isLong, double qtyToClose)
             throws SymbolQuantityTooLow, SymbolNotTradingException;
 
     AccountInfo executeBatchedMarketOpenOrders() throws OrderExecutionException;

@@ -11,13 +11,28 @@ public class SampleStrategyStatistics extends Statistics {
 
     @Override
     public Results calculateStatistics() {
-        // TODO max min drawdown, plot file, including new SampleStrat specific stuff
-        super.calculateStatistics();// .....
-        throw new RuntimeException("SampleStrategyStatistics - extension :" + walletBalances.get(1234567L));
-        // return null;
+        Results results = super.calculateStatistics();
+
+        double maxBalance = 0;
+        double minBalance = 0;
+        double maxDrawdown = 0;
+
+        for (double balance : walletBalances.values()) {
+            maxBalance = Math.max(maxBalance, balance);
+            minBalance = Math.min(minBalance, balance);
+            maxDrawdown = Math.max(maxDrawdown, 1 - (balance / maxBalance));
+        }
+
+        results.textStats += "\nFinal wallet balance: " + walletBalances.get(lastTimestamp) + "\nMax wallet balance: "
+                + maxBalance + "\nMin wallet balance: " + minBalance + "\nMax wallet drawdown %: " + maxDrawdown * 100;
+
+        // TODO svg chart of walletBalances
+
+        return results;
     }
 
     public void addWalletBalance(long timestamp, double balance) {
         walletBalances.put(timestamp, balance);
+        lastTimestamp = timestamp;
     }
 }

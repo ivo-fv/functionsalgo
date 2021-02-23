@@ -1,6 +1,5 @@
 package functionsalgo.binanceperpetual.dataprovider;
 
-import java.util.List;
 import java.util.Map;
 
 import functionsalgo.binanceperpetual.FundingRate;
@@ -27,27 +26,17 @@ public class BacktestDataProvider implements DataProvider {
         return fundRates.getFundingInterval();
     }
 
-    // TODO mult
     @Override
-    public List<FundingRate> getFundingRates(String symbol, Timestamp startTime, Timestamp endTime)
+    public Map<Long, FundingRate> getFundingRates(String symbol, Timestamp startTime, Timestamp endTime)
             throws ExchangeException {
 
-        return fundRates.getFundingRates(symbol, startTime, endTime);
+        return fundRates.getFundingRates(symbol);
     }
 
     @Override
-    public List<Kline> getKlines(String symbol, Interval interval, Timestamp startTime,
-            Timestamp endTime) throws ExchangeException {
-
-        return klines.get(interval).getKlines(symbol, startTime, endTime);
-    }
-
-    public Map<String, Kline> getKlinesMult(List<String> symbol, Interval interval, long startTime, long endTime)
+    public Map<Long, Kline> getKlines(String symbol, Interval interval, Timestamp startTime, Timestamp endTime)
             throws ExchangeException {
-        // TODO thread pool fetch each each interval for each symbol, consider removing
-        // checks from HistoricKlines and HistoricFundingRates, do them here
-        // return klines.get(interval).getKlines(symbol, startTime, endTime);
-        return null;
-    }
 
+        return klines.get(interval).getKlines(symbol);
+    }
 }

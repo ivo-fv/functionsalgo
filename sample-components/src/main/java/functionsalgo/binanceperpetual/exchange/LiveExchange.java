@@ -75,7 +75,7 @@ public class LiveExchange implements Exchange {
     }
 
     @Override
-    public void addBatchMarketOpen(String orderId, String symbol, boolean isLong, double symbolQty)
+    public void addBatchMarketOpen(int orderId, String symbol, boolean isLong, double symbolQty)
             throws SymbolQuantityTooLow, SymbolNotTradingException {
         if (!hasCalledInfo) {
             throw new IllegalStateException(
@@ -90,12 +90,12 @@ public class LiveExchange implements Exchange {
         if (stepSize > symbolQty) {
             throw new SymbolQuantityTooLow(symbol, symbolQty, stepSize);
         }
-
+        // TODO trim symbolQty decimals to stepSize decimals
         batchedMarketOpenOrders.add(new BatchedOrder(orderId, symbol, isLong, symbolQty, true));
     }
 
     @Override
-    public void addBatchMarketClose(String orderId, String symbol, boolean isLong, double qtyToClose)
+    public void addBatchMarketClose(int orderId, String symbol, boolean isLong, double qtyToClose)
             throws SymbolNotTradingException, SymbolQuantityTooLow {
         if (!hasCalledInfo) {
             throw new IllegalStateException(
@@ -110,7 +110,7 @@ public class LiveExchange implements Exchange {
         if (stepSize > qtyToClose) {
             throw new SymbolQuantityTooLow(symbol, qtyToClose, stepSize);
         }
-
+        // TODO trim symbolQty decimals to stepSize decimals
         batchedMarketCloseOrders.add(new BatchedOrder(orderId, symbol, isLong, qtyToClose, true));
     }
 

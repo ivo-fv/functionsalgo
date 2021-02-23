@@ -80,4 +80,14 @@ public class LiveAccountInfo implements AccountInfo {
         return isHedgeMode;
     }
 
+    @Override
+    public Map<String, PositionWrapper> getLongPositions() {
+        return longPositions;
+    }
+
+    @Override
+    public Map<String, PositionWrapper> getShortPositions() {
+        return shortPositions;
+    }
+
 }

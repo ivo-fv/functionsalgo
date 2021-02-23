@@ -1,13 +1,13 @@
 package functionsalgo.binanceperpetual.exchange;
 
 class BatchedOrder {
-    String orderId;
+    int orderId;
     String symbol;
     boolean isLong;
     double quantity;
     boolean isOpen;
 
-    public BatchedOrder(String orderId, String symbol, boolean isLong, double quantity, boolean isOpen) {
+    public BatchedOrder(int orderId, String symbol, boolean isLong, double quantity, boolean isOpen) {
         this.orderId = orderId;
         this.symbol = symbol;
         this.isLong = isLong;

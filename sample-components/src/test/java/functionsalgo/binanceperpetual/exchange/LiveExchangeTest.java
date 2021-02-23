@@ -100,19 +100,19 @@ public class LiveExchangeTest {
     @Test
     public final void testZ0ExceptionsAddBatchMarketOpen() {
         try {
-            exchange.addBatchMarketOpen("123", "SYMBOL", true, 1);
+            exchange.addBatchMarketOpen(123, "SYMBOL", true, 1);
             fail("addBatchMarketOpen SYMBOL isn't trading, must throw SymbolNotTradingException");
         } catch (Exception e) {
             assertTrue("exception must be SymbolNotTradingException", e instanceof SymbolNotTradingException);
         }
         try {
-            exchange.addBatchMarketOpen("123", "NOSYMBOL", true, 1);
+            exchange.addBatchMarketOpen(123, "NOSYMBOL", true, 1);
             fail("addBatchMarketOpen NOSYMBOL doesn't exist, must throw NullPointerException");
         } catch (Exception e) {
             assertTrue("exception must be NullPointerException", e instanceof NullPointerException);
         }
         try {
-            exchange.addBatchMarketOpen("123", "BTCUSDT", false, 0.00001);
+            exchange.addBatchMarketOpen(123, "BTCUSDT", false, 0.00001);
             fail("addBatchMarketOpen BTCUSDT too low quantity, must throw SymbolQuantityTooLow (can fail the next tests)");
         } catch (Exception e) {
             assertTrue("exception must be SymbolQuantityTooLow", e instanceof SymbolQuantityTooLow);
@@ -122,19 +122,19 @@ public class LiveExchangeTest {
     @Test
     public final void testZ1ExceptionsAddBatchMarketClose() {
         try {
-            exchange.addBatchMarketClose("123", "SYMBOL", true, 1);
+            exchange.addBatchMarketClose(123, "SYMBOL", true, 1);
             fail("addBatchMarketOpen SYMBOL isn't trading, must throw SymbolNotTradingException");
         } catch (Exception e) {
             assertTrue("exception must be SymbolNotTradingException", e instanceof SymbolNotTradingException);
         }
         try {
-            exchange.addBatchMarketClose("123", "NOSYMBOL", true, 1);
+            exchange.addBatchMarketClose(123, "NOSYMBOL", true, 1);
             fail("addBatchMarketOpen NOSYMBOL doesn't exist, must throw NullPointerException");
         } catch (Exception e) {
             assertTrue("exception must be NullPointerException", e instanceof NullPointerException);
         }
         try {
-            exchange.addBatchMarketClose("123", "BTCUSDT", false, 0.00001);
+            exchange.addBatchMarketClose(123, "BTCUSDT", false, 0.00001);
             fail("addBatchMarketOpen BTCUSDT too low quantity, must throw SymbolQuantityTooLow (can fail the next tests)");
         } catch (Exception e) {
             assertTrue("exception must be SymbolQuantityTooLow", e instanceof SymbolQuantityTooLow);
@@ -145,9 +145,9 @@ public class LiveExchangeTest {
     public final void testZ2AddBatchMarketOpenAndExecuteBatchedMarketOpenOrders()
             throws SymbolQuantityTooLow, SymbolNotTradingException, OrderExecutionException, WrapperRESTException {
 
-        exchange.addBatchMarketOpen("1234", "BTCUSDT", false, 1);
-        exchange.addBatchMarketOpen("1235", "ETHUSDT", true, 1.2);
-        exchange.addBatchMarketOpen("1235", "ETHUSDT", true, 0.03);
+        exchange.addBatchMarketOpen(1234, "BTCUSDT", false, 1);
+        exchange.addBatchMarketOpen(1235, "ETHUSDT", true, 1.2);
+        exchange.addBatchMarketOpen(1235, "ETHUSDT", true, 0.03);
 
         doAnswer(i -> {
             String symbol = i.getArgument(0);
@@ -168,9 +168,9 @@ public class LiveExchangeTest {
     public final void testZ3AddBatchMarketCloseAndExecuteBatchedMarketCloseOrders()
             throws SymbolQuantityTooLow, SymbolNotTradingException, WrapperRESTException, OrderExecutionException {
 
-        exchange.addBatchMarketClose("1234", "BTCUSDT", false, 1);
-        exchange.addBatchMarketClose("1235", "ETHUSDT", true, 1.2);
-        exchange.addBatchMarketClose("1235", "ETHUSDT", true, 0.03);
+        exchange.addBatchMarketClose(1234, "BTCUSDT", false, 1);
+        exchange.addBatchMarketClose(1235, "ETHUSDT", true, 1.2);
+        exchange.addBatchMarketClose(1235, "ETHUSDT", true, 0.03);
 
         doAnswer(i -> {
             String symbol = i.getArgument(0);
@@ -191,10 +191,10 @@ public class LiveExchangeTest {
     public final void testZ4ErrorsAddBatchMarketOpenAndExecuteBatchedMarketOpenOrders()
             throws SymbolQuantityTooLow, SymbolNotTradingException, WrapperRESTException, OrderExecutionException {
 
-        exchange.addBatchMarketOpen("1234", "BTCUSDT", false, 1.1);
-        exchange.addBatchMarketOpen("1235", "ETHUSDT", true, 1.3);
-        exchange.addBatchMarketOpen("1236", "ETHUSDT", true, 0.04);
-        exchange.addBatchMarketOpen("1237", "ETHUSDT", true, 2);
+        exchange.addBatchMarketOpen(1234, "BTCUSDT", false, 1.1);
+        exchange.addBatchMarketOpen(1235, "ETHUSDT", true, 1.3);
+        exchange.addBatchMarketOpen(1236, "ETHUSDT", true, 0.04);
+        exchange.addBatchMarketOpen(1237, "ETHUSDT", true, 2);
 
         // triggers INCONSISTENT_ORDER_RESULT check - OrderStatus.UNKNOWN
         doReturn(new OrderResultWrapper("XXXUSDT")).when(api).marketOpenHedgeMode(eq("BTCUSDT"), any(Boolean.class),
@@ -222,18 +222,18 @@ public class LiveExchangeTest {
 
         for (OrderError error : retAccInfo.getOrderErrors()) {
             switch (error.getOrderId()) {
-            case "1234":
+            case 1234:
                 assertTrue("id 1234 must have OrderStatus.UNKNOWN",
                         error.getStatus() == OrderError.OrderStatus.UNKNOWN);
                 break;
-            case "1235":
+            case 1235:
                 assertTrue("id 1235 must have OrderStatus.FAILED", error.getStatus() == OrderError.OrderStatus.FAILED);
                 break;
-            case "1236":
+            case 1236:
                 assertTrue("id 1236 must have OrderStatus.UNKNOWN",
                         error.getStatus() == OrderError.OrderStatus.UNKNOWN);
                 break;
-            case "1237":
+            case 1237:
                 fail("id 1237 must not be in an error");
                 break;
             default:
@@ -245,10 +245,10 @@ public class LiveExchangeTest {
     @Test
     public final void testZ5ErrorsAddBatchMarketCloseAndExecuteBatchedMarketCloseOrders()
             throws SymbolQuantityTooLow, SymbolNotTradingException, WrapperRESTException, OrderExecutionException {
-        exchange.addBatchMarketClose("1234", "BTCUSDT", false, 1.1);
-        exchange.addBatchMarketClose("1235", "ETHUSDT", true, 1.3);
-        exchange.addBatchMarketClose("1236", "ETHUSDT", true, 0.04);
-        exchange.addBatchMarketClose("1237", "ETHUSDT", true, 2);
+        exchange.addBatchMarketClose(1234, "BTCUSDT", false, 1.1);
+        exchange.addBatchMarketClose(1235, "ETHUSDT", true, 1.3);
+        exchange.addBatchMarketClose(1236, "ETHUSDT", true, 0.04);
+        exchange.addBatchMarketClose(1237, "ETHUSDT", true, 2);
 
         // triggers INCONSISTENT_ORDER_RESULT check - OrderStatus.UNKNOWN
         doReturn(new OrderResultWrapper("XXXUSDT")).when(api).marketCloseHedgeMode(eq("BTCUSDT"), any(Boolean.class),
@@ -276,18 +276,18 @@ public class LiveExchangeTest {
 
         for (OrderError error : retAccInfo.getOrderErrors()) {
             switch (error.getOrderId()) {
-            case "1234":
+            case 1234:
                 assertTrue("id 1234 must have OrderStatus.UNKNOWN",
                         error.getStatus() == OrderError.OrderStatus.UNKNOWN);
                 break;
-            case "1235":
+            case 1235:
                 assertTrue("id 1235 must have OrderStatus.FAILED", error.getStatus() == OrderError.OrderStatus.FAILED);
                 break;
-            case "1236":
+            case 1236:
                 assertTrue("id 1236 must have OrderStatus.UNKNOWN",
                         error.getStatus() == OrderError.OrderStatus.UNKNOWN);
                 break;
-            case "1237":
+            case 1237:
                 fail("id 1237 must not be in an error");
                 break;
             default:

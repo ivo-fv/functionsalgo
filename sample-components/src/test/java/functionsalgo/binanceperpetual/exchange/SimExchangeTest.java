@@ -39,20 +39,19 @@ public class SimExchangeTest {
         accInfo = sim.getAccountInfo(1605147243000L);
         assertTrue("bad timestamp", accInfo.getTimestampMillis() == 1605147000000L);
 
-        sim.addBatchMarketOpen("1", "ETHUSDT", true, 0.4);
-        sim.addBatchMarketOpen("2", "BTCUSDT", false, 0.01);
-        sim.addBatchMarketOpen("3", "BTCUSDT", true, 0.001);
+        sim.addBatchMarketOpen(1, "ETHUSDT", true, 0.4);
+        sim.addBatchMarketOpen(2, "BTCUSDT", false, 0.01);
+        sim.addBatchMarketOpen(3, "BTCUSDT", true, 0.001);
         sim.executeBatchedMarketOpenOrders();
 
-        for (Timestamp t = new Timestamp(1605147953000L, Interval._5m); t.getTime() <= 1605198953000L; t
-                .inc()) {
+        for (Timestamp t = new Timestamp(1605147953000L, Interval._5m); t.getTime() <= 1605198953000L; t.inc()) {
             sim.getAccountInfo(t.getTime());
         }
         accInfo = sim.getAccountInfo(1605408953000L);
 
-        sim.addBatchMarketClose("10", "ETHUSDT", true, 0.05);
-        sim.addBatchMarketClose("20", "BTCUSDT", true, 10);
-        sim.addBatchMarketClose("20", "NONEXISTENTSYMBOL", true, 2);
+        sim.addBatchMarketClose(10, "ETHUSDT", true, 0.05);
+        sim.addBatchMarketClose(20, "BTCUSDT", true, 10);
+        sim.addBatchMarketClose(20, "NONEXISTENTSYMBOL", true, 2);
         accInfo = sim.executeBatchedMarketCloseOrders();
 
         assertTrue("bad position sizes", Math.abs(accInfo.getQuantity("ETHUSDT", true) - 0.35) < 0.0001
@@ -64,8 +63,8 @@ public class SimExchangeTest {
 
         assertTrue("bad wallet balance", Math.abs(accInfo.getWalletBalance() - 10000.23) < 0.01);
 
-        sim.addBatchMarketClose("100", "ETHUSDT", true, 1);
-        sim.addBatchMarketClose("200", "BTCUSDT", false, 1);
+        sim.addBatchMarketClose(100, "ETHUSDT", true, 1);
+        sim.addBatchMarketClose(200, "BTCUSDT", false, 1);
         accInfo = sim.executeBatchedMarketCloseOrders();
 
         assertTrue("bad final balances", Math.abs(accInfo.getWalletBalance() - accInfo.getMarginBalance()) < 0.01
