@@ -27,7 +27,7 @@ public class SimExchange implements Exchange {
     private static final boolean IS_HEDGE_MODE = true;
 
     private static final double OPEN_LOSS_SIM_MULT = 1.06; // will probably never be this high
-
+    private static final double MIN_BALANCE_MULT = 0.05; // inaccurate convenience of when liquidation happens
     public static final double TAKER_OPEN_CLOSE_FEE = 0.0004;
     public static final double MAKER_OPEN_CLOSE_FEE = 0.0002;
 
@@ -83,7 +83,7 @@ public class SimExchange implements Exchange {
             for (; accInfo.lastUpdatedTime.getTime() <= timestamp.getTime(); accInfo.lastUpdatedTime.inc()) {
 
                 calculateMarginBalanceAndUpdatePositionData();
-                checkMaintenanceMargin();
+                checkIfFullyLiquidated();
 
                 if (accInfo.lastUpdatedTime.getTime() >= nextFundingTime.getTime()) {
                     nextFundingTime.inc();
@@ -93,7 +93,7 @@ public class SimExchange implements Exchange {
         } else {
             nextFundingTime = new Timestamp(timestamp.getTime(), fundingInterval).inc();
             calculateMarginBalanceAndUpdatePositionData();
-            checkMaintenanceMargin();
+            checkIfFullyLiquidated();
             accInfo.lastUpdatedTime = new Timestamp(timestamp.getTime(), updateInterval);
         }
 
@@ -156,26 +156,18 @@ public class SimExchange implements Exchange {
         }
     }
 
-    void checkMaintenanceMargin() throws NoBalanceInAccountException {
-
-        // assuming crossed margin type
-        double highestInitialMargin = 0;
-
-        for (Map.Entry<String, PositionWrapper> entry : accInfo.longPositions.entrySet()) {
-            highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().margin);
-        }
-        for (Map.Entry<String, PositionWrapper> entry : accInfo.shortPositions.entrySet()) {
-            highestInitialMargin = Math.max(highestInitialMargin, entry.getValue().margin);
-        }
-
-        // the maintenance margin is *always less* than 50% of the initial margin
-        if (accInfo.worstCurrentMarginBalance <= highestInitialMargin / 2) {
+    void checkIfFullyLiquidated() throws NoBalanceInAccountException {
+        // TODO check maintenance margin and liquidate only as appropriate
+        if (accInfo.worstCurrentMarginBalance <= accInfo.walletBalance * MIN_BALANCE_MULT) {
             logger.error("Going to get liquidated at timestamp: {}", accInfo.lastUpdatedTime.getTime());
+            double wmb = accInfo.worstCurrentMarginBalance;
+            double wb = accInfo.walletBalance;
             accInfo.marginBalance = 0;
             accInfo.walletBalance = 0;
             accInfo.longPositions = new HashMap<>();
             accInfo.shortPositions = new HashMap<>();
-            throw new NoBalanceInAccountException("got liquidated at timestamp: " + accInfo.lastUpdatedTime.getTime());
+            throw new NoBalanceInAccountException("got liquidated at timestamp: " + accInfo.lastUpdatedTime.getTime()
+                    + " , worstMarginBalance=" + wmb + " , walletBalance=" + wb);
         }
     }
 

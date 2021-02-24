@@ -44,14 +44,14 @@ public class HistoricKlines implements Serializable {
 
     private HashMap<String, HashMap<Long, Kline>> klines;
 
-    public static HistoricKlines pullKlines(List<String> symbols, Interval interval, long startTime, long endTime)
-            throws StandardJavaException {
+    public static HistoricKlines pullKlines(List<String> symbols, Interval interval, Timestamp startTime,
+            Timestamp endTime) throws StandardJavaException {
 
         return pullKlines(null, symbols, interval, startTime, endTime);
     }
 
     public static HistoricKlines pullKlines(File fileToSaveKlinesTo, List<String> symbols, Interval interval,
-            long startTime, long endTime) throws StandardJavaException {
+            Timestamp startTime, Timestamp endTime) throws StandardJavaException {
 
         String klinesDirJSONPath = getJSONDirName(interval);
         File klinesDirJSON = new File(klinesDirJSONPath);
@@ -76,15 +76,19 @@ public class HistoricKlines implements Serializable {
             throw new StandardJavaException(e);
         }
 
+        if (fileToSaveKlinesTo != null) {
+            return loadKlines(fileToSaveKlinesTo);
+        }
+
         return loadKlines(interval);
     }
 
     public static void downloadKlines(List<File> klinesSymbolsFilesJSON, List<String> symbols, Interval interval,
-            long startTime, long endTime) throws StandardJavaException {
+            Timestamp startTime, Timestamp endTime) throws StandardJavaException {
         WrapperREST restAPI;
         try {
             restAPI = new WrapperREST("don't need a valid key", "for this use case");
-            restAPI.saveKlines(klinesSymbolsFilesJSON, symbols, interval, startTime, endTime);
+            restAPI.saveKlines(klinesSymbolsFilesJSON, symbols, interval, startTime.getTime(), endTime.getTime());
         } catch (InvalidKeyException | NoSuchAlgorithmException | IOException e) {
             throw new StandardJavaException(e);
         }

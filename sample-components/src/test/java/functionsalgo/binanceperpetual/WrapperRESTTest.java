@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -319,7 +320,7 @@ public class WrapperRESTTest {
         // check, open, check, close some, check, close rest, check
         // check
         ExchangeInfoWrapper exchInfo = bpapi.getExchangeInfo();
-        double qty = 3 * exchInfo.getSymbolQtyStepSize("ETHUSDT");
+        double qty = 10 * exchInfo.getSymbolQtyStepSize("ETHUSDT");
         AccountInfoWrapper accInfo = bpapi.getAccountInfo();
         double prevAmt = accInfo.getLongPositions().get("ETHUSDT").quantity;
         // open
@@ -331,8 +332,9 @@ public class WrapperRESTTest {
         assertTrue("expected amount 1", expectedNewAtm == newAmt);
         prevAmt = newAmt;
         // close some
-        expectedNewAtm = prevAmt - (qty / 3);
-        bpapi.marketCloseHedgeMode("ETHUSDT", true, qty / 3);
+        expectedNewAtm = prevAmt - (qty / 2);
+        double trimQty = Utils.trimDec(qty / 2, BigDecimal.valueOf(exchInfo.getSymbolQtyStepSize("ETHUSDT")));
+        bpapi.marketCloseHedgeMode("ETHUSDT", true, trimQty);
         // check
         accInfo = bpapi.getAccountInfo();
         newAmt = accInfo.getLongPositions().get("ETHUSDT").quantity;

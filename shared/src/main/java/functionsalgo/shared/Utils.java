@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -207,5 +208,10 @@ public class Utils {
             }
             throw new IllegalStateException("file couldn't be deleted: " + file.getAbsolutePath());
         }
+    }
+
+    public static double trimDec(double valToTrim, BigDecimal minStep) {
+        
+        return BigDecimal.valueOf((long)(valToTrim / minStep.doubleValue())).multiply(minStep).doubleValue();
     }
 }

@@ -1,5 +1,6 @@
 package functionsalgo.binanceperpetual.exchange;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 
 import org.apache.logging.log4j.LogManager;
@@ -14,6 +15,7 @@ import functionsalgo.binanceperpetual.exchange.exceptions.OrderExecutionExceptio
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolNotTradingException;
 import functionsalgo.binanceperpetual.exchange.exceptions.SymbolQuantityTooLow;
 import functionsalgo.exceptions.ExchangeException;
+import functionsalgo.shared.Utils;
 
 public class LiveExchange implements Exchange {
 
@@ -90,8 +92,8 @@ public class LiveExchange implements Exchange {
         if (stepSize > symbolQty) {
             throw new SymbolQuantityTooLow(symbol, symbolQty, stepSize);
         }
-        // TODO trim symbolQty decimals to stepSize decimals
-        batchedMarketOpenOrders.add(new BatchedOrder(orderId, symbol, isLong, symbolQty, true));
+        double qty = Utils.trimDec(symbolQty, BigDecimal.valueOf(stepSize));
+        batchedMarketOpenOrders.add(new BatchedOrder(orderId, symbol, isLong, qty, true));
     }
 
     @Override
@@ -110,8 +112,8 @@ public class LiveExchange implements Exchange {
         if (stepSize > qtyToClose) {
             throw new SymbolQuantityTooLow(symbol, qtyToClose, stepSize);
         }
-        // TODO trim symbolQty decimals to stepSize decimals
-        batchedMarketCloseOrders.add(new BatchedOrder(orderId, symbol, isLong, qtyToClose, true));
+        double qty = Utils.trimDec(qtyToClose, BigDecimal.valueOf(stepSize));
+        batchedMarketCloseOrders.add(new BatchedOrder(orderId, symbol, isLong, qty, true));
     }
 
     @Override

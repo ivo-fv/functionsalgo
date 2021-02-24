@@ -14,7 +14,7 @@ public class SampleStrategyStatistics extends Statistics {
         Results results = super.calculateStatistics();
 
         double maxBalance = 0;
-        double minBalance = 0;
+        double minBalance = Double.MAX_VALUE;
         double maxDrawdown = 0;
 
         for (double balance : walletBalances.values()) {

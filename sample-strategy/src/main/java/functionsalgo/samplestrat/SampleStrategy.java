@@ -48,7 +48,7 @@ public class SampleStrategy implements Strategy {
     int id = 0;
     double riskPer = 0.05;
     AccountInfo acc;
-    int leverage = 10;
+    int leverage;
 
     static HistoricKlines bpHistoricKlines;
     static HistoricFundingRates bpHistoricFundingRates;
@@ -75,18 +75,11 @@ public class SampleStrategy implements Strategy {
 
     private SampleStrategy(BacktestConfiguration config) throws StandardJavaException {
         live = false;
+        leverage = config.getBPDefaultLeverage();
         HistoricKlines klines = config.getBPKlines();
         HistoricFundingRates frates = config.getBPFundingRates();
         bpExch = new SimExchange(config.getBPInitialBalance(), config.getBPDefaultLeverage(), klines.getInterval(),
                 klines, frates, config.getBPSlippageModel());
-        for (String symbol : symbolsToTrade) {
-            try {
-                bpExch.setLeverage(symbol, leverage);
-            } catch (ExchangeException e) {
-                // will never happen in a backtest
-            }
-        }
-
         Map<Interval, HistoricKlines> klinesPerInterval = new HashMap<>();
         klinesPerInterval.put(klines.getInterval(), klines);
         bpData = new BacktestDataProvider(klinesPerInterval, frates);
@@ -99,7 +92,7 @@ public class SampleStrategy implements Strategy {
     }
 
     @Override
-    public SampleStrategyStatistics execute(long timestamp) {
+    public SampleStrategyStatistics execute(long timestamp) throws ExchangeException {
         // arbitrary interval decided by whatever the strategy is
         this.timestamp = new Timestamp(timestamp, Interval._5m);
 
@@ -108,6 +101,9 @@ public class SampleStrategy implements Strategy {
         } catch (ExchangeException e) {
             logger.error("first getAccountInfo failed", e);
             // the algorithm should handle these kinds of problems
+            if (e.getErrorType() == ExchangeException.ErrorType.INVALID_STATE) {
+                throw e;
+            }
         }
 
         state = storage.getCurrentState();
@@ -189,19 +185,21 @@ public class SampleStrategy implements Strategy {
 
     List<Position> getPositionsToOpen() {
         List<Position> positions = new ArrayList<>();
-        for (String symbol : symbolsToTrade) {
-            try {
-                Timestamp prev12hTime = timestamp.copy().sub(Interval._12h.toMilliseconds());
-                double previous12hPrice = bpData.getKlines(symbol, interval, prev12hTime, prev12hTime)
-                        .get(prev12hTime.getTime()).getOpen();
-                double currPrice = bpData.getKlines(symbol, interval, timestamp, timestamp).get(timestamp.getTime())
-                        .getOpen();
-                if (currPrice / previous12hPrice >= 1.05) {
-                    double qty = acc.getMarginBalance() * riskPer * leverage / currPrice;
-                    positions.add(new Position(id++, symbol, true, qty));
+        if (state.getPositions().size() < symbolsToTrade.size()) {
+            for (String symbol : symbolsToTrade) {
+                try {
+                    double currPrice = bpData.getKlines(symbol, interval, timestamp, timestamp).get(timestamp.getTime())
+                            .getOpen();
+                    if (currPrice / previous12hPrice(symbol) >= 1.05) {
+                        double qty = (acc.getMarginBalance() * riskPer * leverage) / currPrice;
+                        positions.add(new Position(id++, symbol, true, qty));
+                    } else if (currPrice / previous12hPrice(symbol) <= 0.975) {
+                        double qty = (acc.getMarginBalance() * (riskPer / 3) * leverage) / currPrice;
+                        positions.add(new Position(id++, symbol, false, qty));
+                    }
+                } catch (ExchangeException e) {
+                    logger.error("couldn't get data of {} at {}", symbol, timestamp.getTime());
                 }
-            } catch (ExchangeException e) {
-                logger.error("couldn't get kline data of {} at {}", symbol, timestamp.getTime());
             }
         }
         return positions;
@@ -209,7 +207,25 @@ public class SampleStrategy implements Strategy {
 
     List<Position> getPositionsToClose() {
         // TODO for each symbol if avgprice lower than x% Xhours before
-        // TODO Auto-generated method stub
-        return null;
+        List<Position> positions = new ArrayList<>();
+
+        for (Position pos : state.getPositions().values()) {
+            try {
+                double avgPrice = acc.getAverageOpenPrice(pos.symbol, pos.isLong);
+                if (pos.isLong && avgPrice / previous12hPrice(pos.symbol) <= 0.85) {
+                    positions.add(pos);
+                } else if (avgPrice / previous12hPrice(pos.symbol) >= 1.025) {
+                    positions.add(pos);
+                }
+            } catch (ExchangeException e) {
+                logger.error("couldn't get data of {} at {}", pos.symbol, timestamp.getTime());
+            }
+        }
+        return positions;
+    }
+
+    private double previous12hPrice(String symbol) throws ExchangeException {
+        Timestamp prev12hTime = timestamp.copy().sub(Interval._12h.toMilliseconds());
+        return bpData.getKlines(symbol, interval, prev12hTime, prev12hTime).get(prev12hTime.getTime()).getOpen();
     }
 }

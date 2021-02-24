@@ -18,4 +18,8 @@ public class State {
         return positions.get(id);
     }
 
+    public Map<Integer, Position> getPositions() {
+        return positions;
+    }
+
 }

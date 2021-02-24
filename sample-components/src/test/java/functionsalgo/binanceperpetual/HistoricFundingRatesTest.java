@@ -22,16 +22,16 @@ public class HistoricFundingRatesTest {
         ArrayList<String> symbols = new ArrayList<>();
         symbols.add("BTCUSDT");
         symbols.add("ETHUSDT");
-
-        HistoricFundingRates fundingRates = HistoricFundingRates.pullFundingRates(symbols, 1611646639946L,
-                1612470647356L);
-
+        Timestamp start = new Timestamp(1611646639946L, Interval._8h);
+        Timestamp end = new Timestamp(1612470647356L, Interval._8h);
+        HistoricFundingRates fundingRates = HistoricFundingRates.pullFundingRates(symbols, start, end);
+        Interval interval = fundingRates.getFundingInterval();
         assertTrue("invalid fundingRates object file - getFundingIntervalMillis",
-                fundingRates.getFundingInterval().toMilliseconds() == Interval._8h.toMilliseconds());
+                fundingRates.getFundingInterval().toMilliseconds() == interval.toMilliseconds());
         assertTrue("invalid fundingRates object file - getFundingRates",
-                fundingRates.getFundingRates("ETHUSDT", new Timestamp(1611846639946L, Interval._8h),
-                        new Timestamp(1611946644625L, Interval._8h)).get(0).getFundingRate() > -10);
-        assertTrue("invalid fundingRates object file - getFundingRates", fundingRates
-                .getFundingRate("ETHUSDT", new Timestamp(1611846639946L, Interval._8h)).getFundingRate() > -10);
+                fundingRates.getFundingRates("ETHUSDT", new Timestamp(1611846639946L, interval),
+                        new Timestamp(1611946644625L, interval)).get(0).getFundingRate() > -10);
+        assertTrue("invalid fundingRates object file - getFundingRates",
+                fundingRates.getFundingRate("ETHUSDT", new Timestamp(1611846639946L, interval)).getFundingRate() > -10);
     }
 }

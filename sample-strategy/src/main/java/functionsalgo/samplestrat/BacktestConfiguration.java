@@ -11,12 +11,12 @@ import functionsalgo.binanceperpetual.HistoricFundingRates;
 import functionsalgo.binanceperpetual.HistoricKlines;
 import functionsalgo.binanceperpetual.SlippageModel;
 import functionsalgo.datapoints.Interval;
+import functionsalgo.datapoints.Timestamp;
 import functionsalgo.exceptions.StandardJavaException;
 import functionsalgo.shared.Strategy;
 import functionsalgo.shared.Utils;
 
 public class BacktestConfiguration implements functionsalgo.shared.BacktestConfiguration {
-    // TODO default config.properties as a resource
 
     private double bpInitialBalance = -1;
     private short bpDefaultLeverage = -1;
@@ -24,9 +24,12 @@ public class BacktestConfiguration implements functionsalgo.shared.BacktestConfi
     private HistoricKlines bpKlines;
     private HistoricFundingRates bpFundingRates;
     private SlippageModel bpSlippageModel;
+    private String bpKlinesLocation;
+    private String bpFundingRatesLocation;
+    private String bpSlippageModelLocation;
     private Interval bpInterval;
-    private long bpStartTime = -1;
-    private long bpEndTime = -1;
+    private Timestamp bpStartTime;
+    private Timestamp bpEndTime;
 
     public BacktestConfiguration withBPInitialBalance(double bpInitialBalance) {
         this.bpInitialBalance = bpInitialBalance;
@@ -80,26 +83,26 @@ public class BacktestConfiguration implements functionsalgo.shared.BacktestConfi
         return bpInterval;
     }
 
-    public BacktestConfiguration withBPStartTime(long bpStartTime) {
+    public BacktestConfiguration withBPStartTime(Timestamp bpStartTime) {
         this.bpStartTime = bpStartTime;
         return this;
     }
 
-    public long getBPStartTime() {
-        if (bpStartTime == -1) {
+    public Timestamp getBPStartTime() {
+        if (bpStartTime == null) {
             throw new IllegalStateException(
                     "binance perpetual start time missing, you can configure it using the withBpInitialBalance method, or load from a config file");
         }
         return bpStartTime;
     }
 
-    public BacktestConfiguration withBPEndTime(long bpEndTime) {
+    public BacktestConfiguration withBPEndTime(Timestamp bpEndTime) {
         this.bpEndTime = bpEndTime;
         return this;
     }
 
-    public long getBPEndTime() {
-        if (bpEndTime == -1) {
+    public Timestamp getBPEndTime() {
+        if (bpEndTime == null) {
             throw new IllegalStateException(
                     "binance perpetual end time missing, you can configure it using the withBpInitialBalance method, or load from a config file");
         }
@@ -111,6 +114,11 @@ public class BacktestConfiguration implements functionsalgo.shared.BacktestConfi
         return this;
     }
 
+    public BacktestConfiguration withBPKlinesLocation(String bpKlinesLocation) {
+        this.bpKlinesLocation = bpKlinesLocation;
+        return this;
+    }
+
     public HistoricKlines getBPKlines() throws StandardJavaException {
         if (bpKlines == null) {
             throw new IllegalStateException(
@@ -119,8 +127,17 @@ public class BacktestConfiguration implements functionsalgo.shared.BacktestConfi
         return bpKlines;
     }
 
+    public String getBPKlinesLocation() {
+        return bpKlinesLocation;
+    }
+
     public BacktestConfiguration withBPFundingRates(HistoricFundingRates bpFundingRates) {
         this.bpFundingRates = bpFundingRates;
+        return this;
+    }
+
+    public BacktestConfiguration withBPFundingRatesLocation(String bpFundingRatesLocation) {
+        this.bpFundingRatesLocation = bpFundingRatesLocation;
         return this;
     }
 
@@ -132,8 +149,17 @@ public class BacktestConfiguration implements functionsalgo.shared.BacktestConfi
         return bpFundingRates;
     }
 
+    public String getBPFundingRatesLocation() {
+        return bpFundingRatesLocation;
+    }
+
     public BacktestConfiguration withBPSlippageModel(SlippageModel bpSlippageModel) {
         this.bpSlippageModel = bpSlippageModel;
+        return this;
+    }
+
+    public BacktestConfiguration withBPSlippageModelLocation(String bpSlippageModelLocation) {
+        this.bpSlippageModelLocation = bpSlippageModelLocation;
         return this;
     }
 
@@ -143,6 +169,10 @@ public class BacktestConfiguration implements functionsalgo.shared.BacktestConfi
                     "binance perpetual slippage model missing, you can configure it using the withBPSlippageModel method, or load from a config file");
         }
         return bpSlippageModel;
+    }
+
+    public String getBPSlippageModelLocation() {
+        return bpSlippageModelLocation;
     }
 
     @Override
@@ -170,14 +200,14 @@ public class BacktestConfiguration implements functionsalgo.shared.BacktestConfi
         if (bpInterval == null) {
             bpInterval = Interval.parseString(config.getProperty("BPInterval"));
         }
-        if (bpStartTime == -1) {
-            bpStartTime = Long.valueOf(config.getProperty("BPStartTime"));
+        if (bpStartTime == null) {
+            bpStartTime = new Timestamp(Long.valueOf(config.getProperty("BPStartTime")), bpInterval);
         }
-        if (bpEndTime == -1) {
-            bpEndTime = Long.valueOf(config.getProperty("BPEndTime"));
+        if (bpEndTime == null) {
+            bpEndTime = new Timestamp(Long.valueOf(config.getProperty("BPEndTime")), bpInterval);
         }
         if (bpKlines == null) {
-            String klinesPath = config.getProperty("BPKlines");
+            String klinesPath = bpKlinesLocation == null ? config.getProperty("BPKlines") : bpKlinesLocation;
             if (forceGen) {
                 bpKlines = HistoricKlines.pullKlines(new File(klinesPath), bpSymbols, bpInterval, bpStartTime,
                         bpEndTime);
@@ -188,12 +218,15 @@ public class BacktestConfiguration implements functionsalgo.shared.BacktestConfi
                     if (gen) {
                         bpKlines = HistoricKlines.pullKlines(new File(klinesPath), bpSymbols, bpInterval, bpStartTime,
                                 bpEndTime);
+                    } else {
+                        throw new StandardJavaException(new IOException("no klines file to use"));
                     }
                 }
             }
         }
         if (bpFundingRates == null) {
-            String bpFundingRatesPath = config.getProperty("BPFundingRates");
+            String bpFundingRatesPath = bpFundingRatesLocation == null ? config.getProperty("BPFundingRates")
+                    : bpFundingRatesLocation;
             if (forceGen) {
                 bpFundingRates = HistoricFundingRates.pullFundingRates(new File(bpFundingRatesPath), bpSymbols,
                         bpStartTime, bpEndTime);
@@ -204,12 +237,15 @@ public class BacktestConfiguration implements functionsalgo.shared.BacktestConfi
                     if (gen) {
                         bpFundingRates = HistoricFundingRates.pullFundingRates(new File(bpFundingRatesPath), bpSymbols,
                                 bpStartTime, bpEndTime);
+                    } else {
+                        throw new StandardJavaException(new IOException("no funding rates file to use"));
                     }
                 }
             }
         }
         if (bpSlippageModel == null) {
-            String bpSlippageModelPath = config.getProperty("BPSlippageModel");
+            String bpSlippageModelPath = bpSlippageModelLocation == null ? config.getProperty("BPSlippageModel")
+                    : bpSlippageModelLocation;
             if (forceGen) {
                 bpSlippageModel = SlippageModel.pullSlippageModel(bpSymbols, new File(bpSlippageModelPath));
             } else {
@@ -218,6 +254,8 @@ public class BacktestConfiguration implements functionsalgo.shared.BacktestConfi
                 } catch (StandardJavaException e) { // didn't exist so generate it
                     if (gen) {
                         bpSlippageModel = SlippageModel.pullSlippageModel(bpSymbols, new File(bpSlippageModelPath));
+                    } else {
+                        throw new StandardJavaException(new IOException("no slippage model file to use"));
                     }
                 }
             }
@@ -230,12 +268,13 @@ public class BacktestConfiguration implements functionsalgo.shared.BacktestConfi
     }
 
     @Override
-    public long getBacktestStartTime() {
-        return bpStartTime;
+    public Timestamp getBacktestStartTime() {
+        // the example sample strat algo requires 12h of previous data so start later
+        return bpStartTime.copy().add(Interval._12h.toMilliseconds());
     }
 
     @Override
-    public long getBacktestEndTime() {
+    public Timestamp getBacktestEndTime() {
         return bpEndTime;
     }
 

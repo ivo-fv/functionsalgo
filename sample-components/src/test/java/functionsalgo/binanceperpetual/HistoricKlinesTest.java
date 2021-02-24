@@ -22,13 +22,15 @@ public class HistoricKlinesTest {
         symbols.add("BTCUSDT");
         symbols.add("ETHUSDT");
 
-        HistoricKlines klines = HistoricKlines.pullKlines(symbols, Interval._5m, 1612370647356L, 1612470647356L);
-
+        Timestamp start = new Timestamp(1612370647356L, Interval._5m);
+        Timestamp end = new Timestamp(1612470647356L, Interval._5m);
+        HistoricKlines klines = HistoricKlines.pullKlines(symbols, Interval._5m, start, end);
+        Interval interval = klines.getInterval();
         assertTrue("invalid klines object file - getInterval", klines.getInterval() == Interval._5m);
-        assertTrue("invalid klines object file - getKlines",
-                klines.getKlines("ETHUSDT", new Timestamp(1612390647356L, Interval._5m),
-                        new Timestamp(1612395648222L, Interval._5m)).get(0).getOpen() >= 1000);
+        assertTrue("invalid klines object file - getKlines", klines
+                .getKlines("ETHUSDT", new Timestamp(1612390647356L, interval), new Timestamp(1612395648222L, interval))
+                .get(0).getOpen() >= 1000);
         assertTrue("invalid klines object file - getKline",
-                klines.getKline("ETHUSDT", new Timestamp(1612390647356L, Interval._5m)).getOpen() >= 1000);
+                klines.getKline("ETHUSDT", new Timestamp(1612390647356L, interval)).getOpen() >= 1000);
     }
 }

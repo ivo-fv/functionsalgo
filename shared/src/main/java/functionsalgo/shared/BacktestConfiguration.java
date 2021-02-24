@@ -1,6 +1,7 @@
 package functionsalgo.shared;
 
 import functionsalgo.datapoints.Interval;
+import functionsalgo.datapoints.Timestamp;
 import functionsalgo.exceptions.StandardJavaException;
 
 public interface BacktestConfiguration {
@@ -9,9 +10,9 @@ public interface BacktestConfiguration {
 
     Strategy getStrategy() throws StandardJavaException;
 
-    long getBacktestStartTime();
+    Timestamp getBacktestStartTime();
 
-    long getBacktestEndTime();
+    Timestamp getBacktestEndTime();
 
     Interval getBacktestInterval();
 }

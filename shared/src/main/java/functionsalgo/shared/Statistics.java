@@ -1,6 +1,7 @@
 package functionsalgo.shared;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,7 +10,7 @@ public class Statistics {
 
     public class Results {
         public String textStats;
-        public List<File> fileStats;
+        public List<File> fileStats = new ArrayList<>();
     }
 
     protected Map<Long, Double> balances = new HashMap<>();
@@ -18,7 +19,7 @@ public class Statistics {
     public Results calculateStatistics() {
 
         double maxBalance = 0;
-        double minBalance = 0;
+        double minBalance = Double.MAX_VALUE;
         double maxDrawdown = 0;
 
         for (double balance : balances.values()) {

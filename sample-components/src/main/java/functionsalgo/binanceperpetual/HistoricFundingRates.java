@@ -41,14 +41,14 @@ public class HistoricFundingRates implements Serializable {
     private long fundingIntervalMillis = Interval._8h.toMilliseconds();
     private HashMap<String, HashMap<Long, FundingRate>> rates;
 
-    public static HistoricFundingRates pullFundingRates(List<String> symbols, long startTime, long endTime)
+    public static HistoricFundingRates pullFundingRates(List<String> symbols, Timestamp startTime, Timestamp endTime)
             throws StandardJavaException {
 
         return pullFundingRates(null, symbols, startTime, endTime);
     }
 
     public static HistoricFundingRates pullFundingRates(File fileToSaveFundingRatesTo, List<String> symbols,
-            long startTime, long endTime) throws StandardJavaException {
+            Timestamp startTime, Timestamp endTime) throws StandardJavaException {
 
         File fratesDirJSON = new File(JSON_DATA_FOLDER);
         if (!fratesDirJSON.exists()) {
@@ -73,13 +73,13 @@ public class HistoricFundingRates implements Serializable {
         return loadFundingRates(fratesFile);
     }
 
-    public static void downloadFundingRates(ArrayList<File> symbolsJSONFiles, List<String> symbols, long startTime,
-            long endTime) throws StandardJavaException {
+    public static void downloadFundingRates(ArrayList<File> symbolsJSONFiles, List<String> symbols, Timestamp startTime,
+            Timestamp endTime) throws StandardJavaException {
 
         WrapperREST restAPI;
         try {
             restAPI = new WrapperREST("don't need a valid key", "for this use case");
-            restAPI.saveFundingRates(symbolsJSONFiles, symbols, startTime, endTime);
+            restAPI.saveFundingRates(symbolsJSONFiles, symbols, startTime.getTime(), endTime.getTime());
         } catch (InvalidKeyException | NoSuchAlgorithmException | IOException e) {
             throw new StandardJavaException(e);
         }

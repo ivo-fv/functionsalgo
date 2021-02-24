@@ -1,5 +1,6 @@
 package functionsalgo.shared;
 
+import functionsalgo.exceptions.ExchangeException;
 import functionsalgo.exceptions.StandardJavaException;
 
 public class Backtester {
@@ -25,20 +26,23 @@ public class Backtester {
      * @throws StandardJavaException
      */
     public Backtester(BacktestConfiguration config, String[] args) throws StandardJavaException {
+        if (args == null || args.length == 0 || args[0].equals("")) {
+            throw new IllegalArgumentException("mandatory CLI arguments: configfile [-gen][-genforce]");
+        }
         this.config = config;
         String configFile = args[0];
-        boolean gen = args[1].equals("-gen") || args[1].equals("-genforce") ? true : false;
-        boolean force = args[1].equals("-genforce") ? true : false;
+        boolean gen = args.length > 1 && (args[1].equals("-gen") || args[1].equals("-genforce")) ? true : false;
+        boolean force = args.length > 1 && (args[1].equals("-genforce")) ? true : false;
 
         config.loadConfiguration(configFile, gen, force);
     }
 
-    public Statistics.Results run() throws StandardJavaException {
+    public Statistics.Results run() throws StandardJavaException, ExchangeException {
         algo = config.getStrategy();
         Statistics stats = null;
 
-        for (long t = config.getBacktestStartTime(); t <= config.getBacktestEndTime(); t += config.getBacktestInterval()
-                .toMilliseconds()) {
+        for (long t = config.getBacktestStartTime().getTime(); t <= config.getBacktestEndTime().getTime(); t += config
+                .getBacktestInterval().toMilliseconds()) {
             stats = algo.execute(t);
         }
         return stats.calculateStatistics();
