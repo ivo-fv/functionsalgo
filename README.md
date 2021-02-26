@@ -18,7 +18,7 @@ An example of the intended usage is provided in the sample-strategy module. This
 ## Backtesting
 Backtesting can be done either programmatically or through the command line (for more info. see the Backtester javadoc). The statistics shown at the end of a backtest can include the defaults or/and ones custom made specifically for the trading algorithm. In a live environment these statistics could be stored in a database and be used to monitor the strategy's live perfomance.
 
-[sample-strategy backtest example](../main/sample_strat_backtest_example.webm) <sup><sub>(in this example, sample.jar is the uber jar of the sample-strategy module and it shows very basic statistics relating to 'balance' and 'wallet balance' are shown. The former is a general default for all strategies, the latter a custom made one specific to sample-strategy)</sub></sup>
+[sample-strategy backtest example](sample_strat_backtest_example.webm?raw=true) <sup><sub>(in this example, sample.jar is the uber jar of the sample-strategy module and it shows very basic statistics relating to 'balance' and 'wallet balance' are shown. The former is a general default for all strategies, the latter a custom made one specific to sample-strategy)</sub></sup>
 
 ## Todo list
 - javadoc 
